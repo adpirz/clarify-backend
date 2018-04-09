@@ -87,6 +87,8 @@ DATABASES = {
     'default': env.db('DATABASE_URL', default="postgres:///clarify")
 }
 
+# in case we customizer user model; makes for easy Staff model import
+AUTH_USER_MODEL = 'django.contrib.auth.User'
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
