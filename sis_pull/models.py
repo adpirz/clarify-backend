@@ -1,5 +1,8 @@
 from django.db import models
-from clarify_backend.settings.base import AUTH_USER_MODEL
+try:
+    from clarify_backend.settings.base import AUTH_USER_MODEL
+except ImportError:
+    from django.contrib.auth.models import User as AUTH_USER_MODEL
 
 
 class SourceObjectMixin:
@@ -41,8 +44,8 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
     """
     Source: public.attendance_flags
     """
-    flag_text = models.CharField(max=255)
-    character_code = models.CharField(max=30)
+    flag_text = models.CharField(max_length=255)
+    character_code = models.CharField(max_length=30)
 
 
 class AttendanceDailyRecord(SourceObjectMixin, models.Model):
@@ -55,7 +58,7 @@ class AttendanceDailyRecord(SourceObjectMixin, models.Model):
 
     class Meta:
 
-        unique_together = ('school_day', 'student')
+        unique_together = ('date', 'student')
 
     def __str__(self):
         return f"{self.school_day}: {self.student} - {self.code}"
@@ -141,7 +144,7 @@ class Gradebook(SourceObjectMixin, models.Model):
     is_deleted = models.BooleanField(default=False)
 
 
-class CategoryType(SourceObjectMixin, models):
+class CategoryType(SourceObjectMixin, models.Model):
     """
     Source gradebook.category_types
     """
