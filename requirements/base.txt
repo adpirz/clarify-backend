@@ -7,3 +7,4 @@ pytz==2018.3
 psycopg2-binary==2.7.4
 
 django-environ==0.4.4
+mimesis==2.0.1
