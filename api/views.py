@@ -1,5 +1,9 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login
+from django.views.decorators.csrf import csrf_exempt
+
 from mimesis import Person
 
 # Create your views here.
@@ -80,3 +84,24 @@ def SchoolView(request):
             },
         ]
     })
+
+@csrf_exempt
+def SessionView(request):
+    if request.method != 'POST':
+        return JsonResponse({
+            'error': 'Method not allowed.'
+        })
+    requestUsername = request.POST.get('username')
+    requestPassword = request.POST.get('password')
+    user = authenticate(username=requestUsername, password=requestPassword)
+    if user:
+        login(request, user)
+        return JsonResponse(
+            {'data': 'Success'},
+            status=201
+        )
+    else:
+        return JsonResponse(
+            {'error': 'Username and password were incorrect'},
+            status=400
+        )

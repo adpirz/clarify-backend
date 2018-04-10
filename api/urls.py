@@ -5,12 +5,14 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 """
 from django.conf.urls import include, url
 from django.contrib import admin
-from .views import TestView, StudentView, SectionView, GradeLevelView, SchoolView
+from .views import (TestView, StudentView, SectionView, GradeLevelView,
+SchoolView, SessionView)
 
 urlpatterns = [
     url(r'^test', TestView, name='test'),
-    url(r'^student/', StudentView, name='test'),
-    url(r'^section/', SectionView, name='test'),
-    url(r'^grade-level/', GradeLevelView, name='test'),
-    url(r'^school/', SchoolView, name='test'),
+    url(r'^student/', StudentView),
+    url(r'^section/', SectionView),
+    url(r'^grade-level/', GradeLevelView),
+    url(r'^school/', SchoolView),
+    url(r'^login/', SessionView),
 ]
