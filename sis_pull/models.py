@@ -15,9 +15,6 @@ class Ethnicity(SourceObjectMixin, models.Model):
     code_key = models.CharField(max_length=10)
     code_translation = models.CharField(max_length=255)
 
-    class Meta:
-        source_object_table = 'dog'
-
 
 class Student(SourceObjectMixin, models.Model):
     first_name = models.CharField(max_length=100, blank=False)
@@ -34,7 +31,6 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
 
 
 class AttendanceDailyRecord(SourceObjectMixin, models.Model):
-
     date = models.DateField()
     student = models.ForeignKey(Student)
     attendance_flag = models.ForeignKey(AttendanceFlag)
