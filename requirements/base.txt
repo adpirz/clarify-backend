@@ -1,0 +1,9 @@
+Django==1.11.12
+django-cors-headers==2.2.0
+pytz==2018.3
+
+
+# postgres
+psycopg2-binary==2.7.4
+
+django-environ==0.4.4
