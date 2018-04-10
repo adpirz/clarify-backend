@@ -33,15 +33,24 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-INSTALLED_APPS = [
+DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',
 ]
+
+THIRD_PARTY_APPS = [
+    'corsheaders'
+]
+
+CLARIFY_APPS = [
+    'sis_pull.apps.SisPullConfig'
+]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + CLARIFY_APPS
 
 MIDDLEWARE_CLASSES = [
     'corsheaders.middleware.CorsMiddleware',
@@ -86,7 +95,6 @@ WSGI_APPLICATION = 'clarify_backend.wsgi.application'
 DATABASES = {
     'default': env.db('DATABASE_URL', default="postgres:///clarify")
 }
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
