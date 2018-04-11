@@ -38,26 +38,36 @@ class Site(SourceObjectMixin, models.Model):
     zip = models.CharField(max_length=10)
 
 
-class Ethnicity(SourceObjectMixin, models.Model):
-    """
-    Source: codes.ethnicity
-        code_* prefix just indicating this is coming from
-        the 'codes' schema.  id, key, and translation are
-        just standard id, shortcode, and long description
-        fields
-    """
-    code_id = models.IntegerField()
-    code_key = models.CharField(max_length=10)
-    code_translation = models.CharField(max_length=255)
-
-
 class Student(SourceObjectMixin, models.Model):
     """
     Source: public.students
     """
+
+    ETHNICITY_CHOICES = (
+        (146, 'Refused to Identify'),
+        (141, 'Filipino'),
+        (144, 'White'),
+        (134, 'Other Asian'),
+        (133, 'Cambodian'),
+        (132, 'Laotian'),
+        (131, 'Asian Indian'),
+        (130, 'Vietnamese'),
+        (129, 'Korean'),
+        (128, 'Japanese'),
+        (127, 'Chinese'),
+        (145, 'Hmong'),
+        (125, 'American Indian Or Alaska Native'),
+        (140, 'Other Pacific Islander'),
+        (139, 'Tahitian'),
+        (138, 'Samoan'),
+        (137, 'Guamanian'),
+        (136, 'Hawaiian'),
+        (143, 'Black or African American'),
+    )
+
     first_name = models.CharField(max_length=100, blank=False)
     last_name = models.CharField(max_length=100, blank=False)
-    ethnicity = models.ForeignKey(Ethnicity)
+    ethnicity = models.IntegerField(choices=ETHNICITY_CHOICES)
 
     def __str__(self):
         return "{}: {}, {}".format(self.pk, self.last_name, self.first_name)
