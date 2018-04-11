@@ -1,12 +1,28 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+class AttributeNotImplemented()
 
 class SourceObjectMixin:
     """
     Mixin to add source_object_id to a model
     """
     source_object_id = models.PositiveIntegerField()
+
+    def get_source_object_table(self):
+
+
+    def get_source_object_column(self):
+        try:
+            return self.source_object_id_column
+        except AttributeError:
+            raise NotImplementedError(
+                f'Class {self.__class__} does not have source_object_id_column.'
+            )
+
+    def get_source_schema(self):
+        try:
+            return
 
 
 class GradeLevel(SourceObjectMixin, models.Model):
