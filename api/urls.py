@@ -14,5 +14,5 @@ urlpatterns = [
     url(r'^section/', SectionView),
     url(r'^grade-level/', GradeLevelView),
     url(r'^school/', SchoolView),
-    url(r'^login/', SessionView),
+    url(r'^session/', SessionView),
 ]
