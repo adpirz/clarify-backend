@@ -1,8 +1,5 @@
 from django.db import models
-try:
-    from clarify_backend.settings.base import AUTH_USER_MODEL
-except ImportError:
-    from django.contrib.auth.models import User as AUTH_USER_MODEL
+from django.contrib.auth.models import User
 
 
 class SourceObjectMixin:
@@ -15,13 +12,39 @@ class SourceObjectMixin:
 class Site(SourceObjectMixin, models.Model):
     """
     Source: public.sites
+    Source for site types: public.site_types
     """
-    pass
+
+    SITE_TYPE_CHOICES = (
+        (1, 'Middle and K-8 Schools'),
+        (2, 'High Schools'),
+        (3, 'Continuation schools'),
+        (4, 'Pre-schools'),
+        (5, 'Adult Education Facilities'),
+        (6, 'Special Education Facilities'),
+        (7, 'Other Schools and Facilities'),
+        (9, 'Elementary Schools'),
+        (10, 'Closed')
+    )
+    site_name = models.CharField(max_length=255)
+    start_grade_level = models.ForeignKey(GradeLevel)
+    end_grade_level = models.ForeignKey(GradeLevel)
+    site_type = models.IntegerField(choices=SITE_TYPE_CHOICES)
+    address = models.CharField(max_length=255)
+    phone1 = models.CharField(max_length=100)
+    phone2 = models.CharField(max_length=100)
+    city = models.CharField(max_length=255)
+    state = models.CharField(max_length=100)
+    zip = models.CharField(max_length=10)
 
 
 class Ethnicity(SourceObjectMixin, models.Model):
     """
-    Source: public.ethnicity
+    Source: codes.ethnicity
+        code_* prefix just indicating this is coming from
+        the 'codes' schema.  id, key, and translation are
+        just standard id, shortcode, and long description
+        fields
     """
     code_id = models.IntegerField()
     code_key = models.CharField(max_length=10)
@@ -40,21 +63,34 @@ class Student(SourceObjectMixin, models.Model):
         return "{}: {}, {}".format(self.pk, self.last_name, self.first_name)
 
 
-class AttendanceFlag(SourceObjectMixin, models.Model):
-    """
-    Source: public.attendance_flags
-    """
-    flag_text = models.CharField(max_length=255)
-    character_code = models.CharField(max_length=30)
-
-
 class AttendanceDailyRecord(SourceObjectMixin, models.Model):
     """
     Source: attendance.daily_records
+    Source for attendance flags: public.attendance_flags
     """
+    ATTENDANCE_FLAG_CHOICES = (
+        ('X', 'Not Enrolled'),
+        ('N', 'School Closed'),
+        ('+', 'Present'),
+        ('L', 'Excused tardy'),
+        ('M', 'Unexcused Tardy'),
+        ('R', 'Early Release'),
+        ('E', 'Excused'),
+        ('T', 'Tardy'),
+        ('U', 'Unexcused'),
+        ('Y', 'T30'),
+        ('I', 'Independent Study Complete'),
+        ('-', 'Independent Study Pending'),
+        ('_', 'Independent Study NOT-Complete'),
+        ('A', 'Absent'),
+        ('D', 'Delete'),
+    )
+
     date = models.DateField()
+    site = models.ForeignKey(Site)
     student = models.ForeignKey(Student)
-    attendance_flag = models.ForeignKey(AttendanceFlag)
+    attendance_flag = models.CharField(max_length=1,
+                                       choices=ATTENDANCE_FLAG_CHOICES)
 
     class Meta:
 
@@ -75,7 +111,7 @@ class Staff(SourceObjectMixin, models.Model):
         ('MRS', 'Mrs.')
     )
 
-    user = models.OneToOneField(AUTH_USER_MODEL)
+    user = models.OneToOneField(User)
     prefix = models.CharField(choices=PREFIX_CHOICES, max_length=3, default='MS')
 
     def __str__(self):
@@ -98,7 +134,6 @@ class Course(SourceObjectMixin, models.Model):
     school_course_id = models.CharField(max_length=20)
     site_id = models.ForeignKey(Site)
     is_active = models.BooleanField(default=True)
-    pass
 
 
 class GradeLevel(SourceObjectMixin, models.Model):
@@ -109,14 +144,13 @@ class GradeLevel(SourceObjectMixin, models.Model):
     short_name = models.CharField(max_length=255)
     long_name = models.CharField(max_length=255)
     state_id = models.CharField(max_length=455)
-    pass
 
 
 class Section(SourceObjectMixin, models.Model):
     """
     Source: public.sections
     """
-    pass
+    section_name = models.CharField(max_length=255)
 
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
@@ -163,7 +197,7 @@ class Category(SourceObjectMixin, models.Model):
     category_type = models.ForeignKey(CategoryType)
 
 
-class GradebookSectionCourseAff(SourceObjectMixin, models.Model):
+class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     """
     Source: gradebook.gradebook_section_course_aff
     """
