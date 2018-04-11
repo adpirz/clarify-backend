@@ -9,6 +9,16 @@ class SourceObjectMixin:
     source_object_id = models.PositiveIntegerField()
 
 
+class GradeLevel(SourceObjectMixin, models.Model):
+    """
+    Source: public.grade_levels
+    """
+    sort_order = models.IntegerField()
+    short_name = models.CharField(max_length=255)
+    long_name = models.CharField(max_length=255)
+    state_id = models.CharField(max_length=455)
+
+
 class Site(SourceObjectMixin, models.Model):
     """
     Source: public.sites
@@ -144,16 +154,6 @@ class Course(SourceObjectMixin, models.Model):
     school_course_id = models.CharField(max_length=20)
     site_id = models.ForeignKey(Site)
     is_active = models.BooleanField(default=True)
-
-
-class GradeLevel(SourceObjectMixin, models.Model):
-    """
-    Source: public.grade_levels
-    """
-    sort_order = models.IntegerField()
-    short_name = models.CharField(max_length=255)
-    long_name = models.CharField(max_length=255)
-    state_id = models.CharField(max_length=455)
 
 
 class Section(SourceObjectMixin, models.Model):
