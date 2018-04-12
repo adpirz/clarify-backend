@@ -34,6 +34,7 @@ class GradeLevel(SourceObjectMixin, models.Model):
     Source: public.grade_levels
     """
     source_object_table = 'grade_levels'
+
     sort_order = models.IntegerField()
     short_name = models.CharField(max_length=255)
     long_name = models.CharField(max_length=255)
