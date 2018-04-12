@@ -38,8 +38,10 @@ class Site(SourceObjectMixin, models.Model):
     )
 
     site_name = models.CharField(max_length=255)
-    start_grade_level = models.ForeignKey(GradeLevel)
-    end_grade_level = models.ForeignKey(GradeLevel)
+    start_grade_level = models.ForeignKey(GradeLevel,
+                                          related_name='start_grade_level')
+    end_grade_level = models.ForeignKey(GradeLevel,
+                                        related_name='end_grade_level')
     site_type = models.IntegerField(choices=SITE_TYPE_CHOICES)
     address = models.CharField(max_length=255)
     phone1 = models.CharField(max_length=100)
