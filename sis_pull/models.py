@@ -36,6 +36,7 @@ class Site(SourceObjectMixin, models.Model):
         (9, 'Elementary Schools'),
         (10, 'Closed')
     )
+
     site_name = models.CharField(max_length=255)
     start_grade_level = models.ForeignKey(GradeLevel)
     end_grade_level = models.ForeignKey(GradeLevel)
