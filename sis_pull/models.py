@@ -1,8 +1,5 @@
 from django.db import models
-try:
-    from clarify_backend.settings.base import AUTH_USER_MODEL
-except ImportError:
-    from django.contrib.auth.models import User as AUTH_USER_MODEL
+from django.contrib.auth.models import User
 
 
 class SourceObjectMixin:
@@ -12,49 +9,111 @@ class SourceObjectMixin:
     source_object_id = models.PositiveIntegerField()
 
 
+class GradeLevel(SourceObjectMixin, models.Model):
+    """
+    Source: public.grade_levels
+    """
+    sort_order = models.IntegerField()
+    short_name = models.CharField(max_length=255)
+    long_name = models.CharField(max_length=255)
+    state_id = models.CharField(max_length=455)
+
+
 class Site(SourceObjectMixin, models.Model):
     """
     Source: public.sites
+    Source for site types: public.site_types
     """
-    pass
 
+    SITE_TYPE_CHOICES = (
+        (1, 'Middle and K-8 Schools'),
+        (2, 'High Schools'),
+        (3, 'Continuation schools'),
+        (4, 'Pre-schools'),
+        (5, 'Adult Education Facilities'),
+        (6, 'Special Education Facilities'),
+        (7, 'Other Schools and Facilities'),
+        (9, 'Elementary Schools'),
+        (10, 'Closed')
+    )
 
-class Ethnicity(SourceObjectMixin, models.Model):
-    """
-    Source: public.ethnicity
-    """
-    code_id = models.IntegerField()
-    code_key = models.CharField(max_length=10)
-    code_translation = models.CharField(max_length=255)
+    site_name = models.CharField(max_length=255)
+    start_grade_level = models.ForeignKey(GradeLevel,
+                                          related_name='start_grade_level')
+    end_grade_level = models.ForeignKey(GradeLevel,
+                                        related_name='end_grade_level')
+    site_type = models.IntegerField(choices=SITE_TYPE_CHOICES)
+    address = models.CharField(max_length=255)
+    phone1 = models.CharField(max_length=100)
+    phone2 = models.CharField(max_length=100)
+    city = models.CharField(max_length=255)
+    state = models.CharField(max_length=100)
+    zip = models.CharField(max_length=10)
 
 
 class Student(SourceObjectMixin, models.Model):
     """
     Source: public.students
     """
+
+    ETHNICITY_CHOICES = (
+        (146, 'Refused to Identify'),
+        (141, 'Filipino'),
+        (144, 'White'),
+        (134, 'Other Asian'),
+        (133, 'Cambodian'),
+        (132, 'Laotian'),
+        (131, 'Asian Indian'),
+        (130, 'Vietnamese'),
+        (129, 'Korean'),
+        (128, 'Japanese'),
+        (127, 'Chinese'),
+        (145, 'Hmong'),
+        (125, 'American Indian Or Alaska Native'),
+        (140, 'Other Pacific Islander'),
+        (139, 'Tahitian'),
+        (138, 'Samoan'),
+        (137, 'Guamanian'),
+        (136, 'Hawaiian'),
+        (143, 'Black or African American'),
+    )
+
     first_name = models.CharField(max_length=100, blank=False)
     last_name = models.CharField(max_length=100, blank=False)
-    ethnicity = models.ForeignKey(Ethnicity)
+    ethnicity = models.IntegerField(choices=ETHNICITY_CHOICES)
 
     def __str__(self):
         return "{}: {}, {}".format(self.pk, self.last_name, self.first_name)
 
 
-class AttendanceFlag(SourceObjectMixin, models.Model):
-    """
-    Source: public.attendance_flags
-    """
-    flag_text = models.CharField(max_length=255)
-    character_code = models.CharField(max_length=30)
-
-
 class AttendanceDailyRecord(SourceObjectMixin, models.Model):
     """
     Source: attendance.daily_records
+    Source for attendance flags: public.attendance_flags
     """
+    ATTENDANCE_FLAG_CHOICES = (
+        ('X', 'Not Enrolled'),
+        ('N', 'School Closed'),
+        ('+', 'Present'),
+        ('L', 'Excused tardy'),
+        ('M', 'Unexcused Tardy'),
+        ('R', 'Early Release'),
+        ('E', 'Excused'),
+        ('T', 'Tardy'),
+        ('U', 'Unexcused'),
+        ('Y', 'T30'),
+        ('I', 'Independent Study Complete'),
+        ('-', 'Independent Study Pending'),
+        ('_', 'Independent Study NOT-Complete'),
+        ('A', 'Absent'),
+        ('D', 'Delete'),
+    )
+
     date = models.DateField()
+    site = models.ForeignKey(Site)
     student = models.ForeignKey(Student)
-    attendance_flag = models.ForeignKey(AttendanceFlag)
+    attendance_flag = models.CharField(max_length=1,
+                                       choices=ATTENDANCE_FLAG_CHOICES)
 
     class Meta:
 
@@ -75,7 +134,7 @@ class Staff(SourceObjectMixin, models.Model):
         ('MRS', 'Mrs.')
     )
 
-    user = models.OneToOneField(AUTH_USER_MODEL)
+    user = models.OneToOneField(User)
     prefix = models.CharField(choices=PREFIX_CHOICES, max_length=3, default='MS')
 
     def __str__(self):
@@ -98,25 +157,13 @@ class Course(SourceObjectMixin, models.Model):
     school_course_id = models.CharField(max_length=20)
     site_id = models.ForeignKey(Site)
     is_active = models.BooleanField(default=True)
-    pass
-
-
-class GradeLevel(SourceObjectMixin, models.Model):
-    """
-    Source: public.grade_levels
-    """
-    sort_order = models.IntegerField()
-    short_name = models.CharField(max_length=255)
-    long_name = models.CharField(max_length=255)
-    state_id = models.CharField(max_length=455)
-    pass
 
 
 class Section(SourceObjectMixin, models.Model):
     """
     Source: public.sections
     """
-    pass
+    section_name = models.CharField(max_length=255)
 
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
@@ -163,7 +210,7 @@ class Category(SourceObjectMixin, models.Model):
     category_type = models.ForeignKey(CategoryType)
 
 
-class GradebookSectionCourseAff(SourceObjectMixin, models.Model):
+class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     """
     Source: gradebook.gradebook_section_course_aff
     """
