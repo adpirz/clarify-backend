@@ -8,7 +8,7 @@ class SourceObjectMixin:
     Should implement source_object_table;
     If schema not 'public', should implement source_object_schema
     """
-    source_object_id = models.PositiveIntegerField()
+    source_object_id = models.PositiveIntegerField(unique=True)
 
     @property
     def source_table(self):

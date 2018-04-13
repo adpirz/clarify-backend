@@ -97,6 +97,8 @@ DATABASES = {
     'cache': env.db('CACHE_DATABASE_URL', default="postgres:///clarifycache")
 }
 
+DATABASE_ROUTERS = ['sis_mirror.routers.MirrorRouter']
+
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
 
