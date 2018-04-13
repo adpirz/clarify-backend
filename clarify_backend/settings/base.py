@@ -93,7 +93,8 @@ WSGI_APPLICATION = 'clarify_backend.wsgi.application'
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
 DATABASES = {
-    'default': env.db('DATABASE_URL', default="postgres:///clarify")
+    'default': env.db('DATABASE_URL', default="postgres:///clarify"),
+    'cache': env.db('CACHE_DATABASE_URL', default="postgres:///clarifycache")
 }
 
 # Internationalization
