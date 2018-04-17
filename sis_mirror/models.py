@@ -70,7 +70,7 @@ class Students(models.Model):
     photo_release = models.NullBooleanField()
     military_recruitment = models.NullBooleanField()
     field_exit_date = models.DateField(db_column='_exit_date', blank=True, null=True)  # Field renamed because it started with '_'.
-    bus_num = models.CharField(max_length=-1, blank=True, null=True)
+    bus_num = models.CharField(max_length=100, blank=True, null=True)
     pickup_time = models.TimeField(blank=True, null=True)
     last_school_year = models.IntegerField(blank=True, null=True)
     lunch_id = models.CharField(max_length=30, blank=True, null=True)
@@ -113,7 +113,7 @@ class Students(models.Model):
     cumulative_file_sent_on = models.DateField(blank=True, null=True)
     is_homeless = models.NullBooleanField()
     expected_receiver_school = models.IntegerField(blank=True, null=True)
-    nickname = models.CharField(max_length=-1, blank=True, null=True)
+    nickname = models.CharField(max_length=100, blank=True, null=True)
     field_english_proficiency_date = models.DateField(db_column='_english_proficiency_date', blank=True, null=True)  # Field renamed because it started with '_'.
     cumulative_file_recvd_from = models.CharField(max_length=255, blank=True, null=True)
     cumulative_file_recvd_on = models.DateField(blank=True, null=True)
@@ -137,9 +137,9 @@ class Students(models.Model):
     pre_k_length = models.CharField(max_length=255, blank=True, null=True)
     foster_care_id = models.CharField(max_length=100, blank=True, null=True)
     student_guid = models.UUIDField()
-    reported_first_name = models.CharField(max_length=-1, blank=True, null=True)
-    reported_last_name = models.CharField(max_length=-1, blank=True, null=True)
-    reported_middle_name = models.CharField(max_length=-1, blank=True, null=True)
+    reported_first_name = models.CharField(max_length=100, blank=True, null=True)
+    reported_last_name = models.CharField(max_length=100, blank=True, null=True)
+    reported_middle_name = models.CharField(max_length=100, blank=True, null=True)
     reported_gender = models.CharField(max_length=1, blank=True, null=True)
     military_family_indicator = models.IntegerField()
     cellphone = models.CharField(max_length=20, blank=True, null=True)
@@ -276,7 +276,7 @@ class AttendanceFlags(models.Model):
     precedence = models.IntegerField()
     is_present = models.BooleanField()
     is_excused = models.BooleanField()
-    display_code = models.CharField(max_length=-1)
+    display_code = models.CharField(max_length=100)
     is_reconciled = models.BooleanField()
     is_tardy = models.BooleanField()
     trigger_truancy = models.BooleanField()
@@ -305,7 +305,7 @@ class Sections(models.Model):
     seating_chart_cols = models.IntegerField(blank=True, null=True)
     room_id = models.IntegerField(blank=True, null=True)
     is_core = models.BooleanField()
-    local_section_id = models.CharField(max_length=-1, blank=True, null=True)
+    local_section_id = models.CharField(max_length=100, blank=True, null=True)
     section_name = models.CharField(max_length=255, blank=True, null=True)
     teaching_type = models.CharField(max_length=50, blank=True, null=True)
     multiple_teacher_status = models.CharField(max_length=10, blank=True, null=True)
@@ -424,7 +424,7 @@ class Courses(models.Model):
 class Gradebooks(models.Model):
     gradebook_id = models.IntegerField(primary_key=True)
     created_on = models.DateTimeField()
-    created_by = models.IntegerField()
+    created_by = models.ForeignKey(Users, db_column='created_by')
     show_inactive_students = models.BooleanField()
     auto_save_mins = models.IntegerField(blank=True, null=True)
     gradebook_name = models.CharField(max_length=255, blank=True, null=True)
@@ -461,7 +461,7 @@ class GradeLevels(models.Model):
     standard_age = models.SmallIntegerField(blank=True, null=True)
     state_id = models.CharField(max_length=455, blank=True, null=True)
     system_sort_order = models.IntegerField(blank=True, null=True)
-    system_key = models.CharField(max_length=-1, blank=True, null=True)
+    system_key = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -573,15 +573,15 @@ class SectionTimeblockAff(models.Model):
 
 
 class SsCube(models.Model):
-    site_id = models.ForeignKey(Sites, null=True)
-    academic_year = models.IntegerField(blank=True, null=True)
-    grade_level_id = models.ForeignKey(GradeLevels, null=True)
-    user_id = models.ForeignKey(Users, null=True)
-    section_id = models.ForeignKey(Sections, null=True)
-    course_id = models.ForeignKey(Courses, null=True)
-    student_id = models.ForeignKey(Students, null=True)
-    entry_date = models.DateField(blank=True, null=True)
-    leave_date = models.DateField(blank=True, null=True)
+    site = models.ForeignKey(Sites, primary_key=True)
+    academic_year = models.IntegerField(blank=True, primary_key=True)
+    grade_level = models.ForeignKey(GradeLevels, primary_key=True)
+    user = models.ForeignKey(Users, primary_key=True)
+    section = models.ForeignKey(Sections, primary_key=True)
+    course = models.ForeignKey(Courses, primary_key=True)
+    student = models.ForeignKey(Students, primary_key=True)
+    entry_date = models.DateField(blank=True, primary_key=True)
+    leave_date = models.DateField(blank=True, primary_key=True)
     is_primary_teacher = models.NullBooleanField()
 
     class Meta:

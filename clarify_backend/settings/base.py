@@ -47,7 +47,8 @@ THIRD_PARTY_APPS = [
 ]
 
 CLARIFY_APPS = [
-    'sis_pull.apps.SisPullConfig'
+    'sis_pull.apps.SisPullConfig',
+    'sis_mirror.apps.SisMirrorConfig'
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + CLARIFY_APPS
