@@ -69,6 +69,12 @@ The final step is to load the Django models by running the following command.
 
 This step may take up to 30 minutes or more. 
 
+Alternatively, if you have a Django database dump file (`clarify_dump.pgsql`), you can run the same command from earlier to load the data directly into Django instead:
+
+```
+$ psql clarify < clarify_dump.pgsql
+```
+
 ### REPL
 
 After the model pull completes, you can explore the models with `shell_plus` by running the following command from the project root:
