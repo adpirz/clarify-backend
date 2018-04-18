@@ -114,6 +114,13 @@ class Student(SourceObjectMixin):
         return "{}: {}, {}".format(self.pk, self.last_name, self.first_name)
 
 
+class AttendanceFlag(SourceObjectMixin):
+    source_object_table = "attendance_flag"
+
+    character_code = models.CharField(max_length=30, blank=True)
+    flag_text = models.CharField(max_length=255, blank=True, null=True)
+
+
 class AttendanceDailyRecord(SourceObjectMixin):
     """
     Source: attendance.daily_records
@@ -122,32 +129,10 @@ class AttendanceDailyRecord(SourceObjectMixin):
     source_object_table = 'daily_records'
     source_object_schema = 'attendance'
 
-    ATTENDANCE_FLAG_CHOICES = (
-        (1, 'Not Enrolled'),
-        (2, 'School Closed'),
-        (4, 'Present'),
-        (10, 'Excused tardy'),
-        (11, 'Unexcused Tardy'),
-        (9, 'Early Release'),
-        (7, 'Excused'),
-        (5, 'Tardy'),
-        (8, 'Unexcused'),
-        (12, 'T30'),
-        (13, 'Independent Study Complete'),
-        (14, 'Independent Study Pending'),
-        (15, 'Independent Study NOT-Complete'),
-        (6, 'Absent'),
-        (3, 'Delete'),
-    )
-
     date = models.DateField()
     site = models.ForeignKey(Site)
     student = models.ForeignKey(Student)
-    attendance_flag = models.IntegerField(choices=ATTENDANCE_FLAG_CHOICES)
-
-    class Meta:
-
-        unique_together = ('date', 'student')
+    attendance_flag = models.ForeignKey(AttendanceFlag)
 
     def __str__(self):
         return f"{self.school_day}: {self.student} - {self.code}"
@@ -242,17 +227,6 @@ class Gradebook(SourceObjectMixin):
     is_deleted = models.BooleanField(default=False)
 
 
-class CategoryType(SourceObjectMixin):
-    """
-    Source gradebook.category_types
-    """
-    source_object_table = 'category_types'
-    source_object_schema = 'gradebook'
-
-    category_type_name = models.CharField(max_length=255)
-    is_academic = models.BooleanField(default=True)
-
-
 class Category(SourceObjectMixin):
     """
     Source: gradebook.categories
@@ -264,7 +238,6 @@ class Category(SourceObjectMixin):
     icon = models.CharField(max_length=255)
     gradebook = models.ForeignKey(Gradebook)
     weight = models.FloatField()
-    category_type = models.ForeignKey(CategoryType)
 
 
 class GradebookSectionCourseAffinity(SourceObjectMixin):
@@ -293,13 +266,13 @@ class OverallScoreCache(SourceObjectMixin):
 
     student = models.ForeignKey(Student)
     gradebook = models.ForeignKey(Gradebook)
-    possible_points = models.FloatField()
-    points_earned = models.FloatField()
-    percentage = models.FloatField()
-    mark = models.CharField(max_length=255)
-    missing_count = models.IntegerField()
-    zero_count = models.IntegerField()
-    excused_count = models.IntegerField()
+    possible_points = models.FloatField(null=True)
+    points_earned = models.FloatField(null=True)
+    percentage = models.FloatField(null=True)
+    mark = models.CharField(max_length=255, null=True)
+    missing_count = models.IntegerField(null=True)
+    zero_count = models.IntegerField(null=True)
+    excused_count = models.IntegerField(null=True)
 
 
 class CategoryScoreCache(SourceObjectMixin):

@@ -443,10 +443,11 @@ class Gradebooks(models.Model):
 
 
 class DailyRecords(models.Model):
-    attendance_flag_id = models.ForeignKey(AttendanceFlags)
-    student_id = models.ForeignKey(Students)
-    site_id = models.ForeignKey(Sites)
-    date = models.DateField(blank=True, null=True)
+    attendance_flag = models.ForeignKey(AttendanceFlags,
+                                        db_column='attendance_flag_id')
+    student = models.ForeignKey(Students, primary_key=True)
+    site = models.ForeignKey(Sites, primary_key=True)
+    date = models.DateField(primary_key=True)
 
     class Meta:
         managed = False
@@ -484,8 +485,8 @@ class GradebookSectionCourseAff(models.Model):
 
 class OverallScoreCache(models.Model):
     cache_id = models.AutoField(primary_key=True)
-    student_id = models.ForeignKey(Students)
-    gradebook_id = models.ForeignKey(Gradebooks)
+    student = models.ForeignKey(Students)
+    gradebook = models.ForeignKey(Gradebooks)
     possible_points = models.FloatField(blank=True, null=True)
     points_earned = models.FloatField(blank=True, null=True)
     percentage = models.FloatField(blank=True, null=True)
