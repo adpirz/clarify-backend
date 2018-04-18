@@ -165,8 +165,8 @@ def sis_to_django_model(sis_model, django_model, source_id_field=None,
         if created:
             new_models += 1
 
-    print("NEW {} MODELS CREATED: {}".format(django_model_name, new_models))
-    print(f"ERRORS: {errors}")
+    print(f"\tNew {django_model_name} instances created: {new_models}; " +
+          f"Errors: {errors}")
 
 
 def build_staff_from_sis_users():
@@ -177,7 +177,10 @@ def build_staff_from_sis_users():
     staff_created = 0
 
     dj_user_models = []
+
     for user in tqdm(users, desc="Users"):
+        # Create auth.models.User objects
+        # from SIS Users
         model_args = {field: user.__getattribute__(field)
                       for field in user_fields}
         model, created = User.objects.get_or_create(**model_args)
@@ -186,8 +189,12 @@ def build_staff_from_sis_users():
         dj_user_models.append(model)
 
     for dj_user in tqdm(dj_user_models, desc="Staff"):
+        # Take User objects and create associated
+        # Staff objects
         sis_user = Users.objects.get(username=dj_user.username)
         dj_field_list = field_list_to_names(fields_list(Staff))
+        # Leave out fields not in user model, also leave out
+        # user so we can pull the proper Django user later
         excluded_fields = ['user', 'prefix', 'source_object_id']
         dj_field_list = filter(
             lambda i: i not in user_fields and i not in excluded_fields,
@@ -210,12 +217,16 @@ def build_staff_from_sis_users():
         if created:
             staff_created += 1
 
-    print("NEW USERS CREATED: ", users_created)
-    print("NEW STAFF CREATED: ", staff_created)
+    print(f"\tNew User models created: {users_created}; " +
+          f"New Staff models created: {staff_created}")
 
 
 def main():
     build_staff_from_sis_users()
+
+    # For now, if you want to ignore going through certain
+    # models, just comment out a particular line
+
     args_list = [
         (AttendanceFlags, AttendanceFlag, 'attendance_flag_id'),
         (Students, Student, 'student_id'),
@@ -226,18 +237,18 @@ def main():
         (SsCube, SectionLevelRosterPerYear),
         (Gradebooks, Gradebook, 'gradebook_id'),
         (OverallScoreCache, OSC),
+        (DailyRecords, AttendanceDailyRecord)
     ]
 
     for args in args_list:
         sis_to_django_model(*args)
-    sis_to_django_model(DailyRecords, AttendanceDailyRecord)
 
 
 def delete_all():
     models = [
         AttendanceFlag, Student, GradeLevel, Site, Course,
         Section, SectionLevelRosterPerYear, Gradebook,
-        OverallScoreCache
+        OSC
     ]
 
     for model in tqdm(models, desc="Deleting all models"):
