@@ -31,7 +31,7 @@ $ createdb clarifycache
 
 Note: it may be helpful to start with clean databases. If you already have existing databases, run the following commands to 
 
-Download the `claritycachedump.pgsql`, and from its containing directory, run the following command to load the mirror database:
+Download the mirror database dump file (should be called `claritycachedump.pgsql`), and from its containing directory, run the following command to load the mirror database into an empty `clarifycache` database.
 
 ```
 $ psql clarifycache < claritycachedump.pgsql
@@ -51,7 +51,7 @@ From the root directory, you'll need to migrate the models into the database.
 ./manage.py migrate
 ```
 
-The final step is to load the Django models by running the following command:
+The final step is to load the Django models by running the following command.
 
 ```
 ./manage.py pull_models_from_sis
@@ -59,7 +59,7 @@ The final step is to load the Django models by running the following command:
 
 This step may take up to 30 minutes or more. 
 
-### Models REPL
+### REPL
 
 After the model pull completes, you can explore the models with `shell_plus` by running the following command from the project root:
 
