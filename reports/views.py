@@ -41,8 +41,9 @@ def ReportView(request):
         report_data['excused_count'] = remaining_points
         return report_data
 
+    reportGroup = request.GET.get('group')
+    reportGroupIds = [int(id) for id in request.GET.get(reportGroup + '_ids', []).split(',')]
     reportCategory = request.GET.get('category')
-    # reportGroup = request.GET.get('group')
     # reportStartDate = request.GET.get('from')
     # reportEndDate = request.GET.get('to')
     response_rows = []
@@ -51,6 +52,9 @@ def ReportView(request):
 
     if Student.objects.first():
         students = Student.objects.all()
+
+    if len(reportGroupIds):
+        students = filter(lambda s: s.get('id') in reportGroupIds, students)
     if reportCategory == 'attendance':
         response_rows = [
             {'student_id': s.get('id'), 'data': _get_mock_attendance_data(s)} for s in students
