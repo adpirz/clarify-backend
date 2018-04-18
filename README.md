@@ -13,16 +13,21 @@ You'll also need to ensure your environment is running **Python 3.6** or above.
 
 ### Prerequisites
 
-You'll need an environment manager to get started. Recommended: virtualenv and virtualenvwrapper.
+You'll either need an environment manager or VM to get started.
+
+Recommended: virtualenv and virtualenvwrapper.
 
 - [virtualenv](https://virtualenv.pypa.io/en/stable/installation/)
 - [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/install.html)
 
-Make sure you also have PostgreSQL installed. For macOS, [see here](http://postgresapp.com/). 
+You'll also need to have PostgreSQL installed. For macOS, [see here](http://postgresapp.com/). 
 
-You'll also need two databases: one for the Django app and one for the mirror cache.  The default names are `clarify` and `clarifycache`.
+Clarify needs two databases: the Django database and the mirror (cache) database.
 
-With PostgreSQL installed and running, the easiest way to do perform the task is the following:
+The default names are `clarify` and `clarifycache`.
+
+
+With PostgreSQL installed and running, the easiest way to create the database is to run the `createdb` command from the command line:
 
 ```
 $ createdb clarify
@@ -32,14 +37,14 @@ $ createdb clarifycache
 Note: it may be helpful to start with clean databases. If you already have existing databases, you'll want to `dropdb` first:
 
 ```
-$ dumpdb clarify; dumpdb clarifycache
+$ dropdb clarify; dropdb clarifycache
 $ createdb clarify; createdb clarifycache
 ```
 
-Download the mirror database dump file (should be called `claritycachedump.pgsql`), and from its containing directory, run the following command to load the mirror database into an empty `clarifycache` database.
+Download the mirror database dump file (should be called `clarifycachedump.pgsql`), and from its containing directory, run the following command to load the mirror database into an empty `clarifycache` database.
 
 ```
-$ psql clarifycache < claritycachedump.pgsql
+$ psql clarifycache < clarifycachedump.pgsql
 ```
 
 ### Installing
