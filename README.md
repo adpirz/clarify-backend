@@ -29,7 +29,12 @@ $ createdb clarify
 $ createdb clarifycache
 ```
 
-Note: it may be helpful to start with clean databases. If you already have existing databases, run the following commands to 
+Note: it may be helpful to start with clean databases. If you already have existing databases, you'll want to `dropdb` first:
+
+```
+$ dumpdb clarify; dumpdb clarifycache
+$ createdb clarify; createdb clarifycache
+```
 
 Download the mirror database dump file (should be called `claritycachedump.pgsql`), and from its containing directory, run the following command to load the mirror database into an empty `clarifycache` database.
 
