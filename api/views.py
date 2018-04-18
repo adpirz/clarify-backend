@@ -11,10 +11,16 @@ from mimesis import Person
 # Create your views here.
 
 @login_required
-def TestView(request):
-    return JsonResponse({
-        'data': 'Hello world'
-    })
+def UserView(request):
+    if request.method == 'GET':
+        user = request.user
+        return JsonResponse({
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+        })
 
 @login_required
 def StudentView(request):
