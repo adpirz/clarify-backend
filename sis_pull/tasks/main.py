@@ -1,7 +1,6 @@
-from datetime import datetime
+import pytz
 
 from django.db.models import DateTimeField, DateField
-from django.utils.timezone import get_current_timezone
 from tqdm import tqdm
 
 from django.db.models.fields.related import ForeignKey
@@ -85,53 +84,42 @@ def field_list_to_names(field_list):
     return [i.name for i in field_list]
 
 
-def sis_to_django_model(sis_model, django_model, source_id_field=None,
-                        field_map=None):
+def sis_to_django_model(sis_model, clarify_model, source_id_field=None):
     """
     Pull SIS models into Django models
 
     :param sis_model: Base SIS Model Class
-    :param django_model: Base Django Model Class
+    :param clarify_model: Base Django Model Class
     :param source_id_field: SIS column for id
-    :param field_map: [Optional] Django field: SIS field mapping
     :return: None
     """
-    django_fields = field_list_to_names(fields_list(django_model))
+    clarify_model_fields = field_list_to_names(fields_list(clarify_model))
     sis_fields = field_list_to_names(fields_list(sis_model,
                                                 remove_autos=False))
 
-    django_model_name = django_model.__name__
+    clarify_model_name = clarify_model.__name__
 
     # Get all Django model fields in SIS model,
     # including '_id' suffixed fields for FK's
     out_fields = list()
-    for field in django_fields:
+    for field in clarify_model_fields:
         alt = field + '_id'
         if field in sis_fields:
             out_fields.append(field)
         elif alt in sis_fields:
             out_fields.append(alt)
-        else:
-            pass
 
     # All SIS model instances
     sis_rows = sis_model.objects.all()
     new_models = 0
-    errors = 0
 
     # Progress bar for each row in SIS table
-    for row in tqdm(sis_rows, desc=django_model_name):
+    for row in tqdm(sis_rows, desc=clarify_model_name):
         # For each row in SIS table, put the value
         # of each overlapping field in a dict
         model_args = dict()
         for field in out_fields:
             model_args[field] = row.__getattribute__(field)
-
-        # Convenience method if you need to map Django model field
-        # to SIS model field
-        if field_map:
-            for dj_field, sis_field in field_map.items():
-                model_args[dj_field] = row.__getattribute__(sis_field)
 
         # For SIS tables with primary key (ie, non-view tables),
         # use the source_id_field to get source_object_id
@@ -141,7 +129,7 @@ def sis_to_django_model(sis_model, django_model, source_id_field=None,
 
         # Get FK fields that are not user (special case that has
         # to be handled differently because of Staff <> User rel)
-        fk_fields = fields_list(django_model, return_fks=True)
+        fk_fields = fields_list(clarify_model, return_fks=True)
         fk_fields = filter(lambda i: i is not 'user', fk_fields)
 
         for field in fk_fields:
@@ -155,18 +143,16 @@ def sis_to_django_model(sis_model, django_model, source_id_field=None,
             model_args[field.name + '_id'] = fk_pk
 
         # Datetime cleanup with timezones
-        for field in fields_list(django_model):
+        for field in fields_list(clarify_model):
             if field.name in model_args and isinstance(field, DateTimeField):
-                tz = get_current_timezone()
-                old_date = model_args[field.name]
-                model_args[field.name] = tz.localize(old_date)
+                old_date_time = model_args[field.name]
+                model_args[field.name] = pytz.utc.localize(old_date_time)
 
-        model, created = django_model.objects.get_or_create(**model_args)
+        model, created = clarify_model.objects.get_or_create(**model_args)
         if created:
             new_models += 1
 
-    print(f"\tNew {django_model_name} instances created: {new_models}; " +
-          f"Errors: {errors}")
+    print(f"\tNew {clarify_model_name} instances created: {new_models}")
 
 
 def build_staff_from_sis_users():
@@ -218,7 +204,7 @@ def build_staff_from_sis_users():
             staff_created += 1
 
     print(f"\tNew User models created: {users_created}; " +
-          f"New Staff models created: {staff_created}")
+          f"New Staff models created: {staff_created}\n")
 
 
 def main():

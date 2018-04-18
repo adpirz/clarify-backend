@@ -9,20 +9,45 @@ Clarify is data for made easy for schools. The backend runs Django, see below fo
 
 You'll also need to ensure your environment is running **Python 3.6** or above. 
 
+For macOS, you can use **[Homebrew](https://brew.sh)** to install Python 3. 
+
+```
+$ brew install python3
+```
+
+To check installation, run the following command and you should receive the path to Python 3:
+
+```
+$ which python3
+>> /usr/local/bin/python3
+```
+
 ## Getting Started
 
 ### Prerequisites
 
 You'll either need an environment manager or VM to get started.
 
-Recommended: virtualenv and virtualenvwrapper.
+Recommended: **virtualenv** and **virtualenvwrapper**.
 
-- [virtualenv](https://virtualenv.pypa.io/en/stable/installation/)
-- [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/install.html)
+- **[virtualenv](https://virtualenv.pypa.io/en/stable/installation/)**
+- **[virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/install.html)**
+
+Once you have those installed, you can run the following commands to create an environment:
+
+```
+$ mkvirtualenv clarify -p $(which python3)
+```
+
+To exit the environment, use `deactivate`, and with **virtualenvwrapper**, every time you start up the terminal, you can use the following command to activate the environment again:
+
+```
+$ workon clarify
+```
 
 You'll also need to have PostgreSQL installed. For macOS, [see here](http://postgresapp.com/). 
 
-Clarify needs two databases: the Django database and the mirror (cache) database.
+For this build, Clarify needs two databases: the Django database and the mirror (cache) database.
 
 The default names are `clarify` and `clarifycache`.
 
@@ -54,33 +79,37 @@ To get started, activate your virtual environment and install the requirements.
 ```
 $ pip install -r requirements/local.txt
 ```
+There are multiple `requirements/*.txt` files, but you only need to worry about `local` as it takes care of importing from the other files as needed.
 
-From the root directory, you'll need to migrate the models into the database. 
+From the root directory, you'll need to migrate the models into the database.
 
 ```
-./manage.py migrate
+$ ./manage.py migrate
 ```
 
 The final step is to load the Django models by running the following command.
 
 ```
-./manage.py pull_models_from_sis
+$ ./manage.py pull_models_from_sis
 ```
 
 This step may take up to 30 minutes or more. 
 
-Alternatively, if you have a Django database dump file (`clarify_dump.pgsql`), you can run the same command from earlier to load the data directly into Django instead:
+### Loading `clarify` database from dump file
+
+Alternatively, if you have a Django database dump file (`clarify_dump.pgsql`), you can run the same command from earlier to load the data directly into Django instead. 
 
 ```
 $ psql clarify < clarify_dump.pgsql
 ```
+It's best to do this on a freshly created database, so go through the process under **Preqrequisites** to drop and create a new `clarify` database and **do not run** `migrate`.
 
 ### REPL
 
 After the model pull completes, you can explore the models with `shell_plus` by running the following command from the project root:
 
 ```
-./manage.py shell_plus
+$ ./manage.py shell_plus
 ```
 `shell_plus` automatically imports all models from all apps, as well as some convenience features like `settings` and Django model helpers like `Avg`, `Case`, and more.  
 
