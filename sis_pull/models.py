@@ -2,13 +2,13 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
-class SourceObjectMixin:
+class SourceObjectMixin(models.Model):
     """
     Mixin to add source_object_id to a model
     Should implement source_object_table;
     If schema not 'public', should implement source_object_schema
     """
-    source_object_id = models.PositiveIntegerField()
+    source_object_id = models.PositiveIntegerField(null=True, unique=True)
 
     @property
     def source_table(self):
@@ -28,8 +28,11 @@ class SourceObjectMixin:
         """
         return self.source_schema, self.source_table, self.source_object_id
 
+    class Meta:
+        abstract = True
 
-class GradeLevel(SourceObjectMixin, models.Model):
+
+class GradeLevel(SourceObjectMixin):
     """
     Source: public.grade_levels
     """
@@ -38,10 +41,10 @@ class GradeLevel(SourceObjectMixin, models.Model):
     sort_order = models.IntegerField()
     short_name = models.CharField(max_length=255)
     long_name = models.CharField(max_length=255)
-    state_id = models.CharField(max_length=455)
+    state_id = models.CharField(max_length=455, null=True)
 
 
-class Site(SourceObjectMixin, models.Model):
+class Site(SourceObjectMixin):
     """
     Source: public.sites
     Source for site types: public.site_types
@@ -65,7 +68,7 @@ class Site(SourceObjectMixin, models.Model):
                                           related_name='start_grade_level')
     end_grade_level = models.ForeignKey(GradeLevel,
                                         related_name='end_grade_level')
-    site_type = models.IntegerField(choices=SITE_TYPE_CHOICES)
+    site_type_id = models.IntegerField(choices=SITE_TYPE_CHOICES)
     address = models.CharField(max_length=255)
     phone1 = models.CharField(max_length=100)
     phone2 = models.CharField(max_length=100)
@@ -74,7 +77,7 @@ class Site(SourceObjectMixin, models.Model):
     zip = models.CharField(max_length=10)
 
 
-class Student(SourceObjectMixin, models.Model):
+class Student(SourceObjectMixin):
     """
     Source: public.students
     """
@@ -103,15 +106,22 @@ class Student(SourceObjectMixin, models.Model):
         (143, 'Black or African American'),
     )
 
-    first_name = models.CharField(max_length=100, blank=False)
-    last_name = models.CharField(max_length=100, blank=False)
-    ethnicity = models.IntegerField(choices=ETHNICITY_CHOICES)
+    first_name = models.CharField(max_length=100, blank=True, null=True)
+    last_name = models.CharField(max_length=100, blank=True, null=True)
+    ethnicity = models.IntegerField(choices=ETHNICITY_CHOICES, null=True)
 
     def __str__(self):
         return "{}: {}, {}".format(self.pk, self.last_name, self.first_name)
 
 
-class AttendanceDailyRecord(SourceObjectMixin, models.Model):
+class AttendanceFlag(SourceObjectMixin):
+    source_object_table = "attendance_flag"
+
+    character_code = models.CharField(max_length=30, blank=True)
+    flag_text = models.CharField(max_length=255, blank=True, null=True)
+
+
+class AttendanceDailyRecord(SourceObjectMixin):
     """
     Source: attendance.daily_records
     Source for attendance flags: public.attendance_flags
@@ -119,39 +129,16 @@ class AttendanceDailyRecord(SourceObjectMixin, models.Model):
     source_object_table = 'daily_records'
     source_object_schema = 'attendance'
 
-    ATTENDANCE_FLAG_CHOICES = (
-        ('X', 'Not Enrolled'),
-        ('N', 'School Closed'),
-        ('+', 'Present'),
-        ('L', 'Excused tardy'),
-        ('M', 'Unexcused Tardy'),
-        ('R', 'Early Release'),
-        ('E', 'Excused'),
-        ('T', 'Tardy'),
-        ('U', 'Unexcused'),
-        ('Y', 'T30'),
-        ('I', 'Independent Study Complete'),
-        ('-', 'Independent Study Pending'),
-        ('_', 'Independent Study NOT-Complete'),
-        ('A', 'Absent'),
-        ('D', 'Delete'),
-    )
-
     date = models.DateField()
     site = models.ForeignKey(Site)
     student = models.ForeignKey(Student)
-    attendance_flag = models.CharField(max_length=1,
-                                       choices=ATTENDANCE_FLAG_CHOICES)
-
-    class Meta:
-
-        unique_together = ('date', 'student')
+    attendance_flag = models.ForeignKey(AttendanceFlag)
 
     def __str__(self):
         return f"{self.school_day}: {self.student} - {self.code}"
 
 
-class Staff(SourceObjectMixin, models.Model):
+class Staff(SourceObjectMixin):
     """
     Source: public.users
     """
@@ -163,8 +150,14 @@ class Staff(SourceObjectMixin, models.Model):
         ('MRS', 'Mrs.')
     )
 
+    GENDER_CHOICES = (
+        ('M', 'Male'),
+        ('F', 'Female')
+    )
+
     user = models.OneToOneField(User)
     prefix = models.CharField(choices=PREFIX_CHOICES, max_length=3, default='MS')
+    gender = models.CharField(choices=GENDER_CHOICES, max_length=1, blank=True, null=True)
 
     def __str__(self):
         return "{} {} {}".format(self.get_prefix_display(),
@@ -176,7 +169,7 @@ class Staff(SourceObjectMixin, models.Model):
         verbose_name_plural = verbose_name
 
 
-class Course(SourceObjectMixin, models.Model):
+class Course(SourceObjectMixin):
     """
     Source: public.courses
     """
@@ -184,22 +177,22 @@ class Course(SourceObjectMixin, models.Model):
 
     short_name = models.CharField(max_length=30)
     long_name = models.CharField(max_length=255)
-    description = models.TextField()
-    school_course_id = models.CharField(max_length=20)
+    description = models.TextField(null=True)
+    school_course_id = models.CharField(max_length=20, null=True)
     site_id = models.ForeignKey(Site)
     is_active = models.BooleanField(default=True)
 
 
-class Section(SourceObjectMixin, models.Model):
+class Section(SourceObjectMixin):
     """
     Source: public.sections
     """
     source_object_table = 'sections'
 
-    section_name = models.CharField(max_length=255)
+    section_name = models.CharField(max_length=255, null=True)
 
 
-class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
+class SectionLevelRosterPerYear(SourceObjectMixin):
     """
     Source: matviews.ss_cube
     * Key through-table to everything
@@ -207,16 +200,19 @@ class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     source_object_table = 'ss_cube'
     source_object_schema = 'matviews'
 
-
     site = models.ForeignKey(Site)
     academic_year = models.PositiveIntegerField()
     grade_level = models.ForeignKey(GradeLevel)
     user = models.ForeignKey(Staff)
     section = models.ForeignKey(Section)
     course = models.ForeignKey(Course)
+    student= models.ForeignKey(Student)
+    entry_date = models.DateField(null=True)
+    leave_date = models.DateField(null=True)
+    is_primary_teacher = models.NullBooleanField()
 
 
-class Gradebook(SourceObjectMixin, models.Model):
+class Gradebook(SourceObjectMixin):
     """
     Source: gradebook.gradebooks
     """
@@ -231,18 +227,7 @@ class Gradebook(SourceObjectMixin, models.Model):
     is_deleted = models.BooleanField(default=False)
 
 
-class CategoryType(SourceObjectMixin, models.Model):
-    """
-    Source gradebook.category_types
-    """
-    source_object_table = 'category_types'
-    source_object_schema = 'gradebook'
-
-    category_type_name = models.CharField(max_length=255)
-    is_academic = models.BooleanField(default=True)
-
-
-class Category(SourceObjectMixin, models.Model):
+class Category(SourceObjectMixin):
     """
     Source: gradebook.categories
     """
@@ -253,10 +238,9 @@ class Category(SourceObjectMixin, models.Model):
     icon = models.CharField(max_length=255)
     gradebook = models.ForeignKey(Gradebook)
     weight = models.FloatField()
-    category_type = models.ForeignKey(CategoryType)
 
 
-class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
+class GradebookSectionCourseAffinity(SourceObjectMixin):
     """
     Source: gradebook.gradebook_section_course_aff
     """
@@ -271,7 +255,7 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     modified = models.DateTimeField()
 
 
-class OverallScoreCache(SourceObjectMixin, models.Model):
+class OverallScoreCache(SourceObjectMixin):
     """
     Source: gradebook.overall_score_cache
 
@@ -282,16 +266,16 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
 
     student = models.ForeignKey(Student)
     gradebook = models.ForeignKey(Gradebook)
-    possible_points = models.FloatField()
-    points_earned = models.FloatField()
-    percentage = models.FloatField()
-    mark = models.CharField(max_length=255)
-    missing_count = models.IntegerField()
-    zero_count = models.IntegerField()
-    excused_count = models.IntegerField()
+    possible_points = models.FloatField(null=True)
+    points_earned = models.FloatField(null=True)
+    percentage = models.FloatField(null=True)
+    mark = models.CharField(max_length=255, null=True)
+    missing_count = models.IntegerField(null=True)
+    zero_count = models.IntegerField(null=True)
+    excused_count = models.IntegerField(null=True)
 
 
-class CategoryScoreCache(SourceObjectMixin, models.Model):
+class CategoryScoreCache(SourceObjectMixin):
     """
     Source: gradebook.category_score_cache
     """

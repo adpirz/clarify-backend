@@ -47,7 +47,8 @@ THIRD_PARTY_APPS = [
 ]
 
 CLARIFY_APPS = [
-    'sis_pull.apps.SisPullConfig'
+    'sis_pull.apps.SisPullConfig',
+    'sis_mirror.apps.SisMirrorConfig'
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + CLARIFY_APPS
@@ -93,8 +94,11 @@ WSGI_APPLICATION = 'clarify_backend.wsgi.application'
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
 DATABASES = {
-    'default': env.db('DATABASE_URL', default="postgres:///clarify")
+    'default': env.db('DATABASE_URL', default="postgres:///clarify"),
+    'cache': env.db('CACHE_DATABASE_URL', default="postgres:///clarifycache")
 }
+
+DATABASE_ROUTERS = ['sis_mirror.routers.MirrorRouter']
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/

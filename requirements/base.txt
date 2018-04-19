@@ -8,3 +8,6 @@ psycopg2-binary==2.7.4
 
 django-environ==0.4.4
 mimesis==2.0.1
+
+# progress bars for CLI
+tqdm==4.22.0
