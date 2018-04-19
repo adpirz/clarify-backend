@@ -51,15 +51,23 @@ For this build, Clarify needs two databases: the Django database and the mirror 
 
 The default names are `clarify` and `clarifycache`.
 
+Before creating the database, ensure that Postgres is running by opening the terminal and checking to see if you can enter the Postgres CLI by running the following command:
 
-With PostgreSQL installed and running, the easiest way to create the database is to run the `createdb` command from the command line:
+```
+$ psql
+```
+This should take you to another CLI environment, but if it throws an error, Postgres is not running.
+
+With PostgreSQL installed and running, the easiest way to create the database is to run the `createdb` command from the terminal:
+
+( Note: This is from the terminal / from bash, _not_ the `psql` environment referenced above. )
 
 ```
 $ createdb clarify
 $ createdb clarifycache
 ```
 
-Note: it may be helpful to start with clean databases. If you already have existing databases, you'll want to `dropdb` first:
+It may be helpful to start with clean databases. If you already have existing databases, you'll want to `dropdb` first:
 
 ```
 $ dropdb clarify; dropdb clarifycache
