@@ -61,20 +61,6 @@ def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
     return fields
 
 
-def field_in_list(field, field_list):
-    """
-    Returns if field in field_list
-    :param field: Django Model Field instance
-    :param field_list: List[Field]
-    :return: Boolean
-    """
-    alt = field.name + '_id'
-
-    names = field_list_to_names(field_list)
-
-    return field.name in names or alt in names
-
-
 def field_list_to_names(field_list):
     """
     Turns list of field instances to field names
@@ -102,10 +88,10 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None):
     # Get all Django model fields in SIS model,
     # including '_id' suffixed fields for FK's
     out_fields = list()
-    for field in clarify_model_fields:
-        alt = field + '_id'
-        if field in sis_fields:
-            out_fields.append(field)
+    for field_name in clarify_model_fields:
+        alt = field_name + '_id'
+        if field_name in sis_fields:
+            out_fields.append(field_name)
         elif alt in sis_fields:
             out_fields.append(alt)
 
@@ -118,8 +104,8 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None):
         # For each row in SIS table, put the value
         # of each overlapping field in a dict
         model_args = dict()
-        for field in out_fields:
-            model_args[field] = row.__getattribute__(field)
+        for field_name in out_fields:
+            model_args[field_name] = row.__getattribute__(field_name)
 
         # For SIS tables with primary key (ie, non-view tables),
         # use the source_id_field to get source_object_id
@@ -127,7 +113,7 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None):
             model_args['source_object_id'] = row.\
                 __getattribute__(source_id_field)
 
-        # Get FK fields that are not user (special case that has
+        # Get FK fields that are not "user" (special case that has
         # to be handled differently because of Staff <> User rel)
         fk_fields = fields_list(clarify_model, return_fks=True)
         fk_fields = filter(lambda i: i is not 'user', fk_fields)
