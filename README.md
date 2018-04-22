@@ -129,3 +129,12 @@ Let's hold off on this for a minute.
 ## Deployment
 
 We're getting there. 
+
+## Commit messages
+Commit messages should be written in the imperative, sentance form. This makes the git history a list of statements of work that are easy to scan. E.g. "Change the base font size to 14px" is preferable to "base font changes". Include as many details as possible while maintaining a 50 character limit. This allows commit messages to display in most editors. If you can't limit yourself to 50 characters, that's a good indication that your commit is doing too much. Consider breaking it up into a few different commits each responsible for their own pieces of functionality.
+
+
+## Branches and Pull Requests
+Resist the urge to push directly to the `master` branch. For most organization members this functionality is disabled to encourage pull request-based review and development. PR's should be opened early and often during a workflow. Think of them as works in progress, even if there's only a skeleton initial commit. Tag or assign the PR to the relevent parties and use the description as a statement of intended work. That way the commits reflect the evolution of that work and tagged team members can validate or redirect as it progresses. 
+
+
