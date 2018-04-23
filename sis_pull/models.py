@@ -76,6 +76,9 @@ class Site(SourceObjectMixin):
     state = models.CharField(max_length=100)
     zip = models.CharField(max_length=10)
 
+    def get_site_type_label(self):
+        return self.SITE_TYPE_CHOICES[self.site_type_id][1]
+
 
 class Student(SourceObjectMixin):
     """
