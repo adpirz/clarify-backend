@@ -43,6 +43,9 @@ class GradeLevel(SourceObjectMixin):
     long_name = models.CharField(max_length=255)
     state_id = models.CharField(max_length=455, null=True)
 
+    def get_current_students(self, site=None):
+        pass
+
 
 class Site(SourceObjectMixin):
     """

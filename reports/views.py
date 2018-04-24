@@ -13,6 +13,10 @@ from mimesis import Person
 
 @login_required
 def ReportView(request):
+    pass
+
+@login_required
+def _ReportView(request):
     def _get_mock_attendance_data(student):
         generator_ceiling = 100
         report_data = {}
