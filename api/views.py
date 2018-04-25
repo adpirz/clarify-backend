@@ -5,6 +5,10 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from sis_pull.models import (
+    Student, Section, GradeLevel, Site, Staff,
+    SectionLevelRosterPerYear
+)
 
 from mimesis import Person
 
@@ -24,78 +28,88 @@ def UserView(request):
 
 @login_required
 def StudentView(request):
-    person = Person('en')
+    def _shape(student):
+        return {
+            'id': student.id,
+            'first_name': student.first_name,
+            'last_name': student.last_name,
+        }
+    user = request.user
+    request_teacher = Staff.objects.filter(user=user)
+    teacher_student_ids = (SectionLevelRosterPerYear.objects
+        .filter(user=request_teacher)
+        .values_list('student_id')
+    )
+    teacher_students = Student.objects.filter(id__in=teacher_student_ids)
+
     return JsonResponse({
-        'data': [{"id": i, "name": person.full_name()} for i in range(0,25)]
+        'data': [_shape(s) for s in teacher_students]
     })
+
 
 @login_required
 def SectionView(request):
+    def _shape(section):
+        return {
+            'id': section.id,
+            'section_name': section.section_name,
+        }
+    # Decided somewhat arbitrarily to return all sections associated with a
+    # staff member. We'll want to come up with more specific rules for that soon,
+    # aka all sections at a staff member's site, that accounts for multi-site
+    # staff, etc.
+    user = request.user
+    request_teacher = Staff.objects.filter(user=user)
+    teacher_section_ids = (SectionLevelRosterPerYear.objects
+        .filter(user=request_teacher)
+        .filter(section__section_name__isnull=False)
+        .exclude(section__section_name__exact="")
+        .values_list('section_id')
+    )
+    teacher_sections = Section.objects.filter(id__in=teacher_section_ids)
+
     return JsonResponse({
-        'data': [
-            {
-                'name': 'Community 101',
-                'id': '2341',
-            },
-            {
-                'name': 'Back to the Future 102',
-                'id': '236',
-            },
-            {
-                'name': 'Harry Potter 101',
-                'id': '4685',
-            },
-            {
-                'name': 'Game of Thrones 101',
-                'id': '1508',
-            },
-        ]
+        'data': [_shape(s) for s in teacher_sections]
     })
 
 @login_required
 def GradeLevelView(request):
+    def _shape(grade_level):
+        return {
+            'id': grade_level.id,
+            'short_name': grade_level.short_name,
+            'long_name': grade_level.long_name,
+        }
+    user = request.user
+    request_teacher = Staff.objects.filter(user=user)
+    teacher_grade_level_ids = (SectionLevelRosterPerYear.objects
+        .filter(user=request_teacher)
+        .values_list('grade_level_id')
+    )
+    teacher_grade_levels = GradeLevel.objects.filter(id__in=teacher_grade_level_ids)
+
     return JsonResponse({
-        'data': [
-            {
-                'name': 'Community Course',
-                'id': '2341',
-            },
-            {
-                'name': 'Back to the Future',
-                'id': '236',
-            },
-            {
-                'name': 'Harry Potter',
-                'id': '4685',
-            },
-            {
-                'name': 'Game of Thrones',
-                'id': '1508',
-            },
-        ]
+        'data': [_shape(g) for g in teacher_grade_levels]
     })
 
 @login_required
-def SchoolView(request):
+def SiteView(request):
+    def _shape(site):
+        return {
+            'id': site.id,
+            'site_name': site.site_name,
+        }
+
+    user = request.user
+    request_teacher = Staff.objects.filter(user=user)
+    teacher_site_ids = (SectionLevelRosterPerYear.objects
+        .filter(user=request_teacher)
+        .values_list('site_id')
+    )
+    teacher_sites = Site.objects.filter(id__in=teacher_site_ids)
+
     return JsonResponse({
-        'data': [
-            {
-                'name': 'Central High School',
-                'id': '2341',
-            },
-            {
-                'name': 'Saint Paul Academy',
-                'id': '236',
-            },
-            {
-                'name': 'Archbishop Mitty',
-                'id': '4685',
-            },
-            {
-                'name': 'Richard Montgomery High School',
-                'id': '1508',
-            },
-        ]
+        'data': [_shape(s) for s in teacher_sites]
     })
 
 @csrf_exempt
@@ -125,7 +139,7 @@ def SessionView(request):
             parseablePost = request.body.decode('utf8').replace("'", '"')
             parsedPost = loads(parseablePost)
             requestUsername = parsedPost.get('username')
-            requestPassword = parsedPost.get('password')
+            requestPassword = parsedPost.get('password', '')
             user = authenticate(username=requestUsername, password=requestPassword)
             if user:
                 login(request, user)
