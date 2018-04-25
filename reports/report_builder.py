@@ -91,7 +91,8 @@ def attendance_query_to_data(**query_params):
     to_date = query_params.get("to_date", None)
     site_id = query_params.get("site_id", None)
 
-    is_single_day = from_date and not to_date and not is_live and not ytd
+    is_single_day = (from_date and not to_date and not is_live and not ytd) or\
+        from_date == to_date
 
     # clean and validate from_date and to_date
     if not ytd and not from_date:
