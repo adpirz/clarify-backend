@@ -21,12 +21,9 @@ GROUPS_AND_MODELS = (
 
 def query_to_data(query):
     """
-
-    Example query:
-    group=site&group_id=13&from_date=2018-01-01&to_date=2018-02-01&category=attendance
-    :param query:
-    :param site_id:
-    :return:
+    Takes in a QueryDict (ie, request.GET) and returns happy data!
+    :param query: QueryDict<request.GET>
+    :return: Data dict
     """
     # turn query into proper dict:
     query_dict = query_parser(query)
@@ -39,6 +36,14 @@ def query_to_data(query):
 
 
 def get_students_for_group_and_id(group, object_id, site_id=None):
+    """
+    Gets a list of current student instances based on group and
+    object_id for that group.
+    :param group: str; group name ('section', 'site', etc.)
+    :param object_id: id of group
+    :param site_id: optional, used for 'grade_level'
+    :return: QuerySet<students>
+    """
     if group_is_model(group, "student"):
         return [Student.objects.get(pk=object_id)]
 
@@ -46,11 +51,16 @@ def get_students_for_group_and_id(group, object_id, site_id=None):
         return GradeLevel.objects.get(pk=object_id)\
             .get_current_students(site_id=site_id)
 
-    return group.objects.get(pk=object_id)\
+    model = get_object_from_group_and_id(group, object_id)
+    return model.objects.get(pk=object_id)\
         .get_current_students()
 
 
 def get_student_ids_for_group_and_id(group, object_id, site_id=None):
+    """
+    Like 'get_students_for_group_and_id', but returns a list of ids.
+    :return: List[int<student_ids>]
+    """
     if group_is_model(group, "student"):
         return [object_id]
 
@@ -58,21 +68,22 @@ def get_student_ids_for_group_and_id(group, object_id, site_id=None):
         return GradeLevel.objects.get(pk=object_id)\
             .get_current_student_ids(site_id=site_id)
 
-    for group_model in GROUPS_AND_MODELS:
-        model_name, model = group_model
-        if group_is_model(group, model_name):
-            return model.objects.get(pk=object_id)\
-                .get_current_student_ids()
+    model = get_object_from_group_and_id(group, object_id)
+    return model.objects.get(pk=object_id) \
+        .get_current_student_ids()
 
 
 def attendance_query_to_data(**query_params):
     """
-
-    Dates: YYYY-MM-DD format
+    Takes a dict of query_params and returns fresh data.
+    :param query_params:
+    :return: Attendance data dict
     """
+
     DATE_FORMAT = "%Y-%m-%d"  # YYYY-MM-DD
 
     def get_time_string():
+        """For formatting in titles"""
         if ytd:
             return "YTD"
         if from_date and is_live:
@@ -134,11 +145,13 @@ def attendance_query_to_data(**query_params):
 
 
 def query_parser(querydict):
+    """Returns a Python dict from a QueryDict"""
     query_dict = dict(querydict)
     return {k: query_value_parser(v) for k, v in query_dict.items()}
 
 
 def query_value_parser(value):
+    """Parse raw values into Python primitives"""
     if isinstance(value, list) and len(value) > 1:
         return [query_value_parser(i) for i in value]
     if isinstance(value, list) and len(value) == 1:
@@ -156,11 +169,22 @@ def query_value_parser(value):
 
 
 def group_is_model(group_name, model_name):
+    """
+    Checks if group_name is model_name or plural of model_name
+    :param group_name: str - group name
+    :param model_name: str - model name
+    :return: Boolean
+    """
     return group_name in [model_name, model_name + "s"]
 
 
 def get_object_from_group_and_id(group, object_id):
-
+    """
+    Get instance from model name and id.
+    :param group: str - group name
+    :param object_id: int - id
+    :return: Django Model
+    """
     for group_model in GROUPS_AND_MODELS:
         group_title, model = group_model
         if group_is_model(group, group_title):

@@ -190,6 +190,11 @@ class AttendanceDailyRecord(SourceObjectMixin):
     @classmethod
     def get_records_for_student(cls, student_id,
                                 from_date=None, to_date=None):
+        """
+        Get all relevant AttendanceDailyRecord instances for
+        params.
+        :return: QuerySet<AttendanceDailyRecord>
+        """
         if to_date and not from_date:
             raise LookupError("Must have a from_date with a to_date")
         all_objects = cls.objects.filter(student_id=student_id)
@@ -205,6 +210,11 @@ class AttendanceDailyRecord(SourceObjectMixin):
     @classmethod
     def get_records_for_students(cls, student_ids,
                                  from_date=None, to_date=None):
+        """
+        Get all relevant AttendanceDailyRecords instances for a
+        list of student_ids.
+        :return: List[{student_id: int, records: QuerySet<ADR>}]
+        """
         all_student_records = list()
 
         for student_id in student_ids:
@@ -222,7 +232,7 @@ class AttendanceDailyRecord(SourceObjectMixin):
         Returns a summary dict with a tuple (val, percentage) for each
         flag_id
         :param QuerySet<AttendanceDailyRecord>
-        :return:
+        :return: {student_id: int, flag_id: (value, percentage) ... }
         """
         total_days = 0
         flag_dict = dict()
@@ -247,6 +257,9 @@ class AttendanceDailyRecord(SourceObjectMixin):
 
     @classmethod
     def get_summaries_for_student(cls, student_id, from_date, to_date):
+        """
+        Returns a summary dict for a student with given date params.
+        """
         return cls.calculate_summaries_for_student_records(
             cls.get_records_for_student(student_id,
                                         from_date=from_date, to_date=to_date)
@@ -256,7 +269,7 @@ class AttendanceDailyRecord(SourceObjectMixin):
     def get_summaries_for_students(cls, student_ids, from_date, to_date):
         """
         :return: List[{
-        student_id: int, <flag_id>: (<val>, <percentage>)
+            student_id: int, <flag_id>: (<val>, <percentage>)
         }]
         """
         summaries = list()
@@ -269,15 +282,21 @@ class AttendanceDailyRecord(SourceObjectMixin):
 
     @classmethod
     def get_student_record_for_date(cls, student_id, date):
+        """Get an individual date record for one student"""
+
         return AttendanceDailyRecord.objects.get(student_id=student_id, date=date)
 
     @classmethod
     def get_student_records_for_date(cls, student_ids, date):
+        """Get an individual date record for list of students"""
+
         return [cls.get_student_record_for_date(i, date)
                 for i in student_ids]
 
     @classmethod
     def get_formatted_student_records_for_date(cls, student_ids, date):
+        """ Get a formatted a dict of data for a single date for student_ids"""
+
         student_records = cls.get_student_records_for_date(student_ids, date)
         return [{"student_id": i.student_id, "flag_id": i.attendance_flag_id}
                 for i in student_records]
