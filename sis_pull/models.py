@@ -1,5 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.apps import apps
+
+from utils import camel_to_underscore
 
 
 class SourceObjectMixin(models.Model):
@@ -32,38 +35,55 @@ class SourceObjectMixin(models.Model):
         abstract = True
 
 
-class GradeLevel(SourceObjectMixin):
+class GetCurrentStudentsMixin(object):
+
+    roster_model_name = None
+
+    def _get_student_rows(self, **extra):
+        """
+        Returns a QueryDict iterable filtered by model args
+        :param extra: Extra filter args (e.g. site_id for GradeLevel, etc.)
+        :return: QueryDict filtered on model args
+        """
+        pk_field = camel_to_underscore(self.__class__.__name__) + '_id'
+        kwargs = dict(extra)
+        kwargs[pk_field] = self.pk
+        model_name = self.roster_model_name or "SectionLevelRosterPerYear"
+        roster_model = apps.get_model(
+            model_name=model_name, app_label=self._meta.app_label
+        )
+
+        return roster_model.objects.filter(**kwargs)
+
+    def get_current_students(self, **kwargs):
+        rows = self._get_student_rows(**kwargs)
+        return [row.student for row in rows]
+
+    def get_current_student_ids(self, **kwargs):
+        rows = self._get_student_rows(**kwargs)
+        return [row.student_id for row in rows]
+
+
+class GradeLevel(SourceObjectMixin, GetCurrentStudentsMixin):
     """
     Source: public.grade_levels
     """
     source_object_table = 'grade_levels'
+    roster_model_name = 'CurrentRoster'
 
     sort_order = models.IntegerField()
     short_name = models.CharField(max_length=255)
     long_name = models.CharField(max_length=255)
     state_id = models.CharField(max_length=455, null=True)
 
-    def get_current_student_ids_for_grade_level(self, site_id=None):
-        kwargs = {"grade_level_id": self.pk}
-        if site_id:
-            kwargs["site_id"] = site_id
-        rows = CurrentRoster.objects.filter(**kwargs).all()
 
-        return [i.student_id for i in rows]
-
-    def get_current_students(self, *args, **kwargs):
-        """
-        Convenience method to standardize language across models.
-        """
-        return self.get_current_student_ids_for_grade_level(*args, **kwargs)
-
-
-class Site(SourceObjectMixin):
+class Site(SourceObjectMixin, GetCurrentStudentsMixin):
     """
     Source: public.sites
     Source for site types: public.site_types
     """
     source_object_table = 'sites'
+    roster_model_name = 'CurrentRoster'
 
     SITE_TYPE_CHOICES = (
         (1, 'Middle and K-8 Schools'),
@@ -137,6 +157,17 @@ class AttendanceFlag(SourceObjectMixin):
     character_code = models.CharField(max_length=30, blank=True)
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
+    @classmethod
+    def get_flags_dict(cls):
+        flag_dict = dict()
+
+        for flag in cls.objects.all():
+            flag_dict[flag.id] = {
+                "code": flag.character_code, "flag_text": flag.flag_text
+            }
+
+        return flag_dict
+
 
 class AttendanceDailyRecord(SourceObjectMixin):
     """
@@ -152,7 +183,9 @@ class AttendanceDailyRecord(SourceObjectMixin):
     attendance_flag = models.ForeignKey(AttendanceFlag)
 
     def __str__(self):
-        return f"{self.school_day}: {self.student} - {self.code}"
+        return f"{self.date.strftime('%Y-%m-%d')}: " +\
+               f"{self.student} - {self.attendance_flag}"
+
 
     @classmethod
     def get_records_for_student(cls, student_id,
@@ -188,13 +221,17 @@ class AttendanceDailyRecord(SourceObjectMixin):
         """
         Returns a summary dict with a tuple (val, percentage) for each
         flag_id
-        :param student_records: { student_id: int, records: List[ADR] }
+        :param QuerySet<AttendanceDailyRecord>
         :return:
         """
         total_days = 0
         flag_dict = dict()
-        summary_dict = dict({"student_id": student_records["student_id"]})
-        for record in student_records["records"]:
+        summary_dict = dict()
+        for record in student_records:
+            if "student_id" not in summary_dict:
+                summary_dict["student_id"] = record.student_id
+            if record.student_id != summary_dict["student_id"]:
+                raise AttributeError("Student records must all be same student.")
             flag_id = record.attendance_flag_id
             if flag_id not in flag_dict:
                 flag_dict[flag_id] = 1

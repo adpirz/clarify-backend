@@ -8,12 +8,14 @@ from django.contrib.auth.decorators import login_required
 from sis_pull.models import Student, AttendanceDailyRecord
 
 from mimesis import Person
+
+from .report_builder import query_to_data
 # Create your views here.
 
 
 @login_required
 def ReportView(request):
-    pass
+    return JsonResponse(query_to_data(request.GET))
 
 @login_required
 def _ReportView(request):

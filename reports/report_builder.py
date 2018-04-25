@@ -1,3 +1,10 @@
+"""
+Example queries to pass to query_to_data:
+"""
+
+from datetime import datetime
+
+from django.utils import timezone
 from django.http import QueryDict
 
 from sis_pull.models import (
@@ -12,11 +19,23 @@ GROUPS_AND_MODELS = (
 )
 
 
-def query_to_data(query, site_id=None):
-    # turn query into proper dict:
+def query_to_data(query):
+    """
 
-    # get group
-    pass
+    Example query:
+    group=site&group_id=13&from_date=2018-01-01&to_date=2018-02-01&category=attendance
+    :param query:
+    :param site_id:
+    :return:
+    """
+    # turn query into proper dict:
+    query_dict = query_parser(query)
+    # check category, pass to proper function
+
+    if query_dict["category"] in ["a", "A", "attendance"]:
+        return attendance_query_to_data(**query_dict)
+
+    print("Only supports attendance.")
 
 
 def get_students_for_group_and_id(group, object_id, site_id=None):
@@ -24,11 +43,26 @@ def get_students_for_group_and_id(group, object_id, site_id=None):
         return [Student.objects.get(pk=object_id)]
 
     if group_is_model(group, "grade_level"):
-        return Section.objects.get(pk=object_id)\
+        return GradeLevel.objects.get(pk=object_id)\
             .get_current_students(site_id=site_id)
 
     return group.objects.get(pk=object_id)\
         .get_current_students()
+
+
+def get_student_ids_for_group_and_id(group, object_id, site_id=None):
+    if group_is_model(group, "student"):
+        return [object_id]
+
+    if group_is_model(group, "grade_level"):
+        return GradeLevel.objects.get(pk=object_id)\
+            .get_current_student_ids(site_id=site_id)
+
+    for group_model in GROUPS_AND_MODELS:
+        model_name, model = group_model
+        if group_is_model(group, model_name):
+            return model.objects.get(pk=object_id)\
+                .get_current_student_ids()
 
 
 def attendance_query_to_data(**query_params):
@@ -36,14 +70,66 @@ def attendance_query_to_data(**query_params):
 
     Dates: YYYY-MM-DD format
     """
+    DATE_FORMAT = "%Y-%m-%d"  # YYYY-MM-DD
+
+    def get_time_string():
+        if ytd:
+            return "YTD"
+        if from_date and is_live:
+            return f"from {from_date.strftime(DATE_FORMAT)} to now"
+        if is_single_day:
+            return f" on {from_date.strftime(DATE_FORMAT)}"
+
+        return f"from {from_date.strftime(DATE_FORMAT)} to " + \
+               f"{to_date.strftime(DATE_FORMAT)}"
+
     group = query_params["group"]
     group_id = query_params["group_id"]
-    ytd = query_params["ytd"]
+    ytd = query_params.get("ytd", False)
+    is_live = query_params.get("is_live", True)
     from_date = query_params.get("from_date", None)
     to_date = query_params.get("to_date", None)
+    site_id = query_params.get("site_id", None)
 
+    is_single_day = from_date and not to_date and not is_live and not ytd
 
+    # clean and validate from_date and to_date
+    if not ytd and not from_date:
+        raise ValueError("Must be either YTD or have a 'from_date'")
 
+    if ytd:
+        # TODO: Going to have to encode academic start and end dates somewhere
+        from_date = datetime.strptime("2018-08-01", DATE_FORMAT).date()
+        to_date = timezone.now().date()
+    else:
+        from_date = datetime.strptime(from_date, DATE_FORMAT).date()
+
+    if not to_date and is_live:
+        to_date = timezone.now().date()
+
+    student_ids = get_student_ids_for_group_and_id(group, group_id,
+                                                site_id=site_id)
+
+    time_string = get_time_string()
+
+    data = {
+        "Title": f"Attendance for {group} {group_id} {time_string}",
+        "group": group, "group_id": group_id,
+        "from_date": from_date, "to_date": to_date,
+        "ytd": ytd, is_live: "is_live",
+        "flags": AttendanceFlag.get_flags_dict()  # can we cache somehow?
+    }
+
+    if is_single_day:
+        data["data"] = AttendanceDailyRecord.get_student_records_for_date(
+            student_ids, from_date
+        )
+    else:
+        data["data"] = AttendanceDailyRecord.get_summaries_for_students(
+            student_ids, from_date, to_date
+        )
+
+    return data
 
 
 def query_parser(query_string):
