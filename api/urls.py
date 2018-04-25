@@ -7,6 +7,7 @@ from django.conf.urls import include, url
 from django.contrib import admin
 from .views import (StudentView, SectionView, GradeLevelView,
 SiteView, SessionView, UserView)
+from reports.views import ReportView
 
 urlpatterns = [
     url(r'^user/me', UserView),
@@ -15,4 +16,5 @@ urlpatterns = [
     url(r'^grade-level/', GradeLevelView),
     url(r'^site/', SiteView),
     url(r'^session/', SessionView),
+    url(r'^report/', ReportView)
 ]

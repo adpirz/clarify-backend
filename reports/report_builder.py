@@ -132,8 +132,8 @@ def attendance_query_to_data(**query_params):
     return data
 
 
-def query_parser(query_string):
-    query_dict = dict(QueryDict(query_string))
+def query_parser(querydict):
+    query_dict = dict(querydict)
     return {k: query_value_parser(v) for k, v in query_dict.items()}
 
 
