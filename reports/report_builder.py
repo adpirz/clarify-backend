@@ -29,7 +29,7 @@ def query_to_data(query):
     query_dict = query_parser(query)
     # check category, pass to proper function
 
-    if query_dict["category"] in ["a", "A", "attendance"]:
+    if query_dict["category"] == "attendance":
         return attendance_query_to_data(**query_dict)
 
     print("Only supports attendance.")
