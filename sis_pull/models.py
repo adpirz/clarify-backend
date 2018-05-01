@@ -55,13 +55,9 @@ class GetCurrentStudentsMixin(object):
 
         return roster_model.objects.filter(**kwargs)
 
-    def get_current_students(self, **kwargs):
-        rows = self._get_student_rows(**kwargs)
-        return [row.student for row in rows]
-
     def get_current_student_ids(self, **kwargs):
         rows = self._get_student_rows(**kwargs)
-        return [row.student_id for row in rows]
+        return rows.values_list('id', flat=True)
 
 
 class GradeLevel(SourceObjectMixin, GetCurrentStudentsMixin):

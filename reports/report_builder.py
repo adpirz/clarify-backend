@@ -44,14 +44,14 @@ def get_students_for_group_and_id(group, object_id, site_id=None):
     :param site_id: optional, used for 'grade_level'
     :return: QuerySet<students>
     """
-    if group_is_model(group, "student"):
+    if group == "student":
         return [Student.objects.get(pk=object_id)]
 
-    if group_is_model(group, "grade_level"):
+    if group == "grade_level":
         return GradeLevel.objects.get(pk=object_id)\
             .get_current_students(site_id=site_id)
 
-    model = get_object_from_group_and_id(group, object_id)
+    model = get_model_from_group(group, object_id)
     return model.objects.get(pk=object_id)\
         .get_current_students()
 
@@ -61,14 +61,14 @@ def get_student_ids_for_group_and_id(group, object_id, site_id=None):
     Like 'get_students_for_group_and_id', but returns a list of ids.
     :return: List[int<student_ids>]
     """
-    if group_is_model(group, "student"):
+    if group == "student":
         return [object_id]
 
-    if group_is_model(group, "grade_level"):
+    if group == "grade_level":
         return GradeLevel.objects.get(pk=object_id)\
             .get_current_student_ids(site_id=site_id)
 
-    model = get_object_from_group_and_id(group, object_id)
+    model = get_model_from_group(group, object_id)
     return model.objects.get(pk=object_id) \
         .get_current_student_ids()
 
@@ -96,28 +96,18 @@ def attendance_query_to_data(**query_params):
 
     group = query_params["group"]
     group_id = query_params["group_id"]
-    ytd = query_params.get("ytd", False)
-    is_live = query_params.get("is_live", True)
     from_date = query_params.get("from_date", None)
     to_date = query_params.get("to_date", None)
     site_id = query_params.get("site_id", None)
 
-    is_single_day = (from_date and not to_date and not is_live and not ytd) or\
-        from_date == to_date
+    is_single_day = from_date == to_date
 
-    # clean and validate from_date and to_date
-    if not ytd and not from_date:
-        raise ValueError("Must be either YTD or have a 'from_date'")
+    from_date = datetime.strptime(from_date, DATE_FORMAT).date()
 
-    if ytd:
-        # TODO: Going to have to encode academic start and end dates somewhere
-        from_date = datetime.strptime("2018-08-01", DATE_FORMAT).date()
+    if not to_date:
         to_date = timezone.now().date()
     else:
-        from_date = datetime.strptime(from_date, DATE_FORMAT).date()
-
-    if not to_date and is_live:
-        to_date = timezone.now().date()
+        to_date = datetime.strptime(from_date, DATE_FORMAT).date()
 
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                 site_id=site_id)
@@ -128,7 +118,6 @@ def attendance_query_to_data(**query_params):
         "Title": f"Attendance for {group} {group_id} {time_string}",
         "group": group, "group_id": group_id,
         "from_date": from_date, "to_date": to_date,
-        "ytd": ytd, is_live: "is_live",
         "flags": AttendanceFlag.get_flags_dict()  # can we cache somehow?
     }
 
@@ -168,17 +157,7 @@ def query_value_parser(value):
     return value
 
 
-def group_is_model(group_name, model_name):
-    """
-    Checks if group_name is model_name or plural of model_name
-    :param group_name: str - group name
-    :param model_name: str - model name
-    :return: Boolean
-    """
-    return group_name in [model_name, model_name + "s"]
-
-
-def get_object_from_group_and_id(group, object_id):
+def get_model_from_group(group, object_id):
     """
     Get instance from model name and id.
     :param group: str - group name
@@ -187,7 +166,7 @@ def get_object_from_group_and_id(group, object_id):
     """
     for group_model in GROUPS_AND_MODELS:
         group_title, model = group_model
-        if group_is_model(group, group_title):
+        if group == group_title:
             return model.objects.get(pk=object_id)
 
     raise ValueError(f"Group {group} is not supported.")
