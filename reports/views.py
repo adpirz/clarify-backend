@@ -8,18 +8,11 @@ from django.contrib.auth.decorators import login_required
 from sis_pull.models import Student, AttendanceDailyRecord
 
 from mimesis import Person
-
-from .report_builder import query_to_data
 # Create your views here.
 
 
 @login_required
 def ReportView(request):
-    data = query_to_data(request.GET)
-    return JsonResponse(data)
-
-@login_required
-def _ReportView(request):
     def _get_mock_attendance_data(student):
         generator_ceiling = 100
         report_data = {}
