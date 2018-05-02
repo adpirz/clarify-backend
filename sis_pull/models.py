@@ -1,8 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.apps import apps
-
-from utils import camel_to_underscore
 
 
 class SourceObjectMixin(models.Model):
@@ -35,37 +32,11 @@ class SourceObjectMixin(models.Model):
         abstract = True
 
 
-class GetCurrentStudentsMixin(object):
-
-    roster_model_name = None
-
-    def _get_student_rows(self, **extra):
-        """
-        Returns a QueryDict iterable filtered by model args
-        :param extra: Extra filter args (e.g. site_id for GradeLevel, etc.)
-        :return: QueryDict filtered on model args
-        """
-        pk_field = camel_to_underscore(self.__class__.__name__) + '_id'
-        kwargs = dict(extra)
-        kwargs[pk_field] = self.pk
-        model_name = self.roster_model_name or "SectionLevelRosterPerYear"
-        roster_model = apps.get_model(
-            model_name=model_name, app_label=self._meta.app_label
-        )
-
-        return roster_model.objects.filter(**kwargs)
-
-    def get_current_student_ids(self, **kwargs):
-        rows = self._get_student_rows(**kwargs)
-        return rows.values_list('id', flat=True)
-
-
-class GradeLevel(SourceObjectMixin, GetCurrentStudentsMixin):
+class GradeLevel(SourceObjectMixin):
     """
     Source: public.grade_levels
     """
     source_object_table = 'grade_levels'
-    roster_model_name = 'CurrentRoster'
 
     sort_order = models.IntegerField()
     short_name = models.CharField(max_length=255)
@@ -73,13 +44,12 @@ class GradeLevel(SourceObjectMixin, GetCurrentStudentsMixin):
     state_id = models.CharField(max_length=455, null=True)
 
 
-class Site(SourceObjectMixin, GetCurrentStudentsMixin):
+class Site(SourceObjectMixin):
     """
     Source: public.sites
     Source for site types: public.site_types
     """
     source_object_table = 'sites'
-    roster_model_name = 'CurrentRoster'
 
     SITE_TYPE_CHOICES = (
         (1, 'Middle and K-8 Schools'),
@@ -153,17 +123,6 @@ class AttendanceFlag(SourceObjectMixin):
     character_code = models.CharField(max_length=30, blank=True)
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
-    @classmethod
-    def get_flags_dict(cls):
-        flag_dict = dict()
-
-        for flag in cls.objects.all():
-            flag_dict[flag.id] = {
-                "code": flag.character_code, "flag_text": flag.flag_text
-            }
-
-        return flag_dict
-
 
 class AttendanceDailyRecord(SourceObjectMixin):
     """
@@ -179,123 +138,7 @@ class AttendanceDailyRecord(SourceObjectMixin):
     attendance_flag = models.ForeignKey(AttendanceFlag)
 
     def __str__(self):
-        return f"{self.date.strftime('%Y-%m-%d')}: " +\
-               f"{self.student} - {self.attendance_flag}"
-
-
-    @classmethod
-    def get_records_for_student(cls, student_id,
-                                from_date=None, to_date=None):
-        """
-        Get all relevant AttendanceDailyRecord instances for
-        params.
-        :return: QuerySet<AttendanceDailyRecord>
-        """
-        if to_date and not from_date:
-            raise LookupError("Must have a from_date with a to_date")
-        all_objects = cls.objects.filter(student_id=student_id)
-
-        if from_date and to_date:
-            return all_objects.filter(date__gte=from_date, date__lte=to_date)\
-                .all()
-        if from_date:
-            return all_objects.filter(date__gte=from_date).all()
-
-        return all_objects.all()
-
-    @classmethod
-    def get_records_for_students(cls, student_ids,
-                                 from_date=None, to_date=None):
-        """
-        Get all relevant AttendanceDailyRecords instances for a
-        list of student_ids.
-        :return: List[{student_id: int, records: QuerySet<ADR>}]
-        """
-        all_student_records = list()
-
-        for student_id in student_ids:
-            student_records = dict({"student_id": student_id})
-            student_records["records"] = cls.get_records_for_student(
-                student_id, from_date=from_date, to_date=to_date
-            )
-            all_student_records.append(student_records)
-
-        return all_student_records
-
-    @staticmethod
-    def calculate_summaries_for_student_records(student_records):
-        """
-        Returns a summary dict with a tuple (val, percentage) for each
-        flag_id
-        :param QuerySet<AttendanceDailyRecord>
-        :return: {student_id: int, flag_id: (value, percentage) ... }
-        """
-        total_days = 0
-        flag_dict = dict()
-        summary_dict = dict()
-        for record in student_records:
-            if "student_id" not in summary_dict:
-                summary_dict["student_id"] = record.student_id
-            if record.student_id != summary_dict["student_id"]:
-                raise AttributeError("Student records must all be same student.")
-            flag_id = record.attendance_flag_id
-            if flag_id not in flag_dict:
-                flag_dict[flag_id] = 1
-            else:
-                flag_dict[flag_id] += 1
-            total_days += 1
-
-        for flag_id, value in flag_dict.items():
-            summary_dict[flag_id] = (value, value/total_days)
-
-        return summary_dict
-
-
-    @classmethod
-    def get_summaries_for_student(cls, student_id, from_date, to_date):
-        """
-        Returns a summary dict for a student with given date params.
-        """
-        return cls.calculate_summaries_for_student_records(
-            cls.get_records_for_student(student_id,
-                                        from_date=from_date, to_date=to_date)
-        )
-
-    @classmethod
-    def get_summaries_for_students(cls, student_ids, from_date, to_date):
-        """
-        :return: List[{
-            student_id: int, <flag_id>: (<val>, <percentage>)
-        }]
-        """
-        summaries = list()
-        for student_id in student_ids:
-            summaries.append(cls.get_summaries_for_student(
-                student_id, from_date=from_date, to_date=to_date
-            ))
-
-        return summaries
-
-    @classmethod
-    def get_student_record_for_date(cls, student_id, date):
-        """Get an individual date record for one student"""
-
-        return AttendanceDailyRecord.objects.get(student_id=student_id, date=date)
-
-    @classmethod
-    def get_student_records_for_date(cls, student_ids, date):
-        """Get an individual date record for list of students"""
-
-        return [cls.get_student_record_for_date(i, date)
-                for i in student_ids]
-
-    @classmethod
-    def get_formatted_student_records_for_date(cls, student_ids, date):
-        """ Get a formatted a dict of data for a single date for student_ids"""
-
-        student_records = cls.get_student_records_for_date(student_ids, date)
-        return [{"student_id": i.student_id, "flag_id": i.attendance_flag_id}
-                for i in student_records]
+        return f"{self.school_day}: {self.student} - {self.code}"
 
 
 class Staff(SourceObjectMixin):
@@ -370,16 +213,6 @@ class SectionLevelRosterPerYear(SourceObjectMixin):
     entry_date = models.DateField(null=True)
     leave_date = models.DateField(null=True)
     is_primary_teacher = models.NullBooleanField()
-
-
-class CurrentRoster(models.Model):
-    """
-    Source: matviews.ss_current
-    Gives current roster for each school and grade level.
-    """
-    site = models.ForeignKey(Site)
-    grade_level = models.ForeignKey(GradeLevel)
-    student = models.ForeignKey(Student)
 
 
 class Gradebook(SourceObjectMixin):
