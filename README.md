@@ -89,9 +89,10 @@ $ pip install -r requirements/local.txt
 ```
 There are multiple `requirements/*.txt` files, but you only need to worry about `local` as it takes care of importing from the other files as needed.
 
-From the root directory, you'll need to migrate the models into the database.
+From the root directory, you'll need to create and run the migrations for the models into the database.
 
 ```
+$ ./manage.py makemigrations
 $ ./manage.py migrate
 ```
 
