@@ -193,6 +193,7 @@ class Student(SourceObjectMixin, models.Model):
             .distinct('gradebook_id')\
             .values_list('gradebook_id', flat=True)
 
+
 class AttendanceFlag(SourceObjectMixin, models.Model):
     source_table = "attendance_flag"
     character_code = models.CharField(max_length=30, blank=True)

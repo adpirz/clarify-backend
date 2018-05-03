@@ -52,8 +52,7 @@ def query_to_data(query):
         report_data['query'] = report.query if report_id else query.urlencode()
         return report_data
 
-    raise ValueError("Only supports grades and attendance.")
-
+    raise ValueError(f"Report category {report_query['category']} not supported.")
 
 def get_student_ids_for_group_and_id(group, object_id, site_id=None,
                                      return_set=False):
@@ -154,11 +153,9 @@ def grades_query_to_data(report_id, **query_params):
     site_id = query_params.get("site_id", None)
     course_id = query_params.get("course_id", None)
 
-
     course_name = Course.objects.get(source_object_id=course_id).short_name
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                    return_set=True)
-
     data = []
 
     def get_all_recent_course_grades_for_student_id(student_id):
