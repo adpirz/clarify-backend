@@ -443,6 +443,11 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
         return f"{timeblock_name} {course_name}"
 
+    @property
+    def gradebooks(self):
+        gscas = GradebookSectionCourseAffinity.objects.filter(section_id=self.id)
+        return [gsca.gradebook for gsca in gscas]
+
 
     def get_course_id(self):
         gsca = GradebookSectionCourseAffinity.objects.filter(
@@ -633,7 +638,8 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
     @classmethod
     def get_latest_for_student_and_gradebook(cls, student_id, gradebook_id):
         """
-        Returns the latest row calculated for a given gradebook and list of
+
+        Returns the latest row calculated for a given and student.
         :param student_id: int
         :param gradebook_id: int
         :return: OverallScoreCache instance
