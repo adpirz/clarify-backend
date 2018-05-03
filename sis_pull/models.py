@@ -428,7 +428,6 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
         return f"{timeblock_name} {course_name}"
 
-
     def get_course_id(self):
         gsca = GradebookSectionCourseAffinity.objects.filter(
             section_id=self.source_id).first()
@@ -437,27 +436,6 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
             return gsca.course_id
         else:
             return None
-
-
-    def get_course_id(self):
-        gsca = GradebookSectionCourseAffinity.objects.filter(
-            section_id=self.source_id).first()
-
-        if gsca:
-            return gsca.course_id
-        else:
-            return None
-
-
-    def get_course_id(self):
-        gsca = GradebookSectionCourseAffinity.objects.filter(
-            section_id=self.source_id).first()
-
-        if gsca:
-            return gsca.course_id
-        else:
-            return None
-
 
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
@@ -630,12 +608,19 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
     def get_latest_for_student_and_gradebook(cls, student_id, gradebook_id):
         """
 <<<<<<< HEAD
+<<<<<<< HEAD
 
         Returns the latest row calculated for a given and student.
 =======
         Returns the latest row calculated for a given gradebook and list of
         student IDs.
 >>>>>>> working gradebook reporting with given format
+=======
+        Returns the latest row calculated for a given gradebook and list of
+        student IDs.
+=======
+        Returns the latest row calculated for a given and student.
+>>>>>>> adding convenience methods on sis_pull models to get gradebooks
         :param student_id: int
         :param gradebook_id: int
         :return: OverallScoreCache instance
