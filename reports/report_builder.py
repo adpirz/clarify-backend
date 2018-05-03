@@ -165,6 +165,7 @@ def grades_query_to_data(report_id, **query_params):
     site_id = query_params.get("site_id", None)
     course_id = query_params.get("course_id", None)
 
+
     course_name = Course.objects.get(source_object_id=course_id).short_name
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                    return_set=True)

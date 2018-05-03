@@ -168,6 +168,16 @@ class Student(SourceObjectMixin, models.Model):
             .distinct('gradebook_id')\
             .values_list('gradebook_id', flat=True)
 
+    def get_current_active_sections(self):
+        """Returns sections student is currently enrolled in"""
+        today = timezone.now().date()
+        current_year = today.year if today.month < 7 else today.year - 1
+
+
+
+    def get_current_gradebooks(self):
+        pass
+
 
 class AttendanceFlag(SourceObjectMixin, models.Model):
     source_table = "attendance_flag"
@@ -435,6 +445,7 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     def gradebooks(self):
         gscas = GradebookSectionCourseAffinity.objects.filter(section_id=self.id)
         return [gsca.gradebook for gsca in gscas]
+
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     """
