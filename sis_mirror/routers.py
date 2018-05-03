@@ -7,7 +7,7 @@ class MirrorRouter:
 
     def allow_relation(self, obj1, obj2, **hints):
         if obj1._meta.app_label == 'sis_mirror' or\
-            obj2._meta.app_label == 'sis_mirror':
+           obj2._meta.app_label == 'sis_mirror':
             return True
         return None
 

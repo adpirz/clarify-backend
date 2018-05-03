@@ -144,6 +144,9 @@ class Students(models.Model):
     military_family_indicator = models.IntegerField()
     cellphone = models.CharField(max_length=20, blank=True, null=True)
 
+    def __str__(self):
+        return self.last_name + ", " + self.first_name
+
     class Meta:
         managed = False
         db_table = 'students'
@@ -197,6 +200,9 @@ class Users(models.Model):
     password_version = models.IntegerField()
     user_guid = models.UUIDField()
     illuminate_employee = models.BooleanField()
+
+    def __str__(self):
+        return self.username
 
     class Meta:
         managed = False
@@ -264,6 +270,9 @@ class Sites(models.Model):
     is_ap_self_selection = models.NullBooleanField()
     show_report_cards = models.NullBooleanField()
 
+    def __str__(self):
+        return self.site_name
+
     class Meta:
         managed = False
         db_table = 'sites'
@@ -325,6 +334,10 @@ class Sections(models.Model):
     minutes_per_week = models.IntegerField()
     alternative_learning_experience_program_id = models.IntegerField(blank=True, null=True)
     alternative_learning_experience_type_id = models.IntegerField(blank=True, null=True)
+
+    def __str__(self):
+        return self.section_name
+
 
     class Meta:
         managed = False
@@ -416,6 +429,9 @@ class Courses(models.Model):
     hide_ms_credits = models.BooleanField()
     scholarship_program_id = models.IntegerField(blank=True, null=True)
 
+    def __str__(self):
+        return self.short_name
+
     class Meta:
         managed = False
         db_table = 'courses'
@@ -436,6 +452,9 @@ class Gradebooks(models.Model):
     academic_year = models.IntegerField()
     session_type_id = models.IntegerField()
     is_deleted = models.BooleanField()
+
+    def __str__(self):
+        return self.gradebook_name
 
     class Meta:
         managed = False
@@ -464,6 +483,9 @@ class GradeLevels(models.Model):
     system_sort_order = models.IntegerField(blank=True, null=True)
     system_key = models.CharField(max_length=100, blank=True, null=True)
 
+    def __str__(self):
+        return self.long_name
+
     class Meta:
         managed = False
         db_table = 'grade_levels'
@@ -471,12 +493,15 @@ class GradeLevels(models.Model):
 
 class GradebookSectionCourseAff(models.Model):
     gsca_id = models.IntegerField(primary_key=True)
-    gradebook_id = models.ForeignKey(Gradebooks)
-    section_id = models.ForeignKey(Sections)
-    course_id = models.ForeignKey(Courses)
+    gradebook = models.ForeignKey(Gradebooks)
+    section = models.ForeignKey(Sections)
+    course = models.ForeignKey(Courses)
     created = models.DateTimeField(blank=True, null=True)
     modified = models.DateTimeField(blank=True, null=True)
-    user_id = models.ForeignKey(Users)
+    user = models.ForeignKey(Users)
+
+    def __str__(self):
+        return f"{self.gradebook} - {self.section} - {self.course}"
 
     class Meta:
         managed = False
@@ -499,6 +524,9 @@ class OverallScoreCache(models.Model):
     timeframe_start_date = models.DateField()
     timeframe_end_date = models.DateField()
     calculated_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.student} grades for {self.gradebook}'"
 
     class Meta:
         managed = False

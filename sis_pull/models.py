@@ -89,6 +89,9 @@ class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     state = models.CharField(max_length=100, null=True)
     zip = models.CharField(max_length=10, null=True)
 
+    def __str__(self):
+        return self.site_name
+
     def get_site_type_label(self):
         return self.SITE_TYPE_CHOICES[self.site_type_id][1]
 
@@ -334,6 +337,9 @@ class Course(SourceObjectMixin, models.Model):
     site = models.ForeignKey(Site)
     is_active = models.BooleanField(default=True)
 
+    def __str__(self):
+        return self.short_name
+
 
 class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """
@@ -396,6 +402,9 @@ class Gradebook(SourceObjectMixin, models.Model):
     academic_year = models.PositiveIntegerField()
     is_deleted = models.BooleanField(default=False)
 
+    def __str__(self):
+        return self.gradebook_name
+
 
 class Category(SourceObjectMixin, models.Model):
     """
@@ -424,6 +433,9 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     created = models.DateTimeField()
     modified = models.DateTimeField()
 
+    def __str__(self):
+        return f"{self.gradebook} - {self.section} - {self.course}"
+
 
 class OverallScoreCache(SourceObjectMixin, models.Model):
     """
@@ -445,6 +457,9 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
     zero_count = models.IntegerField(null=True)
     excused_count = models.IntegerField(null=True)
     calculated_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.student} grades for {self.gradebook}'"
 
 
 class CategoryScoreCache(SourceObjectMixin, models.Model):
