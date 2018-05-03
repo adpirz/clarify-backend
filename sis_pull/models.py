@@ -138,7 +138,116 @@ class AttendanceDailyRecord(SourceObjectMixin):
     attendance_flag = models.ForeignKey(AttendanceFlag)
 
     def __str__(self):
-        return f"{self.school_day}: {self.student} - {self.code}"
+
+        return f"{self.date.strftime('%Y-%m-%d')}: " +\
+               f"{self.student} - {self.attendance_flag}"
+
+
+    @classmethod
+    def get_records_for_student(cls, student_id,
+                                from_date=None, to_date=None):
+        """
+        Get all relevant AttendanceDailyRecord instances for
+        params.
+        :return: QuerySet<AttendanceDailyRecord>
+        """
+        if to_date and not from_date:
+            raise LookupError("Must have a from_date with a to_date")
+        all_objects = cls.objects.filter(student_id=student_id)
+
+        if from_date and to_date:
+            return all_objects.filter(date__gte=from_date, date__lte=to_date)
+        if from_date:
+            return all_objects.filter(date__gte=from_date)
+
+        return all_objects
+
+    @classmethod
+    def get_records_for_students(cls, student_ids,
+                                 from_date=None, to_date=None):
+        """
+        Get all relevant AttendanceDailyRecords instances for a
+        list of student_ids.
+        :return: List[{student_id: int, records: QuerySet<ADR>}]
+        """
+        attendance_records_by_student = []
+
+        for student_id in student_ids:
+            student_records = dict({"student_id": student_id})
+            student_records["records"] = cls.get_records_for_student(
+                student_id, from_date=from_date, to_date=to_date
+            )
+            attendance_records_by_student.append(student_records)
+
+        return attendance_records_by_student
+
+    @staticmethod
+    def calculate_summaries_for_student_records(student_records):
+        """
+        Returns a summary dict with a tuple (val, percentage) for each
+        flag_id
+        :param QuerySet<AttendanceDailyRecord>
+        :return: {student_id: int, flag_id: (value, percentage) ... }
+        """
+
+        flag_dict = {f: 0 for f in \
+                     AttendanceFlag.objects.values_list('id', flat=True)}
+
+        summary_dict = dict()
+        for record in student_records:
+            if "student_id" not in summary_dict:
+                summary_dict["student_id"] = record.student_id
+            if record.student_id != summary_dict["student_id"]:
+                raise AttributeError("Student records must all be same student.")
+            flag_id = record.attendance_flag_id
+            if flag_id not in flag_dict:
+                flag_dict[flag_id] = 1
+            else:
+                flag_dict[flag_id] += 1
+
+        for flag_id, value in flag_dict.items():
+            summary_dict[flag_id] = (value, value/len(student_records))
+
+        return summary_dict
+
+
+    @classmethod
+    def get_summaries_for_student(cls, student_id, from_date, to_date):
+        """
+        Returns a summary dict for a student with given date params.
+        """
+        return cls.calculate_summaries_for_student_records(
+            cls.get_records_for_student(student_id,
+                                        from_date=from_date, to_date=to_date)
+        )
+
+    @classmethod
+    def get_summaries_for_students(cls, student_ids, from_date, to_date):
+        """
+        :return: List[{
+            student_id: int, <flag_id>: (<val>, <percentage>)
+        }]
+        """
+        summaries = []
+        for student_id in student_ids:
+            summaries.append(cls.get_summaries_for_student(
+                student_id, from_date=from_date, to_date=to_date
+            ))
+
+        return summaries
+
+    @classmethod
+    def get_student_record_for_date(cls, student_id, date):
+        """Get an individual date record for one student"""
+
+        return cls.objects.get(student_id=student_id, date=date)
+
+    @classmethod
+    def get_student_records_for_date(cls, student_ids, date):
+        """Get an individual date record for list of students"""
+
+        return [cls.get_student_record_for_date(i, date)
+                for i in student_ids]
 
 
 class Staff(SourceObjectMixin):
