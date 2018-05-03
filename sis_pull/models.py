@@ -366,6 +366,11 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
         return f"{timeblock_name} {course_name}"
 
+    @property
+    def gradebooks(self):
+        gscas = GradebookSectionCourseAffinity.objects.filter(section_id=self.id)
+        return [gsca.gradebook for gsca in gscas]
+
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     """
@@ -460,6 +465,19 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
 
     def __str__(self):
         return f"{self.student} grades for {self.gradebook}'"
+
+    @classmethod
+    def get_latest_for_student_and_gradebook(cls, student_id, gradebook_id):
+        """
+        Returns the latest row calculated for a given and student.
+        :param student_id: int
+        :param gradebook_id: int
+        :return: OverallScoreCache instance
+        """
+        return cls.objects.exclude(possible_points__isnull=True)\
+                    .filter(student_id=student_id, gradebook_id=gradebook_id)\
+                    .order_by('calculated_at')\
+                    .first()
 
 
 class CategoryScoreCache(SourceObjectMixin, models.Model):
