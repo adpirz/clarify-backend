@@ -431,6 +431,7 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
             return None
 
 
+
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     """
     Source: matviews.ss_cube
@@ -565,6 +566,9 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     user = models.ForeignKey(Staff)
     created = models.DateTimeField(null=True)
     modified = models.DateTimeField(null=True)
+
+    def __str__(self):
+        return f"{self.gradebook} - {self.section} - {self.course}"
 
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"

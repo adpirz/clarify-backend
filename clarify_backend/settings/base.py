@@ -45,6 +45,7 @@ THIRD_PARTY_APPS = [
 ]
 
 CLARIFY_APPS = [
+    'reports.apps.ReportsConfig',
     'sis_pull.apps.SisPullConfig',
     'sis_mirror.apps.SisMirrorConfig',
     'reports.apps.ReportsConfig'
