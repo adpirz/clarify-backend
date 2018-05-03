@@ -1,5 +1,7 @@
+from django.apps import apps
 from django.db import models
 from django.contrib.auth.models import User
+from utils import camel_to_underscore
 
 
 class SourceObjectMixin(models.Model):
@@ -36,7 +38,7 @@ class GetCurrentStudentsMixin(object):
 
     roster_model_name = None
 
-    def _get_student_rows(self, **extra):
+    def _get_student_roster_rows(self, **extra):
         """
         Returns a QueryDict iterable filtered by model args
         :param extra: Extra filter args (e.g. site_id for GradeLevel, etc.)
@@ -53,11 +55,11 @@ class GetCurrentStudentsMixin(object):
         return roster_model.objects.filter(**kwargs)
 
     def get_current_students(self, **kwargs):
-        rows = self._get_student_rows(**kwargs)
+        rows = self._get_student_roster_rows(**kwargs)
         return [row.student for row in rows]
 
     def get_current_student_ids(self, **kwargs):
-        rows = self._get_student_rows(**kwargs)
+        rows = self._get_student_roster_rows(**kwargs)
         return [row.student_id for row in rows]
 
 

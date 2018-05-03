@@ -40,7 +40,7 @@ def get_students_for_group_and_id(group, object_id, site_id=None):
     :param group: str; group name ('section', 'site', etc.)
     :param object_id: id of group
     :param site_id: optional, used for 'grade_level'
-    :return: QuerySet<students>
+    :return: Iterable<students>
     """
     if group_is_model(group, "student"):
         return [Student.objects.get(pk=object_id)]
