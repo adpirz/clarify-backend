@@ -336,7 +336,12 @@ class Sections(models.Model):
     alternative_learning_experience_type_id = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
+<<<<<<< HEAD
         return self.section_name or str(self.section_id)
+=======
+        return self.section_name
+
+>>>>>>> built commands for updating score cache and GSCA from mirror; added __str__ methods to models for shell convenience; changed SourceObjectMixin to SourceObjectModel
 
     class Meta:
         managed = False
@@ -429,7 +434,11 @@ class Courses(models.Model):
     scholarship_program_id = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
+<<<<<<< HEAD
         return self.short_name or str(self.course_id)
+=======
+        return self.short_name
+>>>>>>> built commands for updating score cache and GSCA from mirror; added __str__ methods to models for shell convenience; changed SourceObjectMixin to SourceObjectModel
 
     class Meta:
         managed = False
@@ -453,7 +462,11 @@ class Gradebooks(models.Model):
     is_deleted = models.BooleanField()
 
     def __str__(self):
+<<<<<<< HEAD
         return self.gradebook_name or str(self.gradebook_id)
+=======
+        return self.gradebook_name
+>>>>>>> built commands for updating score cache and GSCA from mirror; added __str__ methods to models for shell convenience; changed SourceObjectMixin to SourceObjectModel
 
     class Meta:
         managed = False

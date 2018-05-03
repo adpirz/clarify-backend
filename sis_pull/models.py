@@ -418,7 +418,6 @@ class Course(SourceObjectMixin, models.Model):
                 .distinct('course_id')\
                 .values_list('course_id', flat=True)
 
-
 class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """
     Source: public.sections
@@ -599,6 +598,9 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     user = models.ForeignKey(Staff)
     created = models.DateTimeField(null=True)
     modified = models.DateTimeField(null=True)
+
+    def __str__(self):
+        return f"{self.gradebook} - {self.section} - {self.course}"
 
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"
