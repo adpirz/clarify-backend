@@ -1,4 +1,6 @@
+
 from django.apps import apps
+from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import User
 from utils import camel_to_underscore, get_academic_year
@@ -134,6 +136,16 @@ class Student(SourceObjectMixin, models.Model):
 
     def __str__(self):
         return "{} {}".format(self.first_name, self.last_name)
+
+    def get_current_active_sections(self):
+        """Returns sections student is currently enrolled in"""
+        today = timezone.now().date()
+        current_year = today.year if today.month < 7 else today.year - 1
+
+
+
+    def get_current_gradebooks(self):
+
 
 
 class AttendanceFlag(SourceObjectMixin, models.Model):

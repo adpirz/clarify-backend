@@ -45,7 +45,12 @@ def query_to_data(query):
         report_data['query'] = report.query if report_id else query.urlencode()
         return report_data
 
-    raise ValueError("Only supports attendance.")
+    if report_query["category"] == "grades":
+        report_data = grades_query_to_data(**report_query)
+        report_data['query'] = report.query if report_id else query.urlencode()
+        return report_data
+
+    raise ValueError("Only supports grades and attendance.")
 
 
 def get_student_ids_for_group_and_id(group, object_id, site_id=None):
@@ -132,6 +137,38 @@ def attendance_query_to_data(report_id=None, **query_params):
         data["id"] = report_id
 
     return data
+
+
+def grades_query_to_data(**query_params):
+    """Currently supports getting most up to date data"""
+    group = query_params["group"]
+    group_id = query_params["group_id"]
+    site_id = query_params.get("site_id", None)
+    course_id = query_params.get("course_id", None)
+
+    student_ids = get_student_ids_for_group_and_id(group, group_id,
+                                                   site_id=site_id)
+
+    # grades =  get_grades_from_student_ids(student_ids, course=course)
+
+    def build_columns():
+        """Columns should be course name and grade or mark"""
+        # get column names from grades
+        pass
+
+    def build_rows():
+        # turn grades info into rows
+        pass
+
+    data = {
+        "Title": f"",
+        "Course": course_name
+        "columns": build_columns(),
+        "rows": build_rows()
+    }
+
+    return data
+
 
 
 def query_parser(querydict):
