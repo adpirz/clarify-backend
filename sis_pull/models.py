@@ -431,6 +431,10 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
             return None
 
 
+    @property
+    def gradebooks(self):
+        gscas = GradebookSectionCourseAffinity.objects.filter(section_id=self.id)
+        return [gsca.gradebook for gsca in gscas]
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     """
@@ -601,8 +605,11 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
     @classmethod
     def get_latest_for_student_and_gradebook(cls, student_id, gradebook_id):
         """
+<<<<<<< HEAD
         Returns the latest row calculated for a given gradebook and list of
         student IDs.
+=======
+        Returns the latest row calculated for a given and student.
         :param student_id: int
         :param gradebook_id: int
         :return: OverallScoreCache instance
