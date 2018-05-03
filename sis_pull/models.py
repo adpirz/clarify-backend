@@ -444,6 +444,7 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
     missing_count = models.IntegerField(null=True)
     zero_count = models.IntegerField(null=True)
     excused_count = models.IntegerField(null=True)
+    calculated_at = models.DateTimeField()
 
 
 class CategoryScoreCache(SourceObjectMixin, models.Model):
