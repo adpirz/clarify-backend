@@ -99,9 +99,9 @@ def attendance_query_to_data(**query_params):
     from_date = datetime.strptime(from_date, DATE_FORMAT).date()
 
     if not to_date:
-            to_date = timezone.now().date()
+        to_date = timezone.now().date()
     else:
-        to_date = datetime.strptime(from_date, DATE_FORMAT).date()
+        to_date = datetime.strptime(to_date, DATE_FORMAT).date()
 
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                 site_id=site_id)
