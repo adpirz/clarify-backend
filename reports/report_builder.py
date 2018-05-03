@@ -5,7 +5,6 @@ Example queries to pass to query_to_data:
 from datetime import datetime
 
 from django.utils import timezone
-from django.http import QueryDict
 
 from sis_pull.models import (
     Student, User, Site, GradeLevel, Section,
@@ -34,19 +33,40 @@ def query_to_data(query):
     raise ValueError("Only supports attendance.")
 
 
+def get_students_for_group_and_id(group, object_id, site_id=None):
+    """
+    Gets a list of current student instances based on group and
+    object_id for that group.
+    :param group: str; group name ('section', 'site', etc.)
+    :param object_id: id of group
+    :param site_id: optional, used for 'grade_level'
+    :return: QuerySet<students>
+    """
+    if group_is_model(group, "student"):
+        return [Student.objects.get(pk=object_id)]
+
+    if group_is_model(group, "grade_level"):
+        return GradeLevel.objects.get(pk=object_id)\
+            .get_current_students(site_id=site_id)
+
+    model = get_object_from_group_and_id(group, object_id)
+    return model.objects.get(pk=object_id)\
+        .get_current_students()
+
+
 def get_student_ids_for_group_and_id(group, object_id, site_id=None):
     """
     Like 'get_students_for_group_and_id', but returns a list of ids.
     :return: List[int<student_ids>]
     """
-    if group == "student":
+    if group_is_model(group, "student"):
         return [object_id]
 
-    if group == "grade_level":
+    if group_is_model(group, "grade_level"):
         return GradeLevel.objects.get(pk=object_id)\
             .get_current_student_ids(site_id=site_id)
 
-    model = get_model_from_group(group, object_id)
+    model = get_object_from_group_and_id(group, object_id)
     return model.objects.get(pk=object_id) \
         .get_current_student_ids()
 
@@ -75,13 +95,11 @@ def attendance_query_to_data(**query_params):
     from_date = query_params.get("from_date", None)
     to_date = query_params.get("to_date", None)
     site_id = query_params.get("site_id", None)
-
     is_single_day = from_date == to_date
-
     from_date = datetime.strptime(from_date, DATE_FORMAT).date()
 
     if not to_date:
-        to_date = timezone.now().date()
+            to_date = timezone.now().date()
     else:
         to_date = datetime.strptime(from_date, DATE_FORMAT).date()
 
@@ -135,7 +153,17 @@ def query_value_parser(value):
     return value
 
 
-def get_model_from_group(group, object_id):
+def group_is_model(group_name, model_name):
+    """
+    Checks if group_name is model_name or plural of model_name
+    :param group_name: str - group name
+    :param model_name: str - model name
+    :return: Boolean
+    """
+    return group_name in [model_name, model_name + "s"]
+
+
+def get_object_from_group_and_id(group, object_id):
     """
     Get instance from model name and id.
     :param group: str - group name
@@ -144,6 +172,7 @@ def get_model_from_group(group, object_id):
     """
     for group_title, model in GROUPS_AND_MODELS:
         if group == group_title:
+
             return model.objects.get(pk=object_id)
 
     raise ValueError(f"Group {group} is not supported.")

@@ -32,7 +32,36 @@ class SourceObjectMixin(models.Model):
         abstract = True
 
 
-class GradeLevel(SourceObjectMixin):
+class GetCurrentStudentsMixin(object):
+
+    roster_model_name = None
+
+    def _get_student_rows(self, **extra):
+        """
+        Returns a QueryDict iterable filtered by model args
+        :param extra: Extra filter args (e.g. site_id for GradeLevel, etc.)
+        :return: QueryDict filtered on model args
+        """
+        pk_field = camel_to_underscore(self.__class__.__name__) + '_id'
+        kwargs = dict(extra)
+        kwargs[pk_field] = self.pk
+        model_name = self.roster_model_name or "SectionLevelRosterPerYear"
+        roster_model = apps.get_model(
+            model_name=model_name, app_label=self._meta.app_label
+        )
+
+        return roster_model.objects.filter(**kwargs)
+
+    def get_current_students(self, **kwargs):
+        rows = self._get_student_rows(**kwargs)
+        return [row.student for row in rows]
+
+    def get_current_student_ids(self, **kwargs):
+        rows = self._get_student_rows(**kwargs)
+        return [row.student_id for row in rows]
+
+
+class GradeLevel(SourceObjectMixin, GetCurrentStudentsMixin):
     """
     Source: public.grade_levels
     """
