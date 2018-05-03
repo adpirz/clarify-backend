@@ -78,7 +78,7 @@ def attendance_query_to_data(**query_params):
     :return: Attendance data dict
     """
 
-    DATE_FORMAT = "%Y-%m-%d"  # YYYY-MM-DD
+    DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"  # YYYY-MM-DD
 
     def get_time_string():
         """For formatting in titles"""
