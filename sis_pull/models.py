@@ -154,6 +154,11 @@ class AttendanceFlag(SourceObjectMixin):
     character_code = models.CharField(max_length=30, blank=True)
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
+    @classmethod
+    def get_flags_dict(cls):
+        return {f.id: {"text": f.flag_text, "code": f.character_code}
+                for f in cls.objects.all()}
+
 
 class AttendanceDailyRecord(SourceObjectMixin):
     """
