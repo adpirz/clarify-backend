@@ -1,5 +1,7 @@
+from django.apps import apps
 from django.db import models
 from django.contrib.auth.models import User
+from utils import camel_to_underscore
 
 
 class SourceObjectMixin(models.Model):
@@ -32,7 +34,36 @@ class SourceObjectMixin(models.Model):
         abstract = True
 
 
-class GradeLevel(SourceObjectMixin):
+class GetCurrentStudentsMixin(object):
+
+    roster_model_name = None
+
+    def _get_student_roster_rows(self, **extra):
+        """
+        Returns a QueryDict iterable filtered by model args
+        :param extra: Extra filter args (e.g. site_id for GradeLevel, etc.)
+        :return: QueryDict filtered on model args
+        """
+        pk_field = camel_to_underscore(self.__class__.__name__) + '_id'
+        kwargs = dict(extra)
+        kwargs[pk_field] = self.pk
+        model_name = self.roster_model_name or "SectionLevelRosterPerYear"
+        roster_model = apps.get_model(
+            model_name=model_name, app_label=self._meta.app_label
+        )
+
+        return roster_model.objects.filter(**kwargs)
+
+    def get_current_students(self, **kwargs):
+        rows = self._get_student_roster_rows(**kwargs)
+        return [row.student for row in rows]
+
+    def get_current_student_ids(self, **kwargs):
+        rows = self._get_student_roster_rows(**kwargs)
+        return [row.student_id for row in rows]
+
+
+class GradeLevel(SourceObjectMixin, GetCurrentStudentsMixin):
     """
     Source: public.grade_levels
     """
@@ -122,6 +153,11 @@ class AttendanceFlag(SourceObjectMixin):
 
     character_code = models.CharField(max_length=30, blank=True)
     flag_text = models.CharField(max_length=255, blank=True, null=True)
+
+    @classmethod
+    def get_flags_dict(cls):
+        return {f.id: {"text": f.flag_text, "code": f.character_code}
+                for f in cls.objects.all()}
 
 
 class AttendanceDailyRecord(SourceObjectMixin):
