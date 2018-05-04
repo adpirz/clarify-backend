@@ -225,7 +225,7 @@ class AttendanceDailyRecord(SourceObjectModel):
         flag_dict = {f: 0 for f in \
                      AttendanceFlag.objects.values_list('id', flat=True)}
 
-        summary_dict = dict()
+        summary_dict = {"attendance_data": {}}
         for record in student_records:
             if "student_id" not in summary_dict:
                 summary_dict["student_id"] = record.student_id
@@ -239,7 +239,7 @@ class AttendanceDailyRecord(SourceObjectModel):
 
         for flag_id, value in flag_dict.items():
             total = len(student_records)
-            summary_dict[flag_id] = (
+            summary_dict["attendance_data"][flag_id] = (
                 value, 0 if total is 0 else value/total)
 
         return summary_dict
