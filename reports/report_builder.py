@@ -50,8 +50,7 @@ def get_students_for_group_and_id(group, object_id, site_id=None):
             .get_current_students(site_id=site_id)
 
     model = get_object_from_group_and_id(group, object_id)
-    return model.objects.get(pk=object_id)\
-        .get_current_students()
+    return model.get_current_students()
 
 
 def get_student_ids_for_group_and_id(group, object_id, site_id=None):
