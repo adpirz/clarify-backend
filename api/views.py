@@ -1,5 +1,5 @@
 from json import loads
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
@@ -9,7 +9,7 @@ from sis_pull.models import (
     Student, Section, GradeLevel, Site, Staff,
     SectionLevelRosterPerYear
 )
-
+from reports.models import Report, Worksheet, WorksheetMembership
 from mimesis import Person
 
 # Create your views here.
@@ -25,6 +25,7 @@ def UserView(request):
             'last_name': user.last_name,
             'email': user.email,
         })
+
 
 @login_required
 def StudentView(request):
@@ -72,6 +73,7 @@ def SectionView(request):
         'data': [_shape(s) for s in teacher_sections]
     })
 
+
 @login_required
 def GradeLevelView(request):
     def _shape(grade_level):
@@ -91,6 +93,7 @@ def GradeLevelView(request):
     return JsonResponse({
         'data': [_shape(g) for g in teacher_grade_levels]
     })
+
 
 @login_required
 def SiteView(request):
@@ -112,12 +115,13 @@ def SiteView(request):
         'data': [_shape(s) for s in teacher_sites]
     })
 
+
 @csrf_exempt
 def SessionView(request):
     if request.method not in ['GET', 'POST', 'DELETE']:
         return JsonResponse({
             'error': 'Method not allowed.'
-        })
+        }, status_code=405)
     user = request.user
     if request.method == 'GET':
         if user.is_authenticated():
@@ -136,11 +140,11 @@ def SessionView(request):
                 status=200
             )
         else:
-            parseablePost = request.body.decode('utf8').replace("'", '"')
-            parsedPost = loads(parseablePost)
-            requestUsername = parsedPost.get('username')
-            requestPassword = parsedPost.get('password', '')
-            user = authenticate(username=requestUsername, password=requestPassword)
+            parseable_post = request.body.decode('utf8').replace("'", '"')
+            parsed_post = loads(parseable_post)
+            request_username = parsed_post.get('username')
+            request_password = parsed_post.get('password', '')
+            user = authenticate(username=request_username, password=request_password)
             if user:
                 login(request, user)
                 return JsonResponse(
@@ -167,3 +171,123 @@ def SessionView(request):
         {'error': 'Response not handled'},
         status=400
     )
+
+
+@login_required
+@csrf_exempt
+def ReportView(request):
+    if request.method not in ['GET', 'POST']:
+        return JsonResponse({
+            'error': 'Method not allowed.'
+        }, status=405)
+    def _shape(report):
+        return {
+            'id': report.id,
+            'staff': report.staff.id,
+            'name': report.name,
+            'query': report.query,
+            'created_on': report.created_on,
+            'updated_on': report.updated_on,
+            'source_report': report.source_report,
+        }
+    requesting_staff = Staff.objects.get(user=request.user)
+    if request.method == 'GET':
+        user_reports = Report.objects.filter(staff=requesting_staff)
+        return JsonResponse(
+            {'data': [_shape(r) for r in user_reports]}
+        )
+    if request.method == 'POST':
+        parseable_post = request.body.decode('utf8').replace("'", '"')
+        parsed_post = loads(parseable_post)
+        if parsed_post.get('report_id'):
+            reportForUpdate = Report.objects.get(id=parsed_post.get('report_id'))
+            reportForUpdate.name = parsed_post.get('name')
+            reportForUpdate.query = parsed_post.get('query')
+            reportForUpdate.save()
+            return JsonResponse({'data': 'success'}, status=200)
+        else:
+            new_report = Report(
+                staff=requesting_staff,
+                name=parsed_post.get('name'),
+                query=parsed_post.get('query')
+            )
+            new_report.save()
+            return JsonResponse({'data': _shape(new_report)}, status=201)
+
+
+@login_required
+@csrf_exempt
+def WorksheetView(request):
+    if request.method not in ['GET']:
+        return JsonResponse({
+            'error': 'Method not allowed.'
+        }, status=405)
+    def _shape(worksheet):
+        return {
+            'id': worksheet.id,
+            'name': worksheet.name,
+            'reports': [
+                {
+                    'id': r.id,
+                    'query': r.query,
+                    'name': r.name,
+                } for r in worksheet.report_set.all()
+            ],
+        }
+    requesting_staff = Staff.objects.get(user=request.user)
+    user_worksheets = Worksheet.objects.filter(staff=requesting_staff)
+    return JsonResponse({'data': [_shape(w) for w in user_worksheets]}, status=200)
+
+
+@login_required
+@csrf_exempt
+def WorksheetMembershipView(request):
+    def _shape(worksheet_membership):
+        return {
+            'report_id': worksheet_membership.report.id,
+            'worksheet_id': worksheet_membership.worksheet.id,
+            'created_on': worksheet_membership.created_on,
+            'updated_on': worksheet_membership.updated_on,
+        }
+    if request.method not in ['POST']:
+        return JsonResponse({
+            'error': 'Method not allowed.'
+        }, status=405)
+    requesting_staff = Staff.objects.get(user=request.user)
+    parseable_post = request.body.decode('utf8').replace("'", '"')
+    parsed_post = loads(parseable_post)
+    report_id = parsed_post.get('report_id')
+    if not report_id:
+        return JsonResponse({
+            'error': 'Missing required parameters'
+        }, status=400)
+    report = get_object_or_404(Report, pk=report_id)
+
+    target_worksheet_id = parsed_post.get('target_worksheet')
+    target_worksheet = None
+    if target_worksheet_id:
+        target_worksheet = get_object_or_404(Worksheet, pk=target_worksheet_id)
+    else:
+        # If the client didn't specify a worksheet, try to grab the user's default
+        target_worksheet = Worksheet.objects.filter(staff=requesting_staff).first()
+        if not target_worksheet:
+            # The user doesn't have a worksheet yet! That means it's their first
+            # time saving a report. So let's create a worksheet for them to save
+            target_worksheet = Worksheet(
+                staff=requesting_staff,
+                name="{}'s first worksheet".format(requesting_staff)
+            )
+            target_worksheet.save()
+    if WorksheetMembership.objects.filter(report=report, worksheet=target_worksheet):
+        return JsonResponse({
+            'error': 'Worksheet membership already exists'
+        }, status=400)
+
+    new_worksheet_membership = WorksheetMembership(
+        report=report,
+        worksheet=target_worksheet
+    )
+    new_worksheet_membership.save()
+    return JsonResponse({
+        'data': _shape(new_worksheet_membership),
+    }, status=201)
