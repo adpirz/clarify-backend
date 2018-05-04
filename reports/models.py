@@ -10,6 +10,9 @@ class Report(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ('staff', 'query',)
+
 
 class Worksheet(models.Model):
     staff = models.ForeignKey(Staff)

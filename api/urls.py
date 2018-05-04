@@ -11,12 +11,13 @@ SiteView, SessionView, UserView, ReportView,
 WorksheetView, WorksheetMembershipView)
 
 urlpatterns = [
-    url(r'^user/me', UserView),
+    url(r'^user/me/', UserView),
     url(r'^student/', StudentView),
     url(r'^section/', SectionView),
     url(r'^grade-level/', GradeLevelView),
     url(r'^site/', SiteView),
     url(r'^session/', SessionView),
+    url(r'^report/(?P<report_id>\w+)', ReportView),
     url(r'^report/', ReportView),
     url(r'^worksheet/', WorksheetView),
     url(r'^worksheet-membership/', WorksheetMembershipView),

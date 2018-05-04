@@ -175,7 +175,7 @@ def SessionView(request):
 
 @login_required
 @csrf_exempt
-def ReportView(request):
+def ReportView(request, report_id=None):
     if request.method not in ['GET', 'POST']:
         return JsonResponse({
             'error': 'Method not allowed.'
@@ -184,7 +184,7 @@ def ReportView(request):
         return {
             'id': report.id,
             'staff': report.staff.id,
-            'name': report.name,
+            'title': report.title,
             'query': report.query,
             'created_on': report.created_on,
             'updated_on': report.updated_on,
@@ -192,23 +192,32 @@ def ReportView(request):
         }
     requesting_staff = Staff.objects.get(user=request.user)
     if request.method == 'GET':
-        user_reports = Report.objects.filter(staff=requesting_staff)
-        return JsonResponse(
-            {'data': [_shape(r) for r in user_reports]}
-        )
+        if report_id:
+            requested_report = get_object_or_404(Report, pk=report_id)
+            return JsonResponse(_shape(requested_report), status=200)
+        else:
+            requested_reports = Report.objects.filter(staff=requesting_staff)
+            return JsonResponse(
+                {'data': [_shape(requested_reports) for r in requested_reports]}
+            )
+
     if request.method == 'POST':
         parseable_post = request.body.decode('utf8').replace("'", '"')
         parsed_post = loads(parseable_post)
         if parsed_post.get('report_id'):
             reportForUpdate = Report.objects.get(id=parsed_post.get('report_id'))
-            reportForUpdate.name = parsed_post.get('name')
+            reportForUpdate.title = parsed_post.get('title')
             reportForUpdate.query = parsed_post.get('query')
             reportForUpdate.save()
             return JsonResponse({'data': 'success'}, status=200)
         else:
+            if Report.objects.filter(staff=requesting_staff, query=parsed_post.get('query')).exists():
+                return JsonResponse({
+                    'error': 'Report already exists.'
+                }, status=400)
             new_report = Report(
                 staff=requesting_staff,
-                name=parsed_post.get('name'),
+                title=parsed_post.get('title'),
                 query=parsed_post.get('query')
             )
             new_report.save()
@@ -225,13 +234,13 @@ def WorksheetView(request):
     def _shape(worksheet):
         return {
             'id': worksheet.id,
-            'name': worksheet.name,
+            'title': worksheet.title,
             'reports': [
                 {
                     'id': r.id,
                     'query': r.query,
-                    'name': r.name,
-                } for r in worksheet.report_set.all()
+                    'title': r.title,
+                } for r in worksheet.reports.all()
             ],
         }
     requesting_staff = Staff.objects.get(user=request.user)
@@ -275,10 +284,10 @@ def WorksheetMembershipView(request):
             # time saving a report. So let's create a worksheet for them to save
             target_worksheet = Worksheet(
                 staff=requesting_staff,
-                name="{}'s first worksheet".format(requesting_staff)
+                title="{}'s first worksheet".format(requesting_staff)
             )
             target_worksheet.save()
-    if WorksheetMembership.objects.filter(report=report, worksheet=target_worksheet):
+    if WorksheetMembership.objects.filter(report=report, worksheet=target_worksheet).exists():
         return JsonResponse({
             'error': 'Worksheet membership already exists'
         }, status=400)
