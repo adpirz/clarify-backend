@@ -238,7 +238,9 @@ class AttendanceDailyRecord(SourceObjectModel):
                 flag_dict[flag_id] += 1
 
         for flag_id, value in flag_dict.items():
-            summary_dict[flag_id] = (value, value/len(student_records))
+            total = len(student_records)
+            summary_dict[flag_id] = (
+                value, 0 if total is 0 else value/total)
 
         return summary_dict
 
