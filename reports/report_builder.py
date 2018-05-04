@@ -67,8 +67,7 @@ def get_student_ids_for_group_and_id(group, object_id, site_id=None):
             .get_current_student_ids(site_id=site_id)
 
     model = get_object_from_group_and_id(group, object_id)
-    return model.objects.get(pk=object_id) \
-        .get_current_student_ids()
+    return model.get_current_student_ids()
 
 
 def attendance_query_to_data(**query_params):

@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from utils import camel_to_underscore
 
 
-class SourceObjectMixin(models.Model):
+class SourceObjectModel(models.Model):
     """
     Mixin to add source_object_id to a model
     Should implement source_object_table;
@@ -63,7 +63,7 @@ class GetCurrentStudentsMixin(object):
         return [row.student_id for row in rows]
 
 
-class GradeLevel(SourceObjectMixin, GetCurrentStudentsMixin):
+class GradeLevel(GetCurrentStudentsMixin, SourceObjectModel):
     """
     Source: public.grade_levels
     """
@@ -75,7 +75,7 @@ class GradeLevel(SourceObjectMixin, GetCurrentStudentsMixin):
     state_id = models.CharField(max_length=455, null=True)
 
 
-class Site(SourceObjectMixin):
+class Site(GetCurrentStudentsMixin, SourceObjectModel):
     """
     Source: public.sites
     Source for site types: public.site_types
@@ -111,7 +111,7 @@ class Site(SourceObjectMixin):
         return self.SITE_TYPE_CHOICES[self.site_type_id][1]
 
 
-class Student(SourceObjectMixin):
+class Student(SourceObjectModel):
     """
     Source: public.students
     """
@@ -148,7 +148,7 @@ class Student(SourceObjectMixin):
         return "{}: {}, {}".format(self.pk, self.last_name, self.first_name)
 
 
-class AttendanceFlag(SourceObjectMixin):
+class AttendanceFlag(SourceObjectModel):
     source_object_table = "attendance_flag"
 
     character_code = models.CharField(max_length=30, blank=True)
@@ -160,7 +160,7 @@ class AttendanceFlag(SourceObjectMixin):
                 for f in cls.objects.all()}
 
 
-class AttendanceDailyRecord(SourceObjectMixin):
+class AttendanceDailyRecord(SourceObjectModel):
     """
     Source: attendance.daily_records
     Source for attendance flags: public.attendance_flags
@@ -286,7 +286,7 @@ class AttendanceDailyRecord(SourceObjectMixin):
                 for i in student_ids]
 
 
-class Staff(SourceObjectMixin):
+class Staff(SourceObjectModel):
     """
     Source: public.users
     """
@@ -317,7 +317,7 @@ class Staff(SourceObjectMixin):
         verbose_name_plural = verbose_name
 
 
-class Course(SourceObjectMixin):
+class Course(SourceObjectModel):
     """
     Source: public.courses
     """
@@ -331,7 +331,7 @@ class Course(SourceObjectMixin):
     is_active = models.BooleanField(default=True)
 
 
-class Section(SourceObjectMixin):
+class Section(GetCurrentStudentsMixin, SourceObjectModel):
     """
     Source: public.sections
     """
@@ -340,7 +340,7 @@ class Section(SourceObjectMixin):
     section_name = models.CharField(max_length=255, null=True)
 
 
-class SectionLevelRosterPerYear(SourceObjectMixin):
+class SectionLevelRosterPerYear(SourceObjectModel):
     """
     Source: matviews.ss_cube
     * Key through-table to everything
@@ -360,7 +360,7 @@ class SectionLevelRosterPerYear(SourceObjectMixin):
     is_primary_teacher = models.NullBooleanField()
 
 
-class Gradebook(SourceObjectMixin):
+class Gradebook(SourceObjectModel):
     """
     Source: gradebook.gradebooks
     """
@@ -375,7 +375,7 @@ class Gradebook(SourceObjectMixin):
     is_deleted = models.BooleanField(default=False)
 
 
-class Category(SourceObjectMixin):
+class Category(SourceObjectModel):
     """
     Source: gradebook.categories
     """
@@ -388,7 +388,7 @@ class Category(SourceObjectMixin):
     weight = models.FloatField()
 
 
-class GradebookSectionCourseAffinity(SourceObjectMixin):
+class GradebookSectionCourseAffinity(SourceObjectModel):
     """
     Source: gradebook.gradebook_section_course_aff
     """
@@ -403,7 +403,7 @@ class GradebookSectionCourseAffinity(SourceObjectMixin):
     modified = models.DateTimeField()
 
 
-class OverallScoreCache(SourceObjectMixin):
+class OverallScoreCache(SourceObjectModel):
     """
     Source: gradebook.overall_score_cache
 
@@ -423,7 +423,7 @@ class OverallScoreCache(SourceObjectMixin):
     excused_count = models.IntegerField(null=True)
 
 
-class CategoryScoreCache(SourceObjectMixin):
+class CategoryScoreCache(SourceObjectModel):
     """
     Source: gradebook.category_score_cache
     """
