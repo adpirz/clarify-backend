@@ -26,7 +26,7 @@ class GetCurrentStudentsMixin(object):
 
     def get_current_student_ids(self, **kwargs):
         rows = self._get_student_roster_rows(**kwargs)
-        return rows.value_list('id', flat=True)
+        return rows.values_list('id', flat=True)
 
 
 class SourceObjectModel(models.Model):
