@@ -5,11 +5,15 @@ Example queries to pass to query_to_data:
 from datetime import datetime
 
 from django.utils import timezone
+from django.http import QueryDict
+from django.shortcuts import get_object_or_404
 
 from sis_pull.models import (
     Student, User, Site, GradeLevel, Section,
     AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear
 )
+from reports.models import Report
+
 GROUPS_AND_MODELS = (
     ("site", Site),
     ("grade_level", GradeLevel),
@@ -23,12 +27,20 @@ def query_to_data(query):
     :param query: QueryDict<request.GET>
     :return: Data dict
     """
-    # turn query into proper dict:
-    query_dict = query_parser(query)
-    # check category, pass to proper function
+    report_query = {}
+    report_id = query.get('report_id')
+    if report_id:
+        report = get_object_or_404(Report, pk=report_id)
+        report_query = query_parser(QueryDict(report.query))
+    else:
+        # turn query into proper dict:
+        report_query = query_parser(query)
+        # check category, pass to proper function
+    if not report_query:
+        raise ValueError("Query or report id required")
 
-    if query_dict["category"] == "attendance":
-        return attendance_query_to_data(**query_dict)
+    if report_query["category"] == "attendance":
+        return attendance_query_to_data(report_id, **report_query)
 
     raise ValueError("Only supports attendance.")
 
@@ -69,7 +81,7 @@ def get_student_ids_for_group_and_id(group, object_id, site_id=None):
     return model.get_current_student_ids()
 
 
-def attendance_query_to_data(**query_params):
+def attendance_query_to_data(report_id=None, **query_params):
     """
     Takes a dict of query_params and returns fresh data.
     :param query_params:
@@ -123,6 +135,9 @@ def attendance_query_to_data(**query_params):
         data["data"] = AttendanceDailyRecord.get_summaries_for_students(
             student_ids, from_date, to_date
         )
+
+    if report_id:
+        data["report_id"] = report_id
 
     return data
 
