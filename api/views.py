@@ -11,7 +11,7 @@ from sis_pull.models import (
 )
 from reports.models import Report, Worksheet, WorksheetMembership
 from mimesis import Person
-
+from utils import get_academic_year
 # Create your views here.
 
 @login_required
@@ -39,6 +39,7 @@ def StudentView(request):
     request_teacher = Staff.objects.filter(user=user)
     teacher_student_ids = (SectionLevelRosterPerYear.objects
         .filter(user=request_teacher)
+        .filter(academic_year=2018)
         .values_list('student_id')
     )
     teacher_students = Student.objects.filter(id__in=teacher_student_ids)
@@ -63,6 +64,7 @@ def SectionView(request):
     request_teacher = Staff.objects.filter(user=user)
     teacher_section_ids = (SectionLevelRosterPerYear.objects
         .filter(user=request_teacher)
+        .filter(academic_year=2018)
         .filter(section__section_name__isnull=False)
         .exclude(section__section_name__exact="")
         .values_list('section_id')
@@ -86,6 +88,7 @@ def GradeLevelView(request):
     request_teacher = Staff.objects.filter(user=user)
     teacher_grade_level_ids = (SectionLevelRosterPerYear.objects
         .filter(user=request_teacher)
+        .filter(academic_year=2018)
         .values_list('grade_level_id')
     )
     teacher_grade_levels = GradeLevel.objects.filter(id__in=teacher_grade_level_ids)
