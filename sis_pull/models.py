@@ -26,7 +26,7 @@ class GetCurrentStudentsMixin(object):
 
     def get_current_student_ids(self, **kwargs):
         rows = self._get_student_roster_rows(**kwargs)
-        return rows.values_list('id', flat=True)
+        return rows.values_list('student_id', flat=True)
 
 
 class SourceObjectModel(models.Model):
@@ -191,7 +191,6 @@ class AttendanceDailyRecord(SourceObjectModel):
             return all_objects.filter(date__gte=from_date, date__lte=to_date)
         if from_date:
             return all_objects.filter(date__gte=from_date)
-
         return all_objects
 
     @classmethod
@@ -203,7 +202,6 @@ class AttendanceDailyRecord(SourceObjectModel):
         :return: List[{student_id: int, records: QuerySet<ADR>}]
         """
         attendance_records_by_student = []
-
         for student_id in student_ids:
             student_records = dict({"student_id": student_id})
             student_records["records"] = cls.get_records_for_student(

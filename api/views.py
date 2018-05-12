@@ -14,6 +14,7 @@ from mimesis import Person
 from utils import get_academic_year
 # Create your views here.
 
+
 @login_required
 def UserView(request):
     if request.method == 'GET':
