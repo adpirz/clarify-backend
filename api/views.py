@@ -238,8 +238,6 @@ def WorksheetView(request):
             'reports': [
                 {
                     'id': r.id,
-                    'query': r.query,
-                    'title': r.title,
                 } for r in worksheet.reports.all()
             ],
         }
