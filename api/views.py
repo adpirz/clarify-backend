@@ -176,7 +176,7 @@ def SessionView(request):
 @login_required
 @csrf_exempt
 def ReportView(request, report_id=None):
-    if request.method not in ['GET', 'POST']:
+    if request.method not in ['GET', 'POST', 'DELETE']:
         return JsonResponse({
             'error': 'Method not allowed.'
         }, status=405)
@@ -222,6 +222,12 @@ def ReportView(request, report_id=None):
             )
             new_report.save()
             return JsonResponse({'data': _shape(new_report)}, status=201)
+    if request.method == 'DELETE':
+        if not report_id:
+            return JsonResponse({'error': 'report_id is required'}, status=400)
+        requested_report = get_object_or_404(Report, pk=report_id, staff=requesting_staff)
+        requested_report.delete()
+        return HttpResponse('Success', status=200)
 
 
 @login_required
