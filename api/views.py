@@ -227,7 +227,7 @@ def ReportView(request, report_id=None):
             return JsonResponse({'error': 'report_id is required'}, status=400)
         requested_report = get_object_or_404(Report, pk=report_id, staff=requesting_staff)
         requested_report.delete()
-        return HttpResponse('Success', status=200)
+        return HttpResponse(status=200)
 
 
 @login_required
