@@ -1,4 +1,5 @@
 import re
+from django.utils import timezone
 
 
 def camel_to_underscore(name):
@@ -24,3 +25,8 @@ def camel_to_underscore(name):
 
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
+def get_academic_year(date=None):
+    today = date or timezone.now().date()
+    return today.year if today.month < 7 else today.year + 1

@@ -45,26 +45,6 @@ def query_to_data(query):
     raise ValueError("Only supports attendance.")
 
 
-def get_students_for_group_and_id(group, object_id, site_id=None):
-    """
-    Gets a list of current student instances based on group and
-    object_id for that group.
-    :param group: str; group name ('section', 'site', etc.)
-    :param object_id: id of group
-    :param site_id: optional, used for 'grade_level'
-    :return: Iterable<students>
-    """
-    if group_is_model(group, "student"):
-        return [Student.objects.get(pk=object_id)]
-
-    if group_is_model(group, "grade_level"):
-        return GradeLevel.objects.get(pk=object_id)\
-            .get_current_students(site_id=site_id)
-
-    model = get_object_from_group_and_id(group, object_id)
-    return model.get_current_students()
-
-
 def get_student_ids_for_group_and_id(group, object_id, site_id=None):
     """
     Like 'get_students_for_group_and_id', but returns a list of ids.
