@@ -153,8 +153,8 @@ class AttendanceFlag(SourceObjectModel):
 
     @classmethod
     def get_flags_dict(cls):
-        return {f.id: {"text": f.flag_text, "code": f.character_code}
-                for f in cls.objects.all()}
+        return [{"column_code": f.character_code, "code": f.flag_text}
+                for f in cls.objects.all()]
 
 
 class AttendanceDailyRecord(SourceObjectModel):
@@ -214,7 +214,7 @@ class AttendanceDailyRecord(SourceObjectModel):
         return attendance_records_by_student
 
     @staticmethod
-    def calculate_summaries_for_student_records(student_records):
+    def calculate_summaries_for_student_records(student_records, student_id):
         """
         Returns a summary dict with a tuple (val, percentage) for each
         flag_id
@@ -223,12 +223,10 @@ class AttendanceDailyRecord(SourceObjectModel):
         """
 
         flag_dict = {f: 0 for f in \
-                     AttendanceFlag.objects.values_list('id', flat=True)}
+                     AttendanceFlag.objects.values_list('flag_code', flat=True)}
 
-        summary_dict = {"attendance_data": {}}
+        summary_dict = {"attendance_data": {}, "student_id": student_id}
         for record in student_records:
-            if "student_id" not in summary_dict:
-                summary_dict["student_id"] = record.student_id
             if record.student_id != summary_dict["student_id"]:
                 raise AttributeError("Student records must all be same student.")
             flag_id = record.attendance_flag_id
@@ -250,10 +248,13 @@ class AttendanceDailyRecord(SourceObjectModel):
         """
         Returns a summary dict for a student with given date params.
         """
-        return cls.calculate_summaries_for_student_records(
-            cls.get_records_for_student(student_id,
-                                        from_date=from_date, to_date=to_date)
-        )
+        return \
+            cls.calculate_summaries_for_student_records(
+                cls.get_records_for_student(student_id,
+                                            from_date=from_date,
+                                            to_date=to_date),
+                student_id
+            )
 
     @classmethod
     def get_summaries_for_students(cls, student_ids, from_date, to_date):
