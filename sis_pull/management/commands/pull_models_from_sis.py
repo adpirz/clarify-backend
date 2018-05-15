@@ -1,17 +1,27 @@
 from django.core.management.base import BaseCommand, CommandError
-from sis_pull.tasks.main import main, delete_all
+from sis_pull.tasks.main import main, clean_all
 
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
+
         parser.add_argument(
-            '--delete-all',
+            'models',
+            nargs='*',
+            help="Specify which tables to update."
+        )
+
+        parser.add_argument(
+            '--clean',
+            dest='clean',
             action='store_true',
-            dest='delete',
-            help='Delete all models before pulling SIS models.',
+            help='Delete models before updating.'
         )
 
     def handle(self, *args, **options):
-        if options['delete']:
-            delete_all()
-        main()
+        models_run = main(**options)
+        if options['clean']:
+            self.stdout.write('Deleting current models before updating...')
+        self.stdout.write(
+            self.style.SUCCESS('Complete. Models run: {}'
+                               .format(', '.join(models_run))))

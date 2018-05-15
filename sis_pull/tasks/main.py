@@ -193,30 +193,55 @@ def build_staff_from_sis_users():
           f"New Staff models created: {staff_created}\n")
 
 
-def main():
-    build_staff_from_sis_users()
+def main(**options):
 
-    # For now, if you want to ignore going through certain
-    # models, just comment out a particular line
+    selected_models = options['models']
+    models_to_run = []
+    clean = options['clean']
 
-    args_list = [
-        (AttendanceFlags, AttendanceFlag, 'attendance_flag_id'),
-        (Students, Student, 'student_id'),
-        (GradeLevels, GradeLevel, 'grade_level_id'),
-        (Sites, Site, 'site_id'),
-        (Courses, Course, 'course_id'),
-        (Sections, Section, 'section_id'),
-        (SsCube, SectionLevelRosterPerYear),
-        (Gradebooks, Gradebook, 'gradebook_id'),
-        (OverallScoreCache, OSC),
-        (DailyRecords, AttendanceDailyRecord)
-    ]
+    model_dict = {
+        'attendance_flags': (AttendanceFlags, AttendanceFlag,
+                             'attendance_flag_id'),
+        'students': (Students, Student, 'student_id'),
+        'grade_levels': (GradeLevels, GradeLevel, 'grade_level_id'),
+        'sites': (Sites, Site, 'site_id'),
+        'courses': (Courses, Course, 'course_id'),
+        'sections': (Sections, Section, 'section_id'),
+        'ss_cube': (SsCube, SectionLevelRosterPerYear),
+        'gradebooks': (Gradebooks, Gradebook, 'gradebook_id'),
+        'overallscorecache': (OverallScoreCache, OSC),
+        'daily_records': (DailyRecords, AttendanceDailyRecord),
+        'users': True
+    }
 
-    for args in args_list:
-        sis_to_django_model(*args)
+    model_dict_keys = model_dict.keys()
 
 
-def delete_all():
+
+    if len(selected_models) == 0:
+        models_to_run += model_dict_keys
+    else:
+        models_to_run += [i for i in selected_models if i in model_dict_keys]
+
+    if len(models_to_run) == 0:
+        raise ValueError('Invalid model choices. Options are: {}'.format(
+            ', '.join(model_dict_keys)
+        ))
+
+    for model in models_to_run:
+        args = model_dict[model]
+        django_model = args[1]
+        if clean:
+            django_model.objects.all().delete()
+        if model == "users":
+            build_staff_from_sis_users()
+        else:
+            sis_to_django_model(*args)
+
+    return models_to_run
+
+
+def clean_all():
     models = [
         AttendanceFlag, Student, GradeLevel, Site, Course,
         Section, SectionLevelRosterPerYear, Gradebook,

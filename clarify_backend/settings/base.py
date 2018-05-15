@@ -96,7 +96,14 @@ WSGI_APPLICATION = 'clarify_backend.wsgi.application'
 
 DATABASES = {
     'default': env.db('DATABASE_URL', default="postgres:///clarify"),
-    'cache': env.db('CACHE_DATABASE_URL', default="postgres:///clarifycache")
+    'cache': {
+        'NAME': 'clarifycache',
+        'USER': 'adpirz',
+        'PASSWORD': 'NDBhNTRiOWRjZGJiOTUwY2VmZTdhYWI3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': 'clarifycacheread.cn6x84yd45h7.us-east-1.rds.amazonaws.com',
+        'PORT': '5432'
+    }
 }
 
 DATABASE_ROUTERS = ['sis_mirror.routers.MirrorRouter']
@@ -119,3 +126,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# Silence an FK warning from sis_mirror which is a necessary field
+SILENCED_SYSTEM_CHECKS = ['fields.W342']
