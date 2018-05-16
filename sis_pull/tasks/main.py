@@ -1,4 +1,5 @@
 import pytz
+from collections import OrderedDict
 
 from django.db.models import DateTimeField, DateField
 from tqdm import tqdm
@@ -67,16 +68,19 @@ def field_list_to_names(field_list):
     :param field_list: List[Field]
     :return: List[str]: field.name
     """
-    return [i.name for i in field_list]
+    return [i.attname if hasattr(i, 'attname') else i.name
+            for i in field_list]
 
 
-def sis_to_django_model(sis_model, clarify_model, source_id_field=None):
+def sis_to_django_model(sis_model, clarify_model, source_id_field=None,
+                        no_bulk=False):
     """
     Pull SIS models into Django models
 
     :param sis_model: Base SIS Model Class
     :param clarify_model: Base Django Model Class
     :param source_id_field: SIS column for id
+    :param no_bulk: Boolean; force any views or bulk inserts to do row by row
     :return: None
     """
     clarify_model_fields = field_list_to_names(fields_list(clarify_model))
@@ -85,21 +89,25 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None):
 
     clarify_model_name = clarify_model.__name__
 
-    # Get all Django model fields in SIS model,
-    # including '_id' suffixed fields for FK's
-    out_fields = list()
-    for field_name in clarify_model_fields:
-        alt = field_name + '_id'
-        if field_name in sis_fields:
-            out_fields.append(field_name)
-        elif alt in sis_fields:
-            out_fields.append(alt)
+    out_fields = [i for i in clarify_model_fields if i in sis_fields]
+
+    # bulk create views
+    bulk = clarify_model.is_view if not no_bulk else False
 
     # All SIS model instances
     sis_rows = sis_model.objects.all()
     new_models = 0
 
-    # Progress bar for each row in SIS table
+    if bulk:
+        bulk_list = []
+
+    # tqdm: Progress bar for each row in SIS table
+    # set monitor_interval = 0 to prevent a thread
+    # exception on large bulk inserts
+    # see: https://github.com/tqdm/tqdm/issues/469
+
+    tqdm.monitor_interval = 0
+
     for row in tqdm(sis_rows, desc=clarify_model_name):
         # For each row in SIS table, put the value
         # of each overlapping field in a dict
@@ -113,30 +121,24 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None):
             model_args['source_object_id'] = row.\
                 __getattribute__(source_id_field)
 
-        # Get FK fields that are not "user" (special case that has
-        # to be handled differently because of Staff <> User rel)
-        fk_fields = fields_list(clarify_model, return_fks=True)
-        fk_fields = filter(lambda i: i is not 'user', fk_fields)
-
-        for field in fk_fields:
-            # For each FK field, get the foreign object by SIS id,
-            # then get it's Django id to pass into model_args
-            get_name = field.name if field.name.split('_')[-1] == 'id'\
-                else field.name + '_id'
-            fk_pk = field.related_model.objects.get(
-                source_object_id=row.__getattribute__(get_name)).pk
-            model_args = {k: v for k, v in model_args.items() if k is not field.name}
-            model_args[field.name + '_id'] = fk_pk
-
         # Datetime cleanup with timezones
         for field in fields_list(clarify_model):
             if field.name in model_args and isinstance(field, DateTimeField):
                 old_date_time = model_args[field.name]
                 model_args[field.name] = pytz.utc.localize(old_date_time)
 
-        model, created = clarify_model.objects.get_or_create(**model_args)
-        if created:
+        if bulk:
+            bulk_list.append(clarify_model(**model_args))
             new_models += 1
+        else:
+            model, created = clarify_model.objects.get_or_create(**model_args)
+            if created:
+                new_models += 1
+
+    if bulk:
+        print("\tBulk creating {}...".format(clarify_model_name))
+        clarify_model.objects.bulk_create(bulk_list)
+        print("\tBulk create complete!\n".format(clarify_model_name))
 
     print(f"\tNew {clarify_model_name} instances created: {new_models}")
 
@@ -174,7 +176,8 @@ def build_staff_from_sis_users():
 
         model_args = dict()
         for field in dj_field_list:
-            model_args[field] = sis_user.__getattribute__(field)
+            if field != "user_id":
+                model_args[field] = sis_user.__getattribute__(field)
 
         if sis_user.gender == 'M':
             model_args['prefix'] = 'MR'
@@ -195,14 +198,21 @@ def build_staff_from_sis_users():
 
 def main(**options):
 
-    selected_models = options['models']
-    models_to_run = []
     clean = options['clean']
+    no_bulk = options['no_bulk']
+    selected_models = options['models']
 
-    model_dict = {
+    models_to_run = []
+
+    # We make an ordered dict so that getting the
+    # keys gives us a proper insertion order for
+    # FK dependencies
+
+    model_dict = OrderedDict({
         'attendance_flags': (AttendanceFlags, AttendanceFlag,
                              'attendance_flag_id'),
         'students': (Students, Student, 'student_id'),
+        'users': True,
         'grade_levels': (GradeLevels, GradeLevel, 'grade_level_id'),
         'sites': (Sites, Site, 'site_id'),
         'courses': (Courses, Course, 'course_id'),
@@ -211,17 +221,17 @@ def main(**options):
         'gradebooks': (Gradebooks, Gradebook, 'gradebook_id'),
         'overallscorecache': (OverallScoreCache, OSC),
         'daily_records': (DailyRecords, AttendanceDailyRecord),
-        'users': True
-    }
+    })
 
     model_dict_keys = model_dict.keys()
-
-
 
     if len(selected_models) == 0:
         models_to_run += model_dict_keys
     else:
-        models_to_run += [i for i in selected_models if i in model_dict_keys]
+        models_to_run += filter(
+            lambda m: m in selected_models,
+            model_dict_keys
+        )
 
     if len(models_to_run) == 0:
         raise ValueError('Invalid model choices. Options are: {}'.format(
@@ -230,13 +240,20 @@ def main(**options):
 
     for model in models_to_run:
         args = model_dict[model]
-        django_model = args[1]
+        kwargs = {}
+
+        django_model = Staff if model == "users" else args[1]
+
+        if no_bulk:
+            kwargs['no_bulk'] = True
         if clean:
             django_model.objects.all().delete()
+            print("Deleted all instances of {}".format(django_model))
+
         if model == "users":
             build_staff_from_sis_users()
         else:
-            sis_to_django_model(*args)
+            sis_to_django_model(*args, **kwargs)
 
     return models_to_run
 

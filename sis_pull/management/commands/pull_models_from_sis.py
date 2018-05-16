@@ -18,10 +18,17 @@ class Command(BaseCommand):
             help='Delete models before updating.'
         )
 
+        parser.add_argument(
+            '--no-bulk',
+            dest='no_bulk',
+            action='store_true',
+            help='Force all models to insert row by row instead of bulk.'
+        )
+
     def handle(self, *args, **options):
-        models_run = main(**options)
         if options['clean']:
             self.stdout.write('Deleting current models before updating...')
+        models_run = main(**options)
         self.stdout.write(
             self.style.SUCCESS('Complete. Models run: {}'
                                .format(', '.join(models_run))))

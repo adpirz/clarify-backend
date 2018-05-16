@@ -1,7 +1,7 @@
 from django.apps import apps
 from django.db import models
 from django.contrib.auth.models import User
-from utils import camel_to_underscore
+from utils import camel_to_underscore, SourceObjectForeignKey
 
 
 class GetCurrentStudentsMixin(object):
@@ -36,6 +36,7 @@ class SourceObjectModel(models.Model):
     If schema not 'public', should implement source_object_schema
     """
     source_object_id = models.PositiveIntegerField(null=True, unique=True)
+    is_view = False
 
     @property
     def source_table(self):
@@ -91,17 +92,17 @@ class Site(GetCurrentStudentsMixin, SourceObjectModel):
     )
 
     site_name = models.CharField(max_length=255)
-    start_grade_level = models.ForeignKey(GradeLevel,
+    start_grade_level = SourceObjectForeignKey(GradeLevel,
                                           related_name='start_grade_level')
-    end_grade_level = models.ForeignKey(GradeLevel,
+    end_grade_level = SourceObjectForeignKey(GradeLevel,
                                         related_name='end_grade_level')
     site_type_id = models.IntegerField(choices=SITE_TYPE_CHOICES)
-    address = models.CharField(max_length=255)
-    phone1 = models.CharField(max_length=100)
-    phone2 = models.CharField(max_length=100)
-    city = models.CharField(max_length=255)
-    state = models.CharField(max_length=100)
-    zip = models.CharField(max_length=10)
+    address = models.CharField(max_length=255, null=True)
+    phone1 = models.CharField(max_length=100, null=True)
+    phone2 = models.CharField(max_length=100, null=True)
+    city = models.CharField(max_length=255, null=True)
+    state = models.CharField(max_length=100, null=True)
+    zip = models.CharField(max_length=10, null=True)
 
     def get_site_type_label(self):
         return self.SITE_TYPE_CHOICES[self.site_type_id][1]
@@ -163,11 +164,12 @@ class AttendanceDailyRecord(SourceObjectModel):
     """
     source_object_table = 'daily_records'
     source_object_schema = 'attendance'
+    is_view = True
 
     date = models.DateField()
-    site = models.ForeignKey(Site)
-    student = models.ForeignKey(Student)
-    attendance_flag = models.ForeignKey(AttendanceFlag)
+    site = SourceObjectForeignKey(Site)
+    student = SourceObjectForeignKey(Student)
+    attendance_flag = SourceObjectForeignKey(AttendanceFlag)
 
     def __str__(self):
 
@@ -323,7 +325,7 @@ class Course(SourceObjectModel):
     long_name = models.CharField(max_length=255)
     description = models.TextField(null=True)
     school_course_id = models.CharField(max_length=20, null=True)
-    site_id = models.ForeignKey(Site)
+    site = SourceObjectForeignKey(Site)
     is_active = models.BooleanField(default=True)
 
 
@@ -343,14 +345,15 @@ class SectionLevelRosterPerYear(SourceObjectModel):
     """
     source_object_table = 'ss_cube'
     source_object_schema = 'matviews'
+    is_view = True
 
-    site = models.ForeignKey(Site)
+    site = SourceObjectForeignKey(Site)
     academic_year = models.PositiveIntegerField()
-    grade_level = models.ForeignKey(GradeLevel)
-    user = models.ForeignKey(Staff)
-    section = models.ForeignKey(Section)
-    course = models.ForeignKey(Course)
-    student= models.ForeignKey(Student)
+    grade_level = SourceObjectForeignKey(GradeLevel)
+    user = SourceObjectForeignKey(Staff)
+    section = SourceObjectForeignKey(Section)
+    course = SourceObjectForeignKey(Course)
+    student= SourceObjectForeignKey(Student)
     entry_date = models.DateField(null=True)
     leave_date = models.DateField(null=True)
     is_primary_teacher = models.NullBooleanField()
@@ -364,7 +367,7 @@ class Gradebook(SourceObjectModel):
     source_object_schema = 'gradebook'
 
     created_on = models.DateTimeField()
-    created_by = models.ForeignKey(Staff)
+    created_by = SourceObjectForeignKey(Staff)
     gradebook_name = models.CharField(max_length=255)
     active = models.BooleanField(default=True)
     academic_year = models.PositiveIntegerField()
@@ -380,7 +383,7 @@ class Category(SourceObjectModel):
 
     category_name = models.CharField(max_length=255)
     icon = models.CharField(max_length=255)
-    gradebook = models.ForeignKey(Gradebook)
+    gradebook = SourceObjectForeignKey(Gradebook)
     weight = models.FloatField()
 
 
@@ -391,10 +394,10 @@ class GradebookSectionCourseAffinity(SourceObjectModel):
     source_object_table = 'gradebook_section_course_aff'
     source_object_schema = 'gradebook'
 
-    gradebook = models.ForeignKey(Gradebook)
-    section = models.ForeignKey(Section)
-    course = models.ForeignKey(Course)
-    user = models.ForeignKey(Staff)
+    gradebook = SourceObjectForeignKey(Gradebook)
+    section = SourceObjectForeignKey(Section)
+    course = SourceObjectForeignKey(Course)
+    user = SourceObjectForeignKey(Staff)
     created = models.DateTimeField()
     modified = models.DateTimeField()
 
@@ -407,9 +410,10 @@ class OverallScoreCache(SourceObjectModel):
     """
     source_object_table = 'overall_score_cache'
     source_object_schema = 'gradebook'
+    is_view = True
 
-    student = models.ForeignKey(Student)
-    gradebook = models.ForeignKey(Gradebook)
+    student = SourceObjectForeignKey(Student)
+    gradebook = SourceObjectForeignKey(Gradebook)
     possible_points = models.FloatField(null=True)
     points_earned = models.FloatField(null=True)
     percentage = models.FloatField(null=True)
@@ -425,10 +429,11 @@ class CategoryScoreCache(SourceObjectModel):
     """
     source_object_table = 'category_score_cache'
     source_object_schema = 'gradebook'
+    is_view = True
 
-    student = models.ForeignKey(Student)
-    gradebook = models.ForeignKey(Gradebook)
-    category = models.ForeignKey(Category)
+    student = SourceObjectForeignKey(Student)
+    gradebook = SourceObjectForeignKey(Gradebook)
+    category = SourceObjectForeignKey(Category)
     possible_points = models.FloatField()
     points_earned = models.FloatField()
     percentage = models.FloatField()
