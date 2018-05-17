@@ -145,6 +145,7 @@ class Student(SourceObjectMixin, models.Model):
 
 
     def get_current_gradebooks(self):
+        pass
 
 
 

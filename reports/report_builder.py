@@ -162,7 +162,7 @@ def grades_query_to_data(**query_params):
 
     data = {
         "Title": f"",
-        "Course": course_name
+        "Course": course_id,
         "columns": build_columns(),
         "rows": build_rows()
     }
