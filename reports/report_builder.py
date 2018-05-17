@@ -54,8 +54,10 @@ def query_to_data(query):
 
     raise ValueError(f"Report category {report_query['category']} not supported.")
 
+
 def get_student_ids_for_group_and_id(group, object_id, site_id=None,
                                      return_set=False):
+
     """
     Takes an object of type Student, Section, grade_level, or Site, and returns
     the students associated with that object
