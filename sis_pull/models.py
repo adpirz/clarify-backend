@@ -1,7 +1,7 @@
 from django.apps import apps
 from django.db import models
 from django.contrib.auth.models import User
-from utils import camel_to_underscore, SourceObjectForeignKey
+from utils import camel_to_underscore, SourceObjectForeignKey, get_academic_year
 
 
 class GetCurrentStudentsMixin(object):
@@ -14,9 +14,10 @@ class GetCurrentStudentsMixin(object):
         :param extra: Extra filter args (e.g. site_id for GradeLevel, etc.)
         :return: QueryDict filtered on model args
         """
-        pk_field = camel_to_underscore(self.__class__.__name__) + '_id'
+        source_field_name = camel_to_underscore(self.__class__.__name__) + '_id'
         kwargs = dict(extra)
-        kwargs[pk_field] = self.pk
+        kwargs[source_field_name] = self.source_object_id
+
         model_name = self.roster_model_name or "SectionLevelRosterPerYear"
         roster_model = apps.get_model(
             model_name=model_name, app_label=self._meta.app_label
@@ -25,7 +26,9 @@ class GetCurrentStudentsMixin(object):
         return roster_model.objects.filter(**kwargs)
 
     def get_current_student_ids(self, **kwargs):
-        rows = self._get_student_roster_rows(**kwargs)
+        new_kwargs = dict(kwargs)
+        new_kwargs.update({"academic_year": get_academic_year()})
+        rows = self._get_student_roster_rows(**new_kwargs)
         return rows.values_list('student_id', flat=True)
 
 
@@ -151,10 +154,19 @@ class AttendanceFlag(SourceObjectModel):
     character_code = models.CharField(max_length=30, blank=True)
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
+    def column_shape(self):
+        return {"column_code": self.source_object_id,
+                "label": self.flag_text}
+
     @classmethod
     def get_flag_columns(cls):
-        return [{"column_code": f.character_code, "label": f.flag_text}
-                for f in cls.objects.all()]
+        return [ f.column_shape() for f in cls.objects.all()]
+
+    @classmethod
+    def get_exclude_columns(cls):
+        return [f.source_object_id for f in cls.objects.all()
+                 if f.character_code in ['I', '-', '_', 'D', 'N']]
+
 
 class AttendanceDailyRecord(SourceObjectModel):
     """
@@ -222,9 +234,17 @@ class AttendanceDailyRecord(SourceObjectModel):
         """
 
         flag_dict = {f: 0 for f in \
-                     AttendanceFlag.objects.values_list('flag_code', flat=True)}
+                     AttendanceFlag.objects.values_list('source_object_id',
+                                                        flat=True)}
 
-        summary_dict = {"attendance_data": {}, "student_id": student_id}
+        def _row_shape(flag_id, value, total):
+            percentage = 0 if value == 0 else value / total
+            return {'column_code': flag_id,
+                    'count': value,
+                    'percentage': percentage}
+
+        summary_dict = {"attendance_data": [], "student_id": student_id}
+
         for record in student_records:
             if record.student_id != summary_dict["student_id"]:
                 raise AttributeError("Student records must all be same student.")
@@ -236,8 +256,9 @@ class AttendanceDailyRecord(SourceObjectModel):
 
         for flag_id, value in flag_dict.items():
             total = len(student_records)
-            summary_dict["attendance_data"][flag_id] = (
-                value, 0 if total is 0 else value/total)
+            summary_dict["attendance_data"].append(
+                _row_shape(flag_id, value, total)
+            )
 
         return summary_dict
 

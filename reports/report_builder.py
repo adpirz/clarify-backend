@@ -99,13 +99,13 @@ def attendance_query_to_data(report_id=None, **query_params):
     time_string = get_time_string()
 
     data = {
-        "Title": f"Attendance for {group} {group_id} {time_string}",
+        "title": f"Attendance for {group} {group_id} {time_string}",
         "group": group,
         "group_id": group_id,
         "from_date": from_date,
         "to_date": to_date,
         "columns": AttendanceFlag.get_flag_columns(),  # can we cache somehow?
-        "exclude_columns": [],
+        "exclude_columns": AttendanceFlag.get_exclude_columns(),
     }
 
     if is_single_day:
