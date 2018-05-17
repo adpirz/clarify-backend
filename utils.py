@@ -1,4 +1,6 @@
 import re
+
+from django.db import models
 from django.utils import timezone
 
 
@@ -30,3 +32,7 @@ def camel_to_underscore(name):
 def get_academic_year(date=None):
     today = date or timezone.now().date()
     return today.year if today.month < 7 else today.year + 1
+
+
+def SourceObjectForeignKey(fk_model, **kwargs):
+    return models.ForeignKey(fk_model, to_field='source_object_id', **kwargs)
