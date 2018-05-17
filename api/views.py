@@ -37,13 +37,13 @@ def StudentView(request):
             'last_name': student.last_name,
         }
     user = request.user
-    request_teacher = Staff.objects.filter(user=user)
+    request_teacher = Staff.objects.get(user=user)
     teacher_student_ids = (SectionLevelRosterPerYear.objects
         .filter(user=request_teacher)
         .filter(academic_year=get_academic_year())
         .values_list('student_id')
     )
-    teacher_students = Student.objects.filter(id__in=teacher_student_ids)
+    teacher_students = Student.objects.filter(source_object_id__in=teacher_student_ids)
 
     return JsonResponse({
         'data': [_shape(s) for s in teacher_students]
@@ -62,7 +62,7 @@ def SectionView(request):
     # aka all sections at a staff member's site, that accounts for multi-site
     # staff, etc.
     user = request.user
-    request_teacher = Staff.objects.filter(user=user)
+    request_teacher = Staff.objects.get(user=user)
     teacher_section_ids = (SectionLevelRosterPerYear.objects
         .filter(user=request_teacher)
         .filter(academic_year=get_academic_year())
@@ -70,8 +70,7 @@ def SectionView(request):
         .exclude(section__section_name__exact="")
         .values_list('section_id')
     )
-    teacher_sections = Section.objects.filter(id__in=teacher_section_ids)
-
+    teacher_sections = Section.objects.filter(source_object_id__in=teacher_section_ids)
     return JsonResponse({
         'data': [_shape(s) for s in teacher_sections]
     })
@@ -86,13 +85,13 @@ def GradeLevelView(request):
             'long_name': grade_level.long_name,
         }
     user = request.user
-    request_teacher = Staff.objects.filter(user=user)
+    request_teacher = Staff.objects.get(user=user)
     teacher_grade_level_ids = (SectionLevelRosterPerYear.objects
         .filter(user=request_teacher)
         .filter(academic_year=get_academic_year())
         .values_list('grade_level_id')
     )
-    teacher_grade_levels = GradeLevel.objects.filter(id__in=teacher_grade_level_ids)
+    teacher_grade_levels = GradeLevel.objects.filter(source_object_id__in=teacher_grade_level_ids)
 
     return JsonResponse({
         'data': [_shape(g) for g in teacher_grade_levels]
@@ -108,12 +107,12 @@ def SiteView(request):
         }
 
     user = request.user
-    request_teacher = Staff.objects.filter(user=user)
+    request_teacher = Staff.objects.get(user=user)
     teacher_site_ids = (SectionLevelRosterPerYear.objects
         .filter(user=request_teacher)
         .values_list('site_id')
     )
-    teacher_sites = Site.objects.filter(id__in=teacher_site_ids)
+    teacher_sites = Site.objects.filter(source_object_id__in=teacher_site_ids)
 
     return JsonResponse({
         'data': [_shape(s) for s in teacher_sites]
