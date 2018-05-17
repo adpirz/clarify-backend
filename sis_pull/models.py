@@ -152,10 +152,9 @@ class AttendanceFlag(SourceObjectModel):
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
     @classmethod
-    def get_flags_dict(cls):
-        return [{"column_code": f.character_code, "code": f.flag_text}
+    def get_flag_columns(cls):
+        return [{"column_code": f.character_code, "label": f.flag_text}
                 for f in cls.objects.all()]
-
 
 class AttendanceDailyRecord(SourceObjectModel):
     """
