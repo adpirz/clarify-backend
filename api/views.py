@@ -37,9 +37,9 @@ def StudentView(request):
             'last_name': student.last_name,
         }
     user = request.user
-    request_teacher = Staff.objects.get(user=user)
+    request_teacher = Staff.objects.filter(user=user)
     teacher_student_ids = (SectionLevelRosterPerYear.objects
-        .filter(user=request_teacher)
+        .filter(user=request_teacher.first())
         .filter(academic_year=get_academic_year())
         .values_list('student_id')
     )
@@ -62,9 +62,9 @@ def SectionView(request):
     # aka all sections at a staff member's site, that accounts for multi-site
     # staff, etc.
     user = request.user
-    request_teacher = Staff.objects.get(user=user)
+    request_teacher = Staff.objects.filter(user=user)
     teacher_section_ids = (SectionLevelRosterPerYear.objects
-        .filter(user=request_teacher)
+        .filter(user=request_teacher.first())
         .filter(academic_year=get_academic_year())
         .filter(section__section_name__isnull=False)
         .exclude(section__section_name__exact="")
@@ -85,9 +85,9 @@ def GradeLevelView(request):
             'long_name': grade_level.long_name,
         }
     user = request.user
-    request_teacher = Staff.objects.get(user=user)
+    request_teacher = Staff.objects.filter(user=user)
     teacher_grade_level_ids = (SectionLevelRosterPerYear.objects
-        .filter(user=request_teacher)
+        .filter(user=request_teacher.first())
         .filter(academic_year=get_academic_year())
         .values_list('grade_level_id')
     )
@@ -107,9 +107,9 @@ def SiteView(request):
         }
 
     user = request.user
-    request_teacher = Staff.objects.get(user=user)
+    request_teacher = Staff.objects.filter(user=user)
     teacher_site_ids = (SectionLevelRosterPerYear.objects
-        .filter(user=request_teacher)
+        .filter(user=request_teacher.first())
         .values_list('site_id')
     )
     teacher_sites = Site.objects.filter(source_object_id__in=teacher_site_ids)
