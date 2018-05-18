@@ -6,13 +6,14 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 from django.conf.urls import include, url
 from django.contrib import admin
 from .views import (
-StudentView, SectionView, GradeLevelView,
-SiteView, SessionView, UserView, ReportView,
-WorksheetView, WorksheetMembershipView)
+    StudentView, SectionView, GradeLevelView,
+    SiteView, SessionView, UserView, ReportView,
+    WorksheetView, WorksheetMembershipView, CourseView)
 
 urlpatterns = [
     url(r'^user/me/', UserView),
     url(r'^student/', StudentView),
+    url(r'^course/', CourseView),
     url(r'^section/', SectionView),
     url(r'^grade-level/', GradeLevelView),
     url(r'^site/', SiteView),

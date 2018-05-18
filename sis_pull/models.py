@@ -58,6 +58,14 @@ class GradeLevel(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     def __str__(self):
         return self.long_name or self.short_name
 
+    @staticmethod
+    def get_users_current_grade_levels(staff):
+        return SectionLevelRosterPerYear.objects\
+            .filter(academic_year=get_academic_year())\
+            .filter(user=staff)\
+            .distinct('grade_level_id')\
+            .values_list('grade_level_id', flat=True)
+
 
 class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """

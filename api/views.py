@@ -98,6 +98,26 @@ def GradeLevelView(request):
         'data': [_shape(g) for g in teacher_grade_levels]
     })
 
+@login_required
+def CourseView(request):
+    def _shape(row):
+        return {
+            'id': row.course.id,
+            'short_name': row.course.short_name,
+            'long_name': row.course.long_name,
+        }
+
+    user = request.user
+    request_teacher = Staff.objects.filter(user=user).first()
+    grade_levels = GradeLevel.get_users_current_grade_levels(request_teacher)
+    return JsonResponse({
+        'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
+                 .filter(user=request_teacher)\
+                 .filter(grade_level_id__in=grade_levels)
+                 .distinct('course_id')
+                 ]
+    })
+
 
 @login_required
 def SiteView(request):
