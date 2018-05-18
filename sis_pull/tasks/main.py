@@ -27,7 +27,6 @@ from sis_pull.models import (
     AttendanceFlag, SessionType, Schedule, Session, Term, UserTermRoleAffinity,
     Role, State, Subject, Standard)
 
-
 from sis_mirror.models import (
     Students,
     Users,
@@ -203,6 +202,7 @@ def build_staff_from_sis_users():
             get_or_create(
                 id=sis_user.user_id, user_id=dj_user.id,
                 **model_args)
+
 
         if created:
             staff_created += 1

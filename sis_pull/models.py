@@ -447,11 +447,6 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
         else:
             return None
 
-    @property
-    def gradebooks(self):
-        gscas = GradebookSectionCourseAffinity.objects.filter(section_id=self.id)
-        return [gsca.gradebook for gsca in gscas]
-
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     """
