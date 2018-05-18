@@ -336,8 +336,7 @@ class Sections(models.Model):
     alternative_learning_experience_type_id = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
-        return self.section_name
-
+        return self.section_name or str(self.section_id)
 
     class Meta:
         managed = False
@@ -430,7 +429,7 @@ class Courses(models.Model):
     scholarship_program_id = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
-        return self.short_name
+        return self.short_name or str(self.course_id)
 
     class Meta:
         managed = False
@@ -454,7 +453,7 @@ class Gradebooks(models.Model):
     is_deleted = models.BooleanField()
 
     def __str__(self):
-        return self.gradebook_name
+        return self.gradebook_name or str(self.gradebook_id)
 
     class Meta:
         managed = False
@@ -544,6 +543,61 @@ class Rooms(models.Model):
         db_table = 'rooms'
 
 
+class Schedules(models.Model):
+    schedule_id = models.IntegerField(primary_key=True)
+    created_by = models.IntegerField(blank=True, null=True)
+    last_modified_by = models.IntegerField(blank=True, null=True)
+    schedule_name = models.CharField(max_length=255, blank=True, null=True)
+    last_mod_time = models.IntegerField(blank=True, null=True)
+    creation_time = models.IntegerField(blank=True, null=True)
+    session_id = models.IntegerField()
+    deleted_at = models.DateTimeField(blank=True, null=True)
+    deleted_by = models.IntegerField(blank=True, null=True)
+    is_locked = models.NullBooleanField()
+
+    class Meta:
+        managed = False
+        db_table = 'schedules'
+
+
+class SessionTypes(models.Model):
+    code_id = models.AutoField(primary_key=True)
+    code_key = models.CharField(max_length=255)
+    code_translation = models.CharField(max_length=255, blank=True, null=True)
+    site = models.ForeignKey(Sites, blank=True, null=True)
+    system_key = models.CharField(max_length=255, blank=True, null=True)
+    system_key_sort = models.IntegerField(blank=True, null=True)
+    state_id = models.CharField(max_length=255, blank=True, null=True)
+    sort_order = models.IntegerField(blank=True, null=True)
+    system_state_id = models.IntegerField(blank=True, null=True)
+    system_key_translation = models.CharField(max_length=100, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'session_types'
+
+
+class Sessions(models.Model):
+    session_id = models.AutoField(primary_key=True)
+    academic_year = models.IntegerField()
+    site = models.ForeignKey(Sites)
+    session_type = models.ForeignKey(SessionTypes, blank=True, null=True)
+    field_positive_attendance = models.BooleanField(db_column='_positive_attendance')  # Field renamed because it started with '_'.
+    elementary_grade_levels = models.TextField()  # This field type is a guess.
+    district_reports = models.BooleanField()
+    attendance_program_set_id = models.IntegerField()
+    schedule = models.ForeignKey(Schedules, blank=True, null=True)
+    is_high_poverty = models.BooleanField()
+    is_remote_and_necessary = models.BooleanField()
+    exclude_from_p223 = models.BooleanField()
+    is_open_doors_youth_reengagement_program_school = models.BooleanField()
+    is_online_instruction = models.BooleanField()
+
+    class Meta:
+        managed = False
+        db_table = 'sessions'
+
+
 class SectionCourseAff(models.Model):
     section_course_aff_id = models.IntegerField(primary_key=True)
     section_id = models.IntegerField()
@@ -618,13 +672,33 @@ class SsCurrent(models.Model):
         db_table = 'ss_current'
 
 
+class Roles(models.Model):
+    role_id = models.IntegerField(primary_key=True)
+    role_name = models.CharField(max_length=255)
+    role_level = models.IntegerField(blank=True, null=True)
+    can_teach = models.BooleanField()
+    can_counsel = models.BooleanField()
+    job_classification_id = models.IntegerField(blank=True, null=True)
+    role_short_name = models.CharField(max_length=255, blank=True, null=True)
+    system_key = models.CharField(max_length=255, blank=True, null=True)
+    system_key_sort = models.IntegerField(blank=True, null=True)
+    can_refer_discipline = models.BooleanField()
+    deleted_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'roles'
+
+
 class Terms(models.Model):
     term_id = models.AutoField(primary_key=True)
     term_name = models.CharField(max_length=20)
     start_date = models.DateField()
     end_date = models.DateField()
-    field_schedule_id = models.IntegerField(db_column='_schedule_id', blank=True, null=True)  # Field renamed because it started with '_'.
-    session_id = models.IntegerField()
+    schedule = models.ForeignKey(Schedules,
+                                          db_column='_schedule_id',
+                                          blank=True, null=True)
+    session = models.ForeignKey(Sessions)
     term_num = models.IntegerField()
     term_type = models.IntegerField()
     local_term_id = models.IntegerField(blank=True, null=True)
@@ -634,59 +708,16 @@ class Terms(models.Model):
         db_table = 'terms'
 
 
-class SessionTypes(models.Model):
-    code_id = models.AutoField(primary_key=True)
-    code_key = models.CharField(max_length=255)
-    code_translation = models.CharField(max_length=255, blank=True, null=True)
-    site_id = models.IntegerField(blank=True, null=True)
-    system_key = models.CharField(max_length=255, blank=True, null=True)
-    system_key_sort = models.IntegerField(blank=True, null=True)
-    state_id = models.CharField(max_length=255, blank=True, null=True)
-    sort_order = models.IntegerField(blank=True, null=True)
-    system_state_id = models.IntegerField(blank=True, null=True)
-    system_key_translation = models.CharField(max_length=1000, blank=True, null=True)
+class UserTermRoleAff(models.Model):
+    utra_id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(Users)
+    role = models.ForeignKey(Roles)
+    term = models.ForeignKey(Terms)
+    last_schedule_id = models.IntegerField(blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'session_types'
-
-
-class Sessions(models.Model):
-    session_id = models.AutoField(primary_key=True)
-    academic_year = models.IntegerField()
-    site = models.ForeignKey(Sites)
-    session_type = models.ForeignKey(SessionTypes,blank=True, null=True)
-    field_positive_attendance = models.BooleanField(db_column='_positive_attendance')  # Field renamed because it started with '_'.
-    elementary_grade_levels = models.TextField()  # This field type is a guess.
-    district_reports = models.BooleanField()
-    attendance_program_set_id = models.IntegerField()
-    schedule = models.ForeignKey('Schedules', blank=True, null=True)
-    is_high_poverty = models.BooleanField()
-    is_remote_and_necessary = models.BooleanField()
-    exclude_from_p223 = models.BooleanField()
-    is_open_doors_youth_reengagement_program_school = models.BooleanField()
-    is_online_instruction = models.BooleanField()
-
-    class Meta:
-        managed = False
-        db_table = 'sessions'
-
-
-class Schedules(models.Model):
-    schedule_id = models.IntegerField(primary_key=True)
-    created_by = models.IntegerField(blank=True, null=True)
-    last_modified_by = models.IntegerField(blank=True, null=True)
-    schedule_name = models.CharField(max_length=255, blank=True, null=True)
-    last_mod_time = models.IntegerField(blank=True, null=True)
-    creation_time = models.IntegerField(blank=True, null=True)
-    session = models.ForeignKey('Sessions', blank=True, null=True)
-    deleted_at = models.DateTimeField(blank=True, null=True)
-    deleted_by = models.ForeignKey(Users, blank=True, null=True)
-    is_locked = models.NullBooleanField()
-
-    class Meta:
-        managed = False
-        db_table = 'schedules'
+        db_table = 'user_term_role_aff'
 
 
 class Timeblocks(models.Model):
@@ -739,3 +770,80 @@ class CategoryScoreCache(models.Model):
         managed = False
         db_table = 'category_score_cache'
 
+
+class Standards(models.Model):
+    standard_id = models.IntegerField(primary_key=True)
+    parent_standard_id = models.IntegerField(blank=True, null=True)
+    category_id = models.IntegerField(blank=True, null=True)
+    subject_id = models.IntegerField(blank=True, null=True)
+    guid = models.CharField(max_length=255, blank=True, null=True)
+    state_num = models.CharField(max_length=255, blank=True, null=True)
+    label = models.CharField(max_length=255, blank=True, null=True)
+    seq = models.IntegerField(blank=True, null=True)
+    level = models.IntegerField(blank=True, null=True)
+    placeholder = models.NullBooleanField()
+    organizer = models.CharField(max_length=255, blank=True, null=True)
+    linkable = models.NullBooleanField()
+    stem = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    lft = models.IntegerField(blank=True, null=True)
+    rgt = models.IntegerField(blank=True, null=True)
+    custom_code = models.CharField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'standards'
+
+
+class StandardsCache(models.Model):
+    cache_id = models.AutoField(primary_key=True)
+    gradebook = models.ForeignKey(Gradebooks)
+    student = models.ForeignKey(Students)
+    standard = models.ForeignKey(Standards)
+    percentage = models.FloatField(blank=True, null=True)
+    mark = models.CharField(max_length=255, blank=True, null=True)
+    points_earned = models.FloatField(blank=True, null=True)
+    possible_points = models.FloatField(blank=True, null=True)
+    color = models.CharField(max_length=7, blank=True, null=True)
+    missing_count = models.IntegerField(blank=True, null=True)
+    assignment_count = models.IntegerField(blank=True, null=True)
+    zero_count = models.IntegerField(blank=True, null=True)
+    excused_count = models.IntegerField(blank=True, null=True)
+    timeframe_start_date = models.DateField()
+    timeframe_end_date = models.DateField()
+    calculated_at = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'standards_cache'
+
+
+class States(models.Model):
+    state_id = models.IntegerField(primary_key=True)
+    code = models.CharField(max_length=6)
+    name = models.CharField(max_length=255)
+    sort_order = models.IntegerField(blank=True, null=True)
+    country_code = models.CharField(max_length=6, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'states'
+
+
+class Subjects(models.Model):
+    subject_id = models.IntegerField(primary_key=True)
+    document = models.CharField(max_length=225, blank=True, null=True)
+    timestamp = models.DateTimeField(blank=True, null=True)
+    year = models.IntegerField(blank=True, null=True)
+    guid = models.CharField(max_length=255, blank=True, null=True)
+    code = models.CharField(max_length=255, blank=True, null=True)
+    seq = models.IntegerField(blank=True, null=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    hidden = models.NullBooleanField()
+    locale = models.CharField(max_length=100, blank=True, null=True)
+    is_custom = models.NullBooleanField()
+    state = models.ForeignKey(States, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'subjects'

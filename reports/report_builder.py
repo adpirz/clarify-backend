@@ -170,7 +170,6 @@ def grades_query_to_data(**query_params):
     return data
 
 
-
 def query_parser(querydict):
     """Returns a Python dict from a QueryDict"""
     query_dict = dict(querydict)
