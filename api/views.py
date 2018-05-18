@@ -33,6 +33,7 @@ def StudentView(request):
     def _shape(student):
         return {
             'id': student.id,
+            'source_object_id': student.source_object_id,
             'first_name': student.first_name,
             'last_name': student.last_name,
         }
