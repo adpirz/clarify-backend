@@ -102,13 +102,13 @@ def GradeLevelView(request):
 def CourseView(request):
     def _shape(row):
         return {
-            'id': row.course.source_object_id,
+            'id': row.course.id,
             'short_name': row.course.short_name,
             'long_name': row.course.long_name,
         }
 
     user = request.user
-    request_teacher = Staff.objects.get(user=user)
+    request_teacher = Staff.objects.filter(user=user).first()
     grade_levels = GradeLevel.get_users_current_grade_levels(request_teacher)
     return JsonResponse({
         'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
