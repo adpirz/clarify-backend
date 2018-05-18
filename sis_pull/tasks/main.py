@@ -27,6 +27,7 @@ from sis_pull.models import (
     AttendanceFlag, SessionType, Schedule, Session, Term, UserTermRoleAffinity,
     Role, State, Subject, Standard)
 
+
 from sis_mirror.models import (
     Students,
     Users,
@@ -46,7 +47,6 @@ from sis_mirror.models import (
     StandardsCache,
     SessionTypes, Schedules, Sessions, UserTermRoleAff, Terms, Roles, States,
     Subjects, Standards)
-
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):

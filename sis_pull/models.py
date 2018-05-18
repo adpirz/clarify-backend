@@ -419,6 +419,7 @@ class Course(SourceObjectMixin, models.Model):
                 .distinct('course_id')\
                 .values_list('course_id', flat=True)
 
+
 class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """
     Source: public.sections
@@ -444,10 +445,15 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
         return f"{timeblock_name} {course_name}"
 
-    @property
-    def gradebooks(self):
-        gscas = GradebookSectionCourseAffinity.objects.filter(section_id=self.id)
-        return [gsca.gradebook for gsca in gscas]
+
+    def get_course_id(self):
+        gsca = GradebookSectionCourseAffinity.objects.filter(
+            section_id=self.source_id).first()
+
+        if gsca:
+            return gsca.course_id
+        else:
+            return None
 
 
     def get_course_id(self):
