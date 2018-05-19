@@ -13,6 +13,7 @@ from sis_pull.models import (
     AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear,
     OverallScoreCache, GradebookSectionCourseAffinity, Course,
     CategoryScoreCache)
+
 from reports.models import Report
 from utils import get_academic_year
 
