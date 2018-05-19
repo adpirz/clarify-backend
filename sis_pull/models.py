@@ -645,8 +645,13 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
     @classmethod
     def get_latest_for_student_and_gradebook(cls, student_id, gradebook_id):
         """
+<<<<<<< HEAD
 
         Returns the latest row calculated for a given and student.
+=======
+        Returns the latest row calculated for a given gradebook and list of
+        student IDs.
+>>>>>>> working gradebook reporting with given format
         :param student_id: int
         :param gradebook_id: int
         :return: OverallScoreCache instance

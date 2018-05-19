@@ -151,6 +151,7 @@ def attendance_query_to_data(report_id=None, **query_params):
 def grades_query_to_data(report_id, **query_params):
     """Currently supports getting most up to date data for grade"""
 
+
     group = query_params["group"]
     group_id = query_params["group_id"]
     site_id = query_params.get("site_id", None)
@@ -240,6 +241,7 @@ def grades_query_to_data(report_id, **query_params):
         response["report_id"] = report_id
 
     return response
+
 
 def query_parser(querydict):
     """Returns a Python dict from a QueryDict"""
