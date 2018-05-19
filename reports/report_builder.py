@@ -243,6 +243,7 @@ def grades_query_to_data(report_id, **query_params):
 
     return response
 
+
 def query_parser(querydict):
     """Returns a Python dict from a QueryDict"""
     query_dict = dict(querydict)
