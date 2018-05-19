@@ -12,7 +12,6 @@ from sis_pull.models import (
     Student, User, Site, GradeLevel, Section,
     AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear,
     OverallScoreCache, GradebookSectionCourseAffinity, Course)
-
 from reports.models import Report
 from utils import get_academic_year
 
@@ -232,7 +231,6 @@ def grades_query_to_data(report_id, **query_params):
         scores = filter_scores(scores)
 
 
-    data = {}
 
     data = {
         "title": f"{course_name} grades for {group} {group_id} (latest)",
