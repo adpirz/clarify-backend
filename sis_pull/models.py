@@ -619,6 +619,7 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
         """
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
         Returns the latest row calculated for a given and student.
 =======
@@ -626,11 +627,20 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
         student IDs.
 >>>>>>> working gradebook reporting with given format
 =======
+=======
+>>>>>>> working gradebook reporting with given format
         Returns the latest row calculated for a given gradebook and list of
         student IDs.
 =======
         Returns the latest row calculated for a given and student.
+<<<<<<< HEAD
 >>>>>>> adding convenience methods on sis_pull models to get gradebooks
+=======
+=======
+        Returns the latest row calculated for a given gradebook and list of
+        student IDs.
+>>>>>>> working gradebook reporting with given format
+>>>>>>> working gradebook reporting with given format
         :param student_id: int
         :param gradebook_id: int
         :return: OverallScoreCache instance
