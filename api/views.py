@@ -102,7 +102,7 @@ def GradeLevelView(request):
 def CourseView(request):
     def _shape(row):
         return {
-            'id': row.course.id,
+            'id': row.course.source_object_id,
             'short_name': row.course.short_name,
             'long_name': row.course.long_name,
         }

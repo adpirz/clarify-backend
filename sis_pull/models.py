@@ -585,15 +585,24 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
     @classmethod
     def get_latest_for_student_and_gradebook(cls, student_id, gradebook_id):
         """
-        Returns the latest row calculated for a given and student.
+        Returns the latest row calculated for a given gradebook and list of
+        student IDs.
         :param student_id: int
         :param gradebook_id: int
         :return: OverallScoreCache instance
         """
         return cls.objects.exclude(possible_points__isnull=True)\
                     .filter(student_id=student_id, gradebook_id=gradebook_id)\
-                    .order_by('calculated_at')\
+                    .order_by('-calculated_at')\
                     .first()
+
+    @staticmethod
+    def get_columns():
+
+        return [{"column_code": i, "label": x} for i, x in enumerate(
+            ['mark', 'percentage', 'possible_points',
+             'points_earned', 'calculated_at']
+        )]
 
 
 class CategoryScoreCache(SourceObjectMixin, models.Model):
