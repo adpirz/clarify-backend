@@ -10,9 +10,10 @@ from django.shortcuts import get_object_or_404
 
 from sis_pull.models import (
     Student, User, Site, GradeLevel, Section,
-    AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear
-)
+    AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear,
+    OverallScoreCache, GradebookSectionCourseAffinity)
 from reports.models import Report
+from utils import get_academic_year
 
 GROUPS_AND_MODELS = {
     'site': Site,
@@ -53,7 +54,8 @@ def query_to_data(query):
     raise ValueError("Only supports grades and attendance.")
 
 
-def get_student_ids_for_group_and_id(group, object_id, site_id=None):
+def get_student_ids_for_group_and_id(group, object_id, site_id=None,
+                                     return_set=False):
     """
     Takes an object of type Student, Section, grade_level, or Site, and returns
     the students associated with that object
@@ -67,6 +69,10 @@ def get_student_ids_for_group_and_id(group, object_id, site_id=None):
             .get_current_student_ids(site_id=site_id)
 
     model = get_object_from_group_and_id(group, object_id)
+
+    if return_set:
+        return set(model.get_current_student_ids())
+
     return model.get_current_student_ids()
 
 
@@ -140,16 +146,51 @@ def attendance_query_to_data(report_id=None, **query_params):
 
 
 def grades_query_to_data(**query_params):
-    """Currently supports getting most up to date data"""
+    """Currently supports getting most up to date data for grades
+
+        {
+          "title": "string",
+          "group": "string",
+          "group_id": "int",
+          "columns": Array[{
+            "column_code": "int",
+            "label": "string"
+          }],
+          "exclude_columns": Array[int<column_code>],
+          "data": Array[{
+            "student_id": "int",
+            "grades_data": {
+              "mark": "string",
+              "percentage": "float",
+              "possible_points": "int",
+              "points_earned": "int"
+              "calculated_at": "datetime"
+            }
+          }]
+        }
+    """
     group = query_params["group"]
     group_id = query_params["group_id"]
     site_id = query_params.get("site_id", None)
     course_id = query_params.get("course_id", None)
 
     student_ids = get_student_ids_for_group_and_id(group, group_id,
-                                                   site_id=site_id)
+                                                   return_set=True)
 
-    # grades =  get_grades_from_student_ids(student_ids, course=course)
+    active_sections = Section.objects.filter(
+        academic_year=get_academic_year(),
+        course_id=course_id
+    ).values_list('source_object_id', flat=True)
+
+    gradebook_ids = GradebookSectionCourseAffinity.objects.filter(
+        section_id__in=active_sections
+    ).values_list('gradebook_id', flat=True)
+
+    all_scores = OverallScoreCache.objects.filter(
+        gradebook_id__in=gradebook_ids
+    )
+
+    latest_scores_per_id = {}
 
     def build_columns():
         """Columns should be course name and grade or mark"""
@@ -160,11 +201,14 @@ def grades_query_to_data(**query_params):
         # turn grades info into rows
         pass
 
+    data = {}
+
     data = {
-        "Title": f"",
-        "Course": course_id,
-        "columns": build_columns(),
-        "rows": build_rows()
+        "title": f"",
+        "group": group,
+        "group_id": group_id,
+        "columns": OverallScoreCache.get_columns(),
+        "data": data
     }
 
     return data
