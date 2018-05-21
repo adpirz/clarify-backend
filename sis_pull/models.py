@@ -176,16 +176,22 @@ class Student(SourceObjectMixin, models.Model):
             .distinct('gradebook_id')\
             .values_list('gradebook_id', flat=True)
 
-    def get_current_active_sections(self):
+    def get_current_active_section_ids(self):
         """Returns sections student is currently enrolled in"""
-        today = timezone.now().date()
-        current_year = today.year if today.month < 7 else today.year - 1
+        now = timezone.now()
+        return SectionLevelRosterPerYear.objects\
+            .filter(student_id=self.id)\
+            .filter(entry_date__lte=now, leave_date__gte=now)\
+            .distinct('section_id')\
+            .values_list('section_id', flat=True)
 
-
-
-    def get_current_gradebooks(self):
-        pass
-
+    def get_active_section_gradebook_ids(self):
+        """Returns current gradebooks for given student"""
+        sections_list = self.get_current_active_section_ids()
+        return GradebookSectionCourseAffinity.objects\
+            .filter(section_id__in=sections_list)\
+            .distinct('gradebook_id')\
+            .values_list('gradebook_id', flat=True)
 
 class AttendanceFlag(SourceObjectMixin, models.Model):
     source_table = "attendance_flag"
