@@ -302,7 +302,7 @@ class Staff(SourceObjectMixin, models.Model):
         ('F', 'Female')
     )
 
-    user = models.OneToOneField(User)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     prefix = models.CharField(choices=PREFIX_CHOICES, max_length=3, default='MS')
     gender = models.CharField(choices=GENDER_CHOICES, max_length=1, blank=True, null=True)
 

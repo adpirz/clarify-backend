@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from django.db.models.fields.related import ForeignKey
 from django.contrib.auth.models import User
+from django.contrib.auth.hashers import make_password
 
 from sis_pull.models import (
     Student,
@@ -157,9 +158,14 @@ def build_staff_from_sis_users():
         # from SIS Users
         model_args = {field: user.__getattribute__(field)
                       for field in user_fields}
+
+        # create a password
+        model_args["password"] = make_password(model_args["username"])
         model, created = User.objects.get_or_create(**model_args)
+
         if created:
             users_created += 1
+
         dj_user_models.append(model)
 
     for dj_user in tqdm(dj_user_models, desc="Staff"):
@@ -167,6 +173,7 @@ def build_staff_from_sis_users():
         # Staff objects
         sis_user = Users.objects.get(username=dj_user.username)
         dj_field_list = field_list_to_names(fields_list(Staff))
+
         # Leave out fields not in user model, also leave out
         # user so we can pull the proper Django user later
         excluded_fields = ['user', 'prefix', 'source_object_id']
@@ -186,7 +193,7 @@ def build_staff_from_sis_users():
 
         model, created = Staff.objects.\
             get_or_create(
-                source_object_id=sis_user.user_id, user_id=dj_user.id,
+                id=sis_user.user_id, user_id=dj_user.id,
                 **model_args)
 
         if created:
@@ -246,9 +253,16 @@ def main(**options):
 
         if no_bulk:
             kwargs['no_bulk'] = True
+
         if clean:
             django_model.objects.all().delete()
-            print("Deleted all instances of {}".format(django_model))
+            delete_string = django_model.__name__
+
+            if django_model == Staff:
+                User.objects.all().delete()
+                delete_string += ', User'
+
+            print("Deleted all instances of {}".format(delete_string))
 
         if model == "users":
             build_staff_from_sis_users()
