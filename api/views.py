@@ -108,7 +108,7 @@ def CourseView(request):
         }
 
     user = request.user
-    request_teacher = Staff.objects.filter(user=user).first()
+    request_teacher = Staff.objects.get(user=user)
     grade_levels = GradeLevel.get_users_current_grade_levels(request_teacher)
     return JsonResponse({
         'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
