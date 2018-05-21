@@ -203,7 +203,6 @@ def build_staff_from_sis_users():
                 id=sis_user.user_id, user_id=dj_user.id,
                 **model_args)
 
-
         if created:
             staff_created += 1
 
