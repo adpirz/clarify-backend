@@ -37,3 +37,5 @@ Temporary Items
 .idea_modules/
 
 pg_dumps/
+
+_cache_inspect.py
