@@ -118,7 +118,7 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None,
         # For SIS tables with primary key (ie, non-view tables),
         # use the source_id_field to get source_object_id
         if source_id_field:
-            model_args['source_object_id'] = row.\
+            model_args['id'] = row.\
                 __getattribute__(source_id_field)
 
         # Datetime cleanup with timezones
