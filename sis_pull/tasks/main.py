@@ -22,7 +22,7 @@ from sis_pull.models import (
     SectionLevelRosterPerYear,
     OverallScoreCache as OSC,
     CategoryScoreCache as CSC,
-    AttendanceFlag)
+    AttendanceFlag, SectionTimeblockAffinity, Timeblock)
 
 from sis_mirror.models import (
     Students,
@@ -38,8 +38,8 @@ from sis_mirror.models import (
     GradebookSectionCourseAff,
     OverallScoreCache,
     SsCube,
-    CategoryScoreCache
-)
+    CategoryScoreCache,
+    SectionTimeblockAff, Timeblocks)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -226,6 +226,8 @@ def main(**options):
         'sections': (Sections, Section, 'section_id'),
         'ss_cube': (SsCube, SectionLevelRosterPerYear),
         'gradebooks': (Gradebooks, Gradebook, 'gradebook_id'),
+        'timeblocks': (Timeblocks, Timeblock, 'timeblock_id'),
+        'stba': (SectionTimeblockAff, SectionTimeblockAffinity, 'stba_id'),
         'overallscorecache': (OverallScoreCache, OSC),
         'daily_records': (DailyRecords, AttendanceDailyRecord),
     })

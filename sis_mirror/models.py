@@ -563,16 +563,6 @@ class SectionTeacherAff(models.Model):
         db_table = 'section_teacher_aff'
 
 
-class SectionTimeblockAff(models.Model):
-    stba_id = models.IntegerField(primary_key=True)
-    section_id = models.IntegerField()
-    timeblock_id = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = 'section_timeblock_aff'
-
-
 class SsCube(models.Model):
     site = models.ForeignKey(Sites, primary_key=True)
     academic_year = models.IntegerField(blank=True, primary_key=True)
@@ -616,11 +606,66 @@ class Terms(models.Model):
         db_table = 'terms'
 
 
+class SessionTypes(models.Model):
+    code_id = models.AutoField(primary_key=True)
+    code_key = models.CharField(max_length=255)
+    code_translation = models.CharField(max_length=255, blank=True, null=True)
+    site_id = models.IntegerField(blank=True, null=True)
+    system_key = models.CharField(max_length=255, blank=True, null=True)
+    system_key_sort = models.IntegerField(blank=True, null=True)
+    state_id = models.CharField(max_length=255, blank=True, null=True)
+    sort_order = models.IntegerField(blank=True, null=True)
+    system_state_id = models.IntegerField(blank=True, null=True)
+    system_key_translation = models.CharField(max_length=1000, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'session_types'
+
+
+class Sessions(models.Model):
+    session_id = models.AutoField(primary_key=True)
+    academic_year = models.IntegerField()
+    site = models.ForeignKey(Sites)
+    session_type = models.ForeignKey(SessionTypes,blank=True, null=True)
+    field_positive_attendance = models.BooleanField(db_column='_positive_attendance')  # Field renamed because it started with '_'.
+    elementary_grade_levels = models.TextField()  # This field type is a guess.
+    district_reports = models.BooleanField()
+    attendance_program_set_id = models.IntegerField()
+    schedule = models.ForeignKey('Schedules', blank=True, null=True)
+    is_high_poverty = models.BooleanField()
+    is_remote_and_necessary = models.BooleanField()
+    exclude_from_p223 = models.BooleanField()
+    is_open_doors_youth_reengagement_program_school = models.BooleanField()
+    is_online_instruction = models.BooleanField()
+
+    class Meta:
+        managed = False
+        db_table = 'sessions'
+
+
+class Schedules(models.Model):
+    schedule_id = models.IntegerField(primary_key=True)
+    created_by = models.IntegerField(blank=True, null=True)
+    last_modified_by = models.IntegerField(blank=True, null=True)
+    schedule_name = models.CharField(max_length=255, blank=True, null=True)
+    last_mod_time = models.IntegerField(blank=True, null=True)
+    creation_time = models.IntegerField(blank=True, null=True)
+    session = models.ForeignKey('Sessions', blank=True, null=True)
+    deleted_at = models.DateTimeField(blank=True, null=True)
+    deleted_by = models.ForeignKey(Users, blank=True, null=True)
+    is_locked = models.NullBooleanField()
+
+    class Meta:
+        managed = False
+        db_table = 'schedules'
+
+
 class Timeblocks(models.Model):
     timeblock_id = models.IntegerField(primary_key=True)
     timeblock_name = models.CharField(max_length=255, blank=True, null=True)
     order_num = models.IntegerField()
-    session_id = models.IntegerField()
+    session = models.ForeignKey(Sessions)
     is_homeroom = models.NullBooleanField()
     occurrence_order = models.SmallIntegerField()
     is_primary = models.BooleanField()
@@ -630,6 +675,16 @@ class Timeblocks(models.Model):
     class Meta:
         managed = False
         db_table = 'timeblocks'
+
+
+class SectionTimeblockAff(models.Model):
+    stba_id = models.IntegerField(primary_key=True)
+    section = models.ForeignKey(Sections)
+    timeblock = models.ForeignKey(Timeblocks)
+
+    class Meta:
+        managed = False
+        db_table = 'section_timeblock_aff'
 
 
 class CategoryScoreCache(models.Model):

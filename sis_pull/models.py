@@ -54,9 +54,7 @@ class GradeLevel(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     state_id = models.CharField(max_length=455, null=True)
 
     def __str__(self):
-        return long_name | short_name
-
-
+        return self.long_name or self.short_name
 
 class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """
@@ -453,3 +451,23 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     calculated_at = models.DateTimeField()
     timeframe_start_date = models.DateField()
     timeframe_end_date = models.DateField()
+
+
+class Timeblock(SourceObjectMixin, models.Model):
+
+    source_table = 'timeblocks'
+
+    timeblock_name = models.CharField(max_length=255, blank=True, null=True)
+    order_num = models.IntegerField()
+    is_homeroom = models.NullBooleanField()
+    occurrence_order = models.SmallIntegerField()
+    is_primary = models.BooleanField()
+    short_name = models.CharField(max_length=20, blank=True, null=True)
+
+
+class SectionTimeblockAffinity(models.Model):
+
+    source_table = 'section_timeblock_aff'
+
+    section = models.ForeignKey(Section)
+    timeblock = models.ForeignKey(Timeblock)
