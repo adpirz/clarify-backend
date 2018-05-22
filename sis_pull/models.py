@@ -56,6 +56,7 @@ class GradeLevel(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     def __str__(self):
         return self.long_name or self.short_name
 
+
 class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """
     Source: public.sites
