@@ -53,6 +53,10 @@ class GradeLevel(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     long_name = models.CharField(max_length=255)
     state_id = models.CharField(max_length=455, null=True)
 
+    def __str__(self):
+        return long_name | short_name
+
+
 
 class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """
@@ -89,6 +93,9 @@ class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     def get_site_type_label(self):
         return self.SITE_TYPE_CHOICES[self.site_type_id][1]
 
+    def __str__(self):
+        return self.site_name | "School {}".format(self.pk)
+
 
 class Student(SourceObjectMixin, models.Model):
     """
@@ -124,7 +131,7 @@ class Student(SourceObjectMixin, models.Model):
     ethnicity = models.IntegerField(choices=ETHNICITY_CHOICES, null=True)
 
     def __str__(self):
-        return "{}: {}, {}".format(self.pk, self.last_name, self.first_name)
+        return "{} {}".format(self.first_name, self.last_name)
 
 
 class AttendanceFlag(SourceObjectMixin, models.Model):
@@ -143,8 +150,8 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
 
     @classmethod
     def get_exclude_columns(cls):
-        return [f.id for f in cls.objects.all()
-                 if f.character_code in ['I', '-', '_', 'D', 'N']]
+        return [f.source_object_id for f in cls.objects.all()
+                 if f.character_code in ['I', '-', '_', 'D', 'N', 'X', 'A']]
 
 
 class AttendanceDailyRecord(SourceObjectMixin, models.Model):
@@ -336,6 +343,9 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     source_table = 'sections'
 
     section_name = models.CharField(max_length=255, null=True)
+
+    def __str__(self):
+        return self.section_name
 
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
