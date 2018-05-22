@@ -619,35 +619,7 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
 
     @classmethod
     def get_latest_for_student_and_gradebook(cls, student_id, gradebook_id):
-        """
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-        Returns the latest row calculated for a given and student.
-=======
-        Returns the latest row calculated for a given gradebook and list of
-        student IDs.
->>>>>>> working gradebook reporting with given format
-=======
-=======
->>>>>>> working gradebook reporting with given format
-        Returns the latest row calculated for a given gradebook and list of
-        student IDs.
-=======
-        Returns the latest row calculated for a given and student.
-<<<<<<< HEAD
->>>>>>> adding convenience methods on sis_pull models to get gradebooks
-=======
-=======
-        Returns the latest row calculated for a given gradebook and list of
-        student IDs.
->>>>>>> working gradebook reporting with given format
->>>>>>> working gradebook reporting with given format
-        :param student_id: int
-        :param gradebook_id: int
-        :return: OverallScoreCache instance
-        """
+        """Returns the latest row calculated for a given and student."""
         return cls.objects.exclude(possible_points__isnull=True)\
                     .filter(student_id=student_id, gradebook_id=gradebook_id)\
                     .order_by('-calculated_at')\
