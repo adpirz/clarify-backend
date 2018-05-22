@@ -748,9 +748,9 @@ class SectionTimeblockAff(models.Model):
 
 class CategoryScoreCache(models.Model):
     cache_id = models.AutoField(primary_key=True)
-    student_id = models.ForeignKey(Students)
-    gradebook_id = models.ForeignKey(Gradebooks)
-    category_id = models.ForeignKey(Categories, blank=True, null=True)
+    student = models.ForeignKey(Students)
+    gradebook = models.ForeignKey(Gradebooks)
+    category = models.ForeignKey(Categories, blank=True, null=True)
     possible_points = models.FloatField(blank=True, null=True)
     points_earned = models.FloatField(blank=True, null=True)
     percentage = models.FloatField(blank=True, null=True)

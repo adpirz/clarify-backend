@@ -628,15 +628,15 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     student = models.ForeignKey(Student)
     gradebook = models.ForeignKey(Gradebook)
     category = models.ForeignKey(Category)
-    possible_points = models.FloatField()
-    points_earned = models.FloatField()
-    percentage = models.FloatField()
+    possible_points = models.FloatField(blank=True, null=True)
+    points_earned = models.FloatField(blank=True, null=True)
+    percentage = models.FloatField(blank=True, null=True)
     category_name = models.CharField(max_length=255)
     mark = models.CharField(max_length=255)
-    assignment_count = models.IntegerField()
-    calculated_at = models.DateTimeField()
-    timeframe_start_date = models.DateField()
-    timeframe_end_date = models.DateField()
+    assignment_count = models.IntegerField(blank=True, null=True)
+    calculated_at = models.DateTimeField(blank=True, null=True)
+    timeframe_start_date = models.DateField(blank=True, null=True)
+    timeframe_end_date = models.DateField(blank=True, null=True)
 
 
 class Timeblock(SourceObjectMixin, models.Model):
