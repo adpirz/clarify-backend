@@ -93,7 +93,7 @@ class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
         return self.SITE_TYPE_CHOICES[self.site_type_id][1]
 
     def __str__(self):
-        return self.site_name | "School {}".format(self.pk)
+        return self.site_name or "School {}".format(self.pk)
 
 
 class Student(SourceObjectMixin, models.Model):
@@ -344,7 +344,21 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     section_name = models.CharField(max_length=255, null=True)
 
     def __str__(self):
-        return self.section_name
+        if self.section_name and self.section_name != "":
+            return self.section_name
+        timeblock_name = SectionTimeblockAffinity.objects\
+            .filter(section_id=self.id)\
+            .order_by('-id')\
+            .first()\
+            .timeblock.timeblock_name
+
+        course_name = SectionLevelRosterPerYear.objects\
+            .filter(section_id=self.id)\
+            .order_by('-entry_date')\
+            .first()\
+            .course.long_name
+
+        return f"{timeblock_name} {course_name}"
 
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
@@ -466,7 +480,7 @@ class Timeblock(SourceObjectMixin, models.Model):
     short_name = models.CharField(max_length=20, blank=True, null=True)
 
 
-class SectionTimeblockAffinity(models.Model):
+class SectionTimeblockAffinity(SourceObjectMixin, models.Model):
 
     source_table = 'section_timeblock_aff'
 
