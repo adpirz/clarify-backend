@@ -71,16 +71,21 @@ def attendance_query_to_data(report_id=None, **query_params):
     """
 
     DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"  # YYYY-MM-DDTHH:MM:SS
-    DISPLAY_DATE_FORMAT = "%Y-%m-%d"  # YYYY-MM-DD
+    DISPLAY_DATE_FORMAT = "%b %-d, %Y"  # YYYY-MM-DD
 
     def get_time_string():
         """For formatting in titles"""
         if from_date and not to_date:
-            return f"from {from_date.strftime(DISPLAY_DATE_FORMAT)} to now"
+            return f"{from_date.strftime(DISPLAY_DATE_FORMAT)} to now"
         if is_single_day:
-            return f" on {from_date.strftime(DISPLAY_DATE_FORMAT)}"
+            return f" On {from_date.strftime(DISPLAY_DATE_FORMAT)}"
 
-        return f"from {from_date.strftime(DISPLAY_DATE_FORMAT)} to " + \
+        if from_date.year == to_date.year:
+            from_string = from_date.strftime(DISPLAY_DATE_FORMAT).split(',')[0]
+            return f"{from_string} " +\
+                   f"to {to_date.strftime(DISPLAY_DATE_FORMAT)}"
+
+        return f"{from_date.strftime(DISPLAY_DATE_FORMAT)} to " + \
                f"{to_date.strftime(DISPLAY_DATE_FORMAT)}"
 
     group = query_params["group"]
@@ -102,7 +107,7 @@ def attendance_query_to_data(report_id=None, **query_params):
     time_string = get_time_string()
     group_name = get_object_from_group_and_id(group, group_id)
     data = {
-        "title": f"Attendance for {group_name} {time_string}",
+        "title": f"Attendance: {group_name} | {time_string}",
         "group": group,
         "group_id": group_id,
         "from_date": from_date,

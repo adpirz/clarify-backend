@@ -149,7 +149,7 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
 
     @classmethod
     def get_exclude_columns(cls):
-        return [f.source_object_id for f in cls.objects.all()
+        return [f.id for f in cls.objects.all()
                  if f.character_code in ['I', '-', '_', 'D', 'N', 'X', 'A']]
 
 

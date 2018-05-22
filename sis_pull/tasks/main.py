@@ -176,7 +176,7 @@ def build_staff_from_sis_users():
 
         # Leave out fields not in user model, also leave out
         # user so we can pull the proper Django user later
-        excluded_fields = ['user', 'prefix', 'source_object_id']
+        excluded_fields = ['user', 'prefix']
         dj_field_list = filter(
             lambda i: i not in user_fields and i not in excluded_fields,
             dj_field_list)
