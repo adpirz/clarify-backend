@@ -563,8 +563,8 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     section = models.ForeignKey(Section)
     course = models.ForeignKey(Course)
     user = models.ForeignKey(Staff)
-    created = models.DateTimeField()
-    modified = models.DateTimeField()
+    created = models.DateTimeField(null=True)
+    modified = models.DateTimeField(null=True)
 
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"
