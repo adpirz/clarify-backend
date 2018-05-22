@@ -595,9 +595,6 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"
 
-    def __str__(self):
-        return f"{self.gradebook} - {self.section} - {self.course}"
-
 
 class OverallScoreCache(SourceObjectMixin, models.Model):
     """
