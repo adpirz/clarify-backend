@@ -33,7 +33,6 @@ def StudentView(request):
     def _shape(student):
         return {
             'id': student.id,
-            'source_object_id': student.source_object_id,
             'first_name': student.first_name,
             'last_name': student.last_name,
         }
@@ -44,7 +43,7 @@ def StudentView(request):
         .filter(academic_year=get_academic_year())
         .values_list('student_id')
     )
-    teacher_students = Student.objects.filter(source_object_id__in=teacher_student_ids)
+    teacher_students = Student.objects.filter(id__in=teacher_student_ids)
 
     return JsonResponse({
         'data': [_shape(s) for s in teacher_students]
@@ -71,7 +70,7 @@ def SectionView(request):
         .exclude(section__section_name__exact="")
         .values_list('section_id')
     )
-    teacher_sections = Section.objects.filter(source_object_id__in=teacher_section_ids)
+    teacher_sections = Section.objects.filter(id__in=teacher_section_ids)
     return JsonResponse({
         'data': [_shape(s) for s in teacher_sections]
     })
@@ -92,7 +91,7 @@ def GradeLevelView(request):
         .filter(academic_year=get_academic_year())
         .values_list('grade_level_id')
     )
-    teacher_grade_levels = GradeLevel.objects.filter(source_object_id__in=teacher_grade_level_ids)
+    teacher_grade_levels = GradeLevel.objects.filter(id__in=teacher_grade_level_ids)
 
     return JsonResponse({
         'data': [_shape(g) for g in teacher_grade_levels]
@@ -113,7 +112,7 @@ def SiteView(request):
         .filter(user=request_teacher.first())
         .values_list('site_id')
     )
-    teacher_sites = Site.objects.filter(source_object_id__in=teacher_site_ids)
+    teacher_sites = Site.objects.filter(id__in=teacher_site_ids)
 
     return JsonResponse({
         'data': [_shape(s) for s in teacher_sites]

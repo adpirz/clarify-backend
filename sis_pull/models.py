@@ -16,7 +16,7 @@ class GetCurrentStudentsMixin(object):
         """
         source_field_name = camel_to_underscore(self.__class__.__name__) + '_id'
         kwargs = dict(extra)
-        kwargs[source_field_name] = self.source_id
+        kwargs[source_field_name] = self.id
 
         model_name = self.roster_model_name or "SectionLevelRosterPerYear"
         roster_model = apps.get_model(
@@ -34,7 +34,6 @@ class GetCurrentStudentsMixin(object):
 
 class SourceObjectMixin:
     """
-    Mixin to add source_id to a model
     Should implement source_table;
     If schema not 'public', should implement source_schema
     """
@@ -135,7 +134,7 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
     def column_shape(self):
-        return {"column_code": self.source_id,
+        return {"column_code": self.id,
                 "label": self.flag_text}
 
     @classmethod
@@ -144,7 +143,7 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
 
     @classmethod
     def get_exclude_columns(cls):
-        return [f.source_id for f in cls.objects.all()
+        return [f.id for f in cls.objects.all()
                  if f.character_code in ['I', '-', '_', 'D', 'N']]
 
 
@@ -214,7 +213,7 @@ class AttendanceDailyRecord(SourceObjectMixin, models.Model):
         """
 
         flag_dict = {f: 0 for f in \
-                     AttendanceFlag.objects.values_list('source_id',
+                     AttendanceFlag.objects.values_list('id',
                                                         flat=True)}
 
         def _row_shape(flag_id, value, total):
