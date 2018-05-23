@@ -1,0 +1,1 @@
+gunicorn clarify_backend.wsgi:application
