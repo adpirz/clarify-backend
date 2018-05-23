@@ -5,3 +5,5 @@ CORS_ORIGIN_WHITELIST = (
 )
 
 CORS_ALLOW_CREDENTIALS = True
+
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', default='api.clarify.school')
