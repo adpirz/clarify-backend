@@ -14,11 +14,12 @@ from sis_pull.models import (
 )
 from reports.models import Report
 
-GROUPS_AND_MODELS = (
-    ("site", Site),
-    ("grade_level", GradeLevel),
-    ("section", Section),
-)
+GROUPS_AND_MODELS = {
+    'site': Site,
+    'grade_level': GradeLevel,
+    'section': Section,
+    'student': Student,
+}
 
 
 def query_to_data(query):
@@ -47,7 +48,8 @@ def query_to_data(query):
 
 def get_student_ids_for_group_and_id(group, object_id, site_id=None):
     """
-    Like 'get_students_for_group_and_id', but returns a list of ids.
+    Takes an object of type Student, Section, grade_level, or Site, and returns
+    the students associated with that object
     :return: List[int<student_ids>]
     """
     if group_is_model(group, "student"):
@@ -68,17 +70,23 @@ def attendance_query_to_data(report_id=None, **query_params):
     :return: Attendance data dict
     """
 
-    DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"  # YYYY-MM-DD
+    DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"  # YYYY-MM-DDTHH:MM:SS
+    DISPLAY_DATE_FORMAT = "%b %-d, %Y"  # YYYY-MM-DD
 
     def get_time_string():
         """For formatting in titles"""
         if from_date and not to_date:
-            return f"from {from_date.strftime(DATE_FORMAT)} to now"
+            return f"{from_date.strftime(DISPLAY_DATE_FORMAT)} to now"
         if is_single_day:
-            return f" on {from_date.strftime(DATE_FORMAT)}"
+            return f" On {from_date.strftime(DISPLAY_DATE_FORMAT)}"
 
-        return f"from {from_date.strftime(DATE_FORMAT)} to " + \
-               f"{to_date.strftime(DATE_FORMAT)}"
+        if from_date.year == to_date.year:
+            from_string = from_date.strftime(DISPLAY_DATE_FORMAT).split(',')[0]
+            return f"{from_string} " +\
+                   f"to {to_date.strftime(DISPLAY_DATE_FORMAT)}"
+
+        return f"{from_date.strftime(DISPLAY_DATE_FORMAT)} to " + \
+               f"{to_date.strftime(DISPLAY_DATE_FORMAT)}"
 
     group = query_params["group"]
     group_id = query_params["group_id"]
@@ -97,9 +105,10 @@ def attendance_query_to_data(report_id=None, **query_params):
                                                 site_id=site_id)
 
     time_string = get_time_string()
-
+    group_name = get_object_from_group_and_id(group, group_id)
     data = {
-        "title": f"Attendance for {group} {group_id} {time_string}",
+        "title": f"Attendance: {group_name}",
+        "subheading": time_string,
         "group": group,
         "group_id": group_id,
         "from_date": from_date,
@@ -164,10 +173,9 @@ def get_object_from_group_and_id(group, object_id):
     :param object_id: int - id
     :return: Django Model
     """
-    for group_title, model in GROUPS_AND_MODELS:
-        if group == group_title:
-
-            return model.objects.get(pk=object_id)
+    model_for_group = GROUPS_AND_MODELS.get(group)
+    if model_for_group:
+        return model_for_group.objects.get(pk=object_id)
 
     raise ValueError(f"Group {group} is not supported.")
 

@@ -22,7 +22,7 @@ from sis_pull.models import (
     SectionLevelRosterPerYear,
     OverallScoreCache as OSC,
     CategoryScoreCache as CSC,
-    AttendanceFlag)
+    AttendanceFlag, SectionTimeblockAffinity, Timeblock)
 
 from sis_mirror.models import (
     Students,
@@ -38,8 +38,8 @@ from sis_mirror.models import (
     GradebookSectionCourseAff,
     OverallScoreCache,
     SsCube,
-    CategoryScoreCache
-)
+    CategoryScoreCache,
+    SectionTimeblockAff, Timeblocks)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -176,7 +176,7 @@ def build_staff_from_sis_users():
 
         # Leave out fields not in user model, also leave out
         # user so we can pull the proper Django user later
-        excluded_fields = ['user', 'prefix', 'source_object_id']
+        excluded_fields = ['user', 'prefix']
         dj_field_list = filter(
             lambda i: i not in user_fields and i not in excluded_fields,
             dj_field_list)
@@ -226,6 +226,8 @@ def main(**options):
         'sections': (Sections, Section, 'section_id'),
         'ss_cube': (SsCube, SectionLevelRosterPerYear),
         'gradebooks': (Gradebooks, Gradebook, 'gradebook_id'),
+        'timeblocks': (Timeblocks, Timeblock, 'timeblock_id'),
+        'stba': (SectionTimeblockAff, SectionTimeblockAffinity, 'stba_id'),
         'overallscorecache': (OverallScoreCache, OSC),
         'daily_records': (DailyRecords, AttendanceDailyRecord),
     })

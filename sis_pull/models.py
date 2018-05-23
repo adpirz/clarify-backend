@@ -53,6 +53,9 @@ class GradeLevel(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     long_name = models.CharField(max_length=255)
     state_id = models.CharField(max_length=455, null=True)
 
+    def __str__(self):
+        return self.long_name or self.short_name
+
 
 class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """
@@ -89,6 +92,9 @@ class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     def get_site_type_label(self):
         return self.SITE_TYPE_CHOICES[self.site_type_id][1]
 
+    def __str__(self):
+        return self.site_name or "School {}".format(self.pk)
+
 
 class Student(SourceObjectMixin, models.Model):
     """
@@ -124,7 +130,7 @@ class Student(SourceObjectMixin, models.Model):
     ethnicity = models.IntegerField(choices=ETHNICITY_CHOICES, null=True)
 
     def __str__(self):
-        return "{}: {}, {}".format(self.pk, self.last_name, self.first_name)
+        return "{} {}".format(self.first_name, self.last_name)
 
 
 class AttendanceFlag(SourceObjectMixin, models.Model):
@@ -144,7 +150,7 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
     @classmethod
     def get_exclude_columns(cls):
         return [f.id for f in cls.objects.all()
-                 if f.character_code in ['I', '-', '_', 'D', 'N']]
+                 if f.character_code in ['I', '-', '_', 'D', 'N', 'X', 'A']]
 
 
 class AttendanceDailyRecord(SourceObjectMixin, models.Model):
@@ -337,6 +343,23 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
     section_name = models.CharField(max_length=255, null=True)
 
+    def __str__(self):
+        if self.section_name and self.section_name != "":
+            return self.section_name
+        timeblock_name = SectionTimeblockAffinity.objects\
+            .filter(section_id=self.id)\
+            .order_by('-id')\
+            .first()\
+            .timeblock.timeblock_name
+
+        course_name = SectionLevelRosterPerYear.objects\
+            .filter(section_id=self.id)\
+            .order_by('-entry_date')\
+            .first()\
+            .course.long_name
+
+        return f"{timeblock_name} {course_name}"
+
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     """
@@ -443,3 +466,23 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     calculated_at = models.DateTimeField()
     timeframe_start_date = models.DateField()
     timeframe_end_date = models.DateField()
+
+
+class Timeblock(SourceObjectMixin, models.Model):
+
+    source_table = 'timeblocks'
+
+    timeblock_name = models.CharField(max_length=255, blank=True, null=True)
+    order_num = models.IntegerField()
+    is_homeroom = models.NullBooleanField()
+    occurrence_order = models.SmallIntegerField()
+    is_primary = models.BooleanField()
+    short_name = models.CharField(max_length=20, blank=True, null=True)
+
+
+class SectionTimeblockAffinity(SourceObjectMixin, models.Model):
+
+    source_table = 'section_timeblock_aff'
+
+    section = models.ForeignKey(Section)
+    timeblock = models.ForeignKey(Timeblock)
