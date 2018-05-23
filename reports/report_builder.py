@@ -107,7 +107,8 @@ def attendance_query_to_data(report_id=None, **query_params):
     time_string = get_time_string()
     group_name = get_object_from_group_and_id(group, group_id)
     data = {
-        "title": f"Attendance: {group_name} | {time_string}",
+        "title": f"Attendance: {group_name}",
+        "subheading": time_string,
         "group": group,
         "group_id": group_id,
         "from_date": from_date,
