@@ -1,1 +1,1 @@
-web: gunicorn clarify_backend.wsgis
+web: gunicorn clarify_backend.wsgi
