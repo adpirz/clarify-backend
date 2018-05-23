@@ -1,1 +1,1 @@
-gunicorn config.wsgi:application
+gunicorn clarify_backend.wsgi:application
