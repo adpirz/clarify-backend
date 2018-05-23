@@ -6,6 +6,8 @@ CORS_ORIGIN_WHITELIST = (
     'localhost:3000',
 )
 
+ALLOWED_HOSTS = ['*']
+
 CORS_ALLOW_CREDENTIALS = True
 
 # django-debug-toolbar
