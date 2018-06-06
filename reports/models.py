@@ -2,6 +2,7 @@ from django.utils import timezone
 from django.db import models
 from sis_pull.models import Staff
 
+
 class Report(models.Model):
     staff = models.ForeignKey(Staff)
     title = models.CharField(max_length=100, null=True)

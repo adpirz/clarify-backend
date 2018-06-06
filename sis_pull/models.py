@@ -151,6 +151,14 @@ class Student(SourceObjectMixin, models.Model):
     def __str__(self):
         return "{} {}".format(self.first_name, self.last_name)
 
+    @property
+    def full_name(self):
+        return "{} {}".format(self.first_name, self.last_name)
+
+    @property
+    def last_first(self):
+        return "{}, {}".format(self.last_name, self.first_name)
+
     def get_current_active_section_ids(self):
         """Returns sections student is currently enrolled in"""
         now = timezone.now()

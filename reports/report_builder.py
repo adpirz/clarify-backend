@@ -11,7 +11,8 @@ from django.shortcuts import get_object_or_404
 from sis_pull.models import (
     Student, User, Site, GradeLevel, Section,
     AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear,
-    OverallScoreCache, GradebookSectionCourseAffinity, Course)
+    OverallScoreCache, GradebookSectionCourseAffinity, Course,
+    CategoryScoreCache)
 from reports.models import Report
 from utils import get_academic_year
 
@@ -148,18 +149,6 @@ def attendance_query_to_data(report_id=None, **query_params):
 def grades_query_to_data(report_id, **query_params):
     """Currently supports getting most up to date data for grade"""
 
-    def format_score(score):
-        return {
-            "student_id": score.student_id,
-            "grades_data": {
-                0: score.mark,
-                1: score.percentage / 100,
-                2: score.possible_points,
-                3: score.points_earned,
-                4: score.calculated_at
-            }
-        }
-
     group = query_params["group"]
     group_id = query_params["group_id"]
     site_id = query_params.get("site_id", None)
@@ -169,81 +158,88 @@ def grades_query_to_data(report_id, **query_params):
     course_name = Course.objects.get(source_object_id=course_id).short_name
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                    return_set=True)
-    scores = []
 
-    if len(student_ids) == 1:
-        # Single student case
-        student_id = student_ids[0]
+    data = []
 
-        # Get student's active sections
-        student_active_section_ids = SectionLevelRosterPerYear.objects\
-            .filter(student_id=student_id)\
-            .filter(academic_year=get_academic_year())\
-            .values_list('section_id', flat=True)
+    def get_all_recent_course_grades_for_student_id(student_id):
+        # Get all active sections for student
+        now = timezone.now()
+        active_section_ids = (SectionLevelRosterPerYear.objects
+                           .filter(student_id=student_id)
+                           .filter(entry_date__lte=now, leave_date__gte=now)
+                           .distinct('section_id')
+                           .values_list('section_id', flat=True))
 
-        # Get all gradebooks associated with course
-        course_gradebook_ids = GradebookSectionCourseAffinity.objects\
-            .filter(course_id=course_id)\
-            .filter(section_id__in=student_active_section_ids)\
-            .values_list('gradebook_id', flat=True)
+        # Get all associated gradebooks
+        gradebook_ids = (GradebookSectionCourseAffinity.objects
+                         .filter(section_id__in=active_section_ids)
+                         .order_by('course_id', '-id')
+                         .distinct('course_id')
+                         .values_list('gradebook_id', flat=True))
 
-        # Return the most recent populated row for the student
-        score = (OverallScoreCache.objects
-            .filter(student_id=student_id)
-            .filter(gradebook_id__in=course_gradebook_ids)
-            .exclude(possible_points__isnull=True)
-            .order_by('-calculated_at')
-            .first()
-        )
+        # Get most recent score per gradebook
+        return (OverallScoreCache.objects
+                .filter(studnet_id=student_id)
+                .filter(gradebook_id__in=gradebook_ids)
+                .exclude(possible_points__isnull=True)
+                .order_by('gradebook_id', '-calculated_at')
+                .distinct('gradebook_id')
+                .all())
 
-        scores.append(format_score(score))
+    def get_most_recent_category_grades_for_student_id_and_course_id(
+            student_id, course_id):
 
+        gradebook_ids = (GradebookSectionCourseAffinity.objects
+                        .filter(course_id=course_id)
+                        .distinct('gradebook_id')
+                        .values('gradebook_id', flat=True))
+
+        return (CategoryScoreCache.objects
+                .filter(student_id=student_id)
+                .filter(gradebook_id__in=gradebook_ids)
+                .exclude(possible_points__isnull=True)
+                .order_by('category_id', '-calculated_at')
+                .distinct('category_id')
+                .all()
+                )
+
+    def _shape_course_grades(overall_score_cache):
+        osc = overall_score_cache
+        return {
+            "id": osc.student_id,
+            "label": osc.student.last_first,
+            "measure_label": "Mark and Percentage",
+            "measure": f"{osc.mark} ({osc.percentage})"
+        }
+
+    def _shape_category_grades(category_score_cache):
+        csc = category_score_cache
+        return {
+            "id": csc.category_id,
+            "label": csc.category,
+            "measure_label": "Mark and Percentage",
+            "measure": f"{osc.mark} ({osc.percentage})"
+        }
+
+    if group != "student" or not course_id:
+        data += [get_all_recent_course_grades_for_student_id(sid)
+                 for sid in student_ids]
     else:
-        # Get all active sections for course
-        course_active_sections = SectionLevelRosterPerYear.objects\
-            .filter(academic_year=get_academic_year())\
-            .filter(course_id=course_id)\
-            .values_list('section_id', flat=True)
+        data += [get_most_recent_category_grades_for_student_id_and_course_id(
+            group_id, course_id
+        )]
 
-        # Get all gradebooks associated with course
-        section_gradebooks = GradebookSectionCourseAffinity.objects\
-            .filter(section_id__in=course_active_sections)\
-            .values_list('gradebook_id', flat=True)
-
-        # Get all scores associated with gradebooks
-        scores += OverallScoreCache.objects\
-            .filter(gradebook_id__in=section_gradebooks) \
-            .exclude(possible_points__isnull=True)\
-            .order_by('-calculated_at')\
-            .all()
-
-        # Get only latest scores for students in student_ids
-        def filter_scores(_scores):
-            captured_ids = {}
-            out = []
-            for score in _scores:
-                student_id = score.student_id
-                if student_id in student_ids and student_id not in captured_ids:
-                    out.append(format_score(score))
-                    captured_ids[student_id] = True
-            return out
-
-        scores = filter_scores(scores)
-
-
-
-    data = {
+    response = {
         "title": f"{course_name} grades for {group} {group_id} (latest)",
         "group": group,
         "group_id": group_id,
-        "columns": OverallScoreCache.get_columns(),
-        "data": scores
+        "data": data
     }
 
     if report_id:
-        data["report_id"] = report_id
+        response["report_id"] = report_id
 
-    return data
+    return response
 
 
 def query_parser(querydict):
