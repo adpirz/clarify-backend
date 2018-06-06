@@ -128,20 +128,27 @@ def SessionView(request):
     user = request.user
     if request.method == 'GET':
         if user.is_authenticated():
+            return JsonResponse({
+                'id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+            }, status=200)
+        else:
             return JsonResponse(
-                {'data': 'Success'},
-                status=200
+                {'error': 'No session for user'},
+                status=404
             )
-        return JsonResponse(
-            {'error': 'No session for user'},
-            status=404
-        )
     elif request.method == 'POST':
         if user.is_authenticated():
-            return JsonResponse(
-                {'data': 'Success'},
-                status=200
-            )
+            return JsonResponse({
+                'id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+            }, status=200)
         else:
             parseable_post = request.body.decode('utf8').replace("'", '"')
             parsed_post = loads(parseable_post)
@@ -150,10 +157,13 @@ def SessionView(request):
             user = authenticate(username=request_username, password=request_password)
             if user:
                 login(request, user)
-                return JsonResponse(
-                    {'data': 'Success'},
-                    status=201
-                )
+                return JsonResponse({
+                    'id': user.id,
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                }, status=201)
             else:
                 return JsonResponse(
                     {'error': 'Username and password were incorrect'},

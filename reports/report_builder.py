@@ -41,7 +41,9 @@ def query_to_data(query):
         raise ValueError("Query or report id required")
 
     if report_query["category"] == "attendance":
-        return attendance_query_to_data(report_id, **report_query)
+        report_data = attendance_query_to_data(report_id, **report_query)
+        report_data['query'] = report.query if report_id else query.urlencode()
+        return report_data
 
     raise ValueError("Only supports attendance.")
 
@@ -70,7 +72,7 @@ def attendance_query_to_data(report_id=None, **query_params):
     :return: Attendance data dict
     """
 
-    DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"  # YYYY-MM-DDTHH:MM:SS
+    DATE_FORMAT = "%Y-%m-%d"
     DISPLAY_DATE_FORMAT = "%b %-d, %Y"  # YYYY-MM-DD
 
     def get_time_string():
@@ -127,7 +129,7 @@ def attendance_query_to_data(report_id=None, **query_params):
         )
 
     if report_id:
-        data["report_id"] = report_id
+        data["id"] = report_id
 
     return data
 
