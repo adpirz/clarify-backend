@@ -194,7 +194,7 @@ class Student(SourceObjectMixin, models.Model):
             .values_list('gradebook_id', flat=True)
     
 
-class CurrentRoster(models.Model):
+class CurrentRoster(SourceObjectMixin, models.Model):
     student_id = models.ForeignKey(Student)
     site_id = models.ForeignKey(Site)
     grade_level_id = models.ForeignKey(GradeLevel, blank=True, null=True)
