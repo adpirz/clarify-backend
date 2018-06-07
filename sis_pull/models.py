@@ -177,7 +177,7 @@ class Student(SourceObjectMixin, models.Model):
             .values_list('gradebook_id', flat=True)
 
     def is_enrolled(self):
-        return CurrentRoster.objects.exists(student_id=self.id)
+        return CurrentRoster.objects.filter(student_id=self.id).exists()
     
 
 class CurrentRoster(SourceObjectMixin, models.Model):
