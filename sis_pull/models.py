@@ -193,6 +193,7 @@ class Student(SourceObjectMixin, models.Model):
             .distinct('gradebook_id')\
             .values_list('gradebook_id', flat=True)
 
+
 class AttendanceFlag(SourceObjectMixin, models.Model):
     source_table = "attendance_flag"
     character_code = models.CharField(max_length=30, blank=True)
@@ -642,9 +643,9 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     source_schema = 'gradebook'
     is_view = True
 
-    student = models.ForeignKey(Student)
-    gradebook = models.ForeignKey(Gradebook)
-    category = models.ForeignKey(Category)
+    student = models.ForeignKey(Student, blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebook, blank=True, null=True)
+    category = models.ForeignKey(Category, blank=True, null=True)
     possible_points = models.FloatField(blank=True, null=True)
     points_earned = models.FloatField(blank=True, null=True)
     percentage = models.FloatField(blank=True, null=True)
