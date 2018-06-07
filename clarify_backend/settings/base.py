@@ -66,8 +66,6 @@ MIDDLEWARE_CLASSES = [
 
 CORS_ORIGIN_ALLOW_ALL = False
 
-
-
 ROOT_URLCONF = 'clarify_backend.urls'
 
 TEMPLATES = [
