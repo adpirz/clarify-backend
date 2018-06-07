@@ -25,7 +25,7 @@ from sis_pull.models import (
     AttendanceFlag, SectionTimeblockAffinity, Timeblock,
     StandardsCache as SC,
     AttendanceFlag, SessionType, Schedule, Session, Term, UserTermRoleAffinity,
-    Role, State, Subject, Standard)
+    Role, State, Subject, Standard, CurrentRoster)
 
 from sis_mirror.models import (
     Students,
@@ -45,7 +45,7 @@ from sis_mirror.models import (
     SectionTimeblockAff, Timeblocks,
     StandardsCache,
     SessionTypes, Schedules, Sessions, UserTermRoleAff, Terms, Roles, States,
-    Subjects, Standards)
+    Subjects, Standards, SsCurrent)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -228,6 +228,7 @@ def main(**options):
         'users': True,
         'grade_levels': (GradeLevels, GradeLevel, 'grade_level_id'),
         'sites': (Sites, Site, 'site_id'),
+        'ss_current': (SsCurrent, CurrentRoster),
         'courses': (Courses, Course, 'course_id'),
         'sections': (Sections, Section, 'section_id'),
         'ss_cube': (SsCube, SectionLevelRosterPerYear),

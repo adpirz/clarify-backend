@@ -192,6 +192,12 @@ class Student(SourceObjectMixin, models.Model):
             .filter(section_id__in=sections_list)\
             .distinct('gradebook_id')\
             .values_list('gradebook_id', flat=True)
+    
+
+class CurrentRoster(models.Model):
+    student_id = models.ForeignKey(Student)
+    site_id = models.ForeignKey(Site)
+    grade_level_id = models.ForeignKey(GradeLevel, blank=True, null=True)
 
 
 class AttendanceFlag(SourceObjectMixin, models.Model):
