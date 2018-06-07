@@ -35,6 +35,7 @@ def StudentView(request):
             'id': student.id,
             'first_name': student.first_name,
             'last_name': student.last_name,
+            'currently_enrolled': student.is_enrolled()
         }
     user = request.user
     request_teacher = Staff.objects.filter(user=user)

@@ -176,28 +176,19 @@ class Student(SourceObjectMixin, models.Model):
             .distinct('gradebook_id')\
             .values_list('gradebook_id', flat=True)
 
-    def get_current_active_section_ids(self):
-        """Returns sections student is currently enrolled in"""
-        now = timezone.now()
-        return SectionLevelRosterPerYear.objects\
-            .filter(student_id=self.id)\
-            .filter(entry_date__lte=now, leave_date__gte=now)\
-            .distinct('section_id')\
-            .values_list('section_id', flat=True)
-
-    def get_active_section_gradebook_ids(self):
-        """Returns current gradebooks for given student"""
-        sections_list = self.get_current_active_section_ids()
-        return GradebookSectionCourseAffinity.objects\
-            .filter(section_id__in=sections_list)\
-            .distinct('gradebook_id')\
-            .values_list('gradebook_id', flat=True)
+    def is_enrolled(self):
+        return CurrentRoster.objects.exists(student_id=self.id)
     
 
 class CurrentRoster(SourceObjectMixin, models.Model):
-    student_id = models.ForeignKey(Student)
-    site_id = models.ForeignKey(Site)
-    grade_level_id = models.ForeignKey(GradeLevel, blank=True, null=True)
+    
+    source_table = 'ss_current'
+    source_schema = 'matviews'
+    is_view = True
+    
+    student = models.ForeignKey(Student)
+    site = models.ForeignKey(Site)
+    grade_level = models.ForeignKey(GradeLevel, blank=True, null=True)
 
 
 class AttendanceFlag(SourceObjectMixin, models.Model):
