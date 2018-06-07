@@ -37,3 +37,19 @@ def get_academic_year(date=None):
 
 def SourceObjectForeignKey(fk_model, **kwargs):
     return models.ForeignKey(fk_model, to_field='source_object_id', **kwargs)
+
+
+GRADE_TO_GPA_POINTS = {
+    "A+": 4.33,
+    "A": 4.0,
+    "A-": 3.7,
+    "B+": 3.3,
+    "B": 3.0,
+    "B-": 2.7,
+    "C+": 2.33,
+    "C": 2.0,
+    "C-": 1.7,
+    "D": 1.0,
+    "F": 0,
+    "NCR": 1.0
+}

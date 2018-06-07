@@ -14,7 +14,7 @@ from sis_pull.models import (
     OverallScoreCache, GradebookSectionCourseAffinity, Course,
     CategoryScoreCache)
 from reports.models import Report
-from utils import get_academic_year
+from utils import get_academic_year, GRADE_TO_GPA_POINTS
 
 GROUPS_AND_MODELS = {
     'site': Site,
@@ -147,7 +147,7 @@ def attendance_query_to_data(report_id=None, **query_params):
     return data
 
 
-def grades_query_to_data(report_id, **query_params):
+def grades_query_to_data(report_id=None, **query_params):
     """Currently supports getting most up to date data for grade"""
 
     group = query_params["group"]
@@ -155,8 +155,7 @@ def grades_query_to_data(report_id, **query_params):
     site_id = query_params.get("site_id", None)
     course_id = query_params.get("course_id", None)
 
-
-    course_name = Course.objects.get(source_object_id=course_id).short_name
+    # course_name = Course.objects.get(id=course_id).short_name
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                    return_set=True)
     data = []
@@ -179,7 +178,7 @@ def grades_query_to_data(report_id, **query_params):
 
         # Get most recent score per gradebook
         return (OverallScoreCache.objects
-                .filter(studnet_id=student_id)
+                .filter(student_id=student_id)
                 .filter(gradebook_id__in=gradebook_ids)
                 .exclude(possible_points__isnull=True)
                 .order_by('gradebook_id', '-calculated_at')
@@ -203,13 +202,35 @@ def grades_query_to_data(report_id, **query_params):
                 .all()
                 )
 
-    def _shape_course_grades(overall_score_cache):
+    def calculate_gpa_from_grade_list(osc_list):
+        if len(osc_list) == 0:
+            return "NA"
+        gpas = [GRADE_TO_GPA_POINTS[osc.mark] for osc in osc_list]
+        return sum(gpas) / len(gpas)
+
+    def _shape_group_gpas(osc_list):
+        if len(osc_list) == 0:
+            return {
+                "id": "group_id",
+            }
+
+        osc = osc_list[0]
+        return {
+            "id": group_id,
+            "label": osc.student.last_first,
+            "measure_label": "GPA",
+            "measure": calculate_gpa_from_grade_list(osc_list),
+            "calculated_at": osc.calculated_at
+        }
+
+    def _shape_student_grades(overall_score_cache):
         osc = overall_score_cache
         return {
             "id": osc.student_id,
-            "label": osc.student.last_first,
+            "label": str(osc.gradebook),
             "measure_label": "Mark and Percentage",
-            "measure": f"{osc.mark} ({osc.percentage})"
+            "measure": f"{osc.mark} ({osc.percentage})",
+            "calculated_at": osc.calculated_at
         }
 
     def _shape_category_grades(category_score_cache):
@@ -218,22 +239,29 @@ def grades_query_to_data(report_id, **query_params):
             "id": csc.category_id,
             "label": csc.category,
             "measure_label": "Mark and Percentage",
-            "measure": f"{osc.mark} ({osc.percentage})"
+            "measure": f"{csc.mark} ({csc.percentage})"
         }
 
-    if group != "student" or not course_id:
-        data += [get_all_recent_course_grades_for_student_id(sid)
-                 for sid in student_ids]
+    if group != "student":
+        data = [get_all_recent_course_grades_for_student_id(sid)
+                for sid in student_ids]
+        import pdb; pdb.set_trace()
+        formatted_data = [_shape_group_gpas(i) for i in data]
+
+    elif not course_id:
+        data = get_all_recent_course_grades_for_student_id(group_id)
+        formatted_data = [_shape_student_grades(i) for i in data]
     else:
         data += [get_most_recent_category_grades_for_student_id_and_course_id(
             group_id, course_id
         )]
+        formatted_data = [_shape_category_grades(d) for d in data]
 
     response = {
-        "title": f"{course_name} grades for {group} {group_id} (latest)",
+        "title": f"Grades for {group} {group_id} (latest)",
         "group": group,
         "group_id": group_id,
-        "data": data
+        "data": formatted_data
     }
 
     if report_id:

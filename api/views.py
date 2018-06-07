@@ -270,6 +270,7 @@ def WorksheetView(request):
         return JsonResponse({
             'error': 'Method not allowed.'
         }, status=405)
+
     def _shape(worksheet):
         return {
             'id': worksheet.id,
