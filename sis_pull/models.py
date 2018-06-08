@@ -610,12 +610,16 @@ class Assignment(SourceObjectMixin, models.Model):
     last_modified_by = models.ForeignKey(Staff, blank=True, null=True)
     is_extra_credit = models.BooleanField()
     tags = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.short_name
 
 
 class AssignmentGscaAffinity(SourceObjectMixin, models.Model):
     
     source_table = 'assignment_gsca_aff'
     source_schema = 'gradebook'
+    is_view = True
     
     assignment = models.ForeignKey(Assignment)
     gsca = models.ForeignKey(GradebookSectionCourseAffinity)
@@ -630,7 +634,7 @@ class ScoreCache(SourceObjectMixin, models.Model):
     student = models.ForeignKey(Student, blank=True, null=True)
     gradebook = models.ForeignKey(Gradebook, blank=True, null=True)
     assignment = models.ForeignKey(Assignment, blank=True, null=True)
-    category = models.IntegerField(blank=True, null=True)
+    category = models.ForeignKey(Category, blank=True, null=True)
     is_excused = models.NullBooleanField()
     is_missing = models.NullBooleanField()
     points = models.FloatField(blank=True, null=True)

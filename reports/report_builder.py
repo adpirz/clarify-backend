@@ -263,7 +263,7 @@ def grades_query_to_data(report_id=None, **query_params):
                                  for c in category_grades]
         return shape
 
-    def _shape_category_grades(category_score_cache):
+    def _shape_category_grades(category_score_cache, children=False):
         csc = category_score_cache
 
         shape = {
@@ -280,6 +280,16 @@ def grades_query_to_data(report_id=None, **query_params):
             "calculated_at": csc.calculated_at
         }
         return shape
+
+    def _shape_assignment_grades(score_cache):
+        sc = score_cache
+
+        shape = {
+            "id": sc.assignment_id,
+            "type": "Assignment",
+            "label": str(sc.assignment),
+            "measures": [{}]
+        }
 
     def _get_group_name():
         if group == "section":

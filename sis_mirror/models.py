@@ -688,7 +688,6 @@ class Scores(models.Model):
 
 class ScoreCache(models.Model):
     cache_id = models.AutoField(primary_key=True)
-    score_id = models.ForeignKey(Scores, to_field='score_id')
     student = models.ForeignKey(Students, blank=True, null=True)
     gradebook = models.ForeignKey(Gradebooks, blank=True, null=True)
     assignment = models.ForeignKey(Assignments, blank=True, null=True)
