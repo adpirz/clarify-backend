@@ -645,7 +645,7 @@ class ScoreCache(SourceObjectMixin, models.Model):
     use_category_weights = models.NullBooleanField()
     last_updated = models.DateTimeField(blank=True, null=True)
     calculated_at = models.DateTimeField()
-
+    
 
 class Timeblock(SourceObjectMixin, models.Model):
 

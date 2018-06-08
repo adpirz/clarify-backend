@@ -691,7 +691,7 @@ class ScoreCache(models.Model):
     student = models.ForeignKey(Students, blank=True, null=True)
     gradebook = models.ForeignKey(Gradebooks, blank=True, null=True)
     assignment = models.ForeignKey(Assignments, blank=True, null=True)
-    category = models.IntegerField(blank=True, null=True)
+    category = models.ForeignKey(Categories, blank=True, null=True)
     is_excused = models.NullBooleanField()
     is_missing = models.NullBooleanField()
     points = models.FloatField(blank=True, null=True)
@@ -704,6 +704,14 @@ class ScoreCache(models.Model):
     calculated_at = models.DateTimeField()
     gs_id = models.IntegerField(blank=True, null=True)
     eva_id = models.IntegerField(blank=True, null=True)
+
+    @classmethod
+    def pull_query(cls):
+        return (cls.objects
+                .filter(calculated_at__gte='2017-08-01')
+                .order_by('student_id', 'assignment_id', '-calculated_at')
+                .distinct('student_id', 'assignment_id')
+                .all())
 
     class Meta:
         managed = False
