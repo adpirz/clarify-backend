@@ -592,6 +592,51 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     timeframe_end_date = models.DateField(blank=True, null=True)
 
 
+class Assignment(SourceObjectMixin, models.Model):
+    
+    source_table = 'assignments'
+    source_schema = 'gradebook'
+    
+    short_name = models.CharField(max_length=100)
+    long_name = models.CharField(max_length=255, blank=True, null=True)
+    assign_date = models.DateField()
+    due_date = models.DateField()
+    possible_points = models.FloatField(blank=True, null=True)
+    category = models.ForeignKey(Category, blank=True, null=True)
+    is_active = models.BooleanField()
+    description = models.TextField(blank=True, null=True)
+    possible_score = models.FloatField(blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebook, blank=True, null=True)
+    last_modified_by = models.ForeignKey(Staff, blank=True, null=True)
+    is_extra_credit = models.BooleanField()
+    tags = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.short_name
+    
+
+class ScoreCache(SourceObjectMixin, models.Model):
+    
+    source_table = 'score_cache'
+    source_schema = 'gradebook'
+    is_view = True
+    
+    student = models.ForeignKey(Student, blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebook, blank=True, null=True)
+    assignment = models.ForeignKey(Assignment, blank=True, null=True)
+    category = models.ForeignKey(Category, blank=True, null=True)
+    is_excused = models.NullBooleanField()
+    is_missing = models.NullBooleanField()
+    points = models.FloatField(blank=True, null=True)
+    score = models.FloatField(blank=True, null=True)
+    percentage = models.FloatField(blank=True, null=True)
+    use_for_calc = models.NullBooleanField()
+    use_for_aggregate = models.NullBooleanField()
+    use_category_weights = models.NullBooleanField()
+    last_updated = models.DateTimeField(blank=True, null=True)
+    calculated_at = models.DateTimeField()
+    
+
 class Timeblock(SourceObjectMixin, models.Model):
 
     source_table = 'timeblocks'
