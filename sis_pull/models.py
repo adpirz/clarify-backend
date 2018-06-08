@@ -608,12 +608,21 @@ class Assignment(models.Model):
     tags = models.TextField(blank=True, null=True)
 
 
-class AssignmentGscaAff(models.Model):
+class AssignmentGscaAff(SourceObjectMixin, models.Model):
+    
+    source_table = 'assignments'
+    source_schema = 'gradebook'
+    
     assignment = models.ForeignKey(Assignment)
     gsca = models.ForeignKey(GradebookSectionCourseAffinity)
     
 
-class ScoreCache(models.Model):
+class ScoreCache(SourceObjectMixin, models.Model):
+    
+    source_table = 'score_cache'
+    source_schema = 'gradebook'
+    is_view = True
+    
     student = models.ForeignKey(Student, blank=True, null=True)
     gradebook = models.ForeignKey(Gradebook, blank=True, null=True)
     assignment = models.ForeignKey(Assignment, blank=True, null=True)
