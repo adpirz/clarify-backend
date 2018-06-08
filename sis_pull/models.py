@@ -502,6 +502,9 @@ class Category(SourceObjectMixin, models.Model):
     icon = models.CharField(max_length=255)
     gradebook = models.ForeignKey(Gradebook)
     weight = models.FloatField(null=True)
+    
+    def __str__(self):
+        return self.category_name or self.id
 
 
 class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
