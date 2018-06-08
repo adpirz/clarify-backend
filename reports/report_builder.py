@@ -12,7 +12,7 @@ from sis_pull.models import (
     Student, User, Site, GradeLevel, Section,
     AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear,
     OverallScoreCache, GradebookSectionCourseAffinity, Course,
-    CategoryScoreCache)
+    CategoryScoreCache, ScoreCache, Category)
 from reports.models import Report
 from utils import get_academic_year, GRADE_TO_GPA_POINTS
 
@@ -152,11 +152,10 @@ def grades_query_to_data(report_id=None, **query_params):
     group_id = query_params["group_id"]
     site_id = query_params.get("site_id", None)
     course_id = query_params.get("course_id", None)
+    category_id = query_params.get("category_id", None)
 
-    # course_name = Course.objects.get(id=course_id).short_name
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                    return_set=True)
-    data = []
 
     def _get_all_recent_course_grades_for_student_id(student_id):
         # Get all active sections for student
@@ -183,13 +182,20 @@ def grades_query_to_data(report_id=None, **query_params):
                 .distinct('gradebook_id')
                 .all())
 
-    def _get_most_recent_category_grades_for_student_id_and_course_id(
-            student_id, course_id):
+    def _get_most_recent_category_grades(student_id,
+                                         course_id=None,
+                                         gradebook_id=None):
 
-        gradebook_ids = (GradebookSectionCourseAffinity.objects
-                        .filter(course_id=course_id)
-                        .distinct('gradebook_id')
-                        .values('gradebook_id', flat=True))
+        if not course_id and not gradebook_id:
+            raise ValueError("Must have either course_id or gradebook_id.")
+
+        if gradebook_id:
+            gradebook_ids = [gradebook_id]
+        else:
+            gradebook_ids = (GradebookSectionCourseAffinity.objects
+                            .filter(course_id=course_id)
+                            .distinct('gradebook_id')
+                            .values_list('gradebook_id', flat=True))
 
         return (CategoryScoreCache.objects
                 .filter(student_id=student_id)
@@ -200,69 +206,166 @@ def grades_query_to_data(report_id=None, **query_params):
                 .all()
                 )
 
+    def _get_most_recent_assignment_grades(student_id, category_id):
+
+        return (ScoreCache.objects
+                .filter(student_id=student_id, category_id=category_id)
+                .filter(assignment__is_active=True)
+                .order_by('assignment_id', '-calculated_at')
+                .distinct('assignment_id')
+                .all()
+                )
+
     def _calculate_gpa_from_grade_list(osc_list):
         if len(osc_list) == 0:
             return "NA"
         gpas = [GRADE_TO_GPA_POINTS[osc.mark] for osc in osc_list]
-        return sum(gpas) / len(gpas)
+        return round(sum(gpas) / len(gpas), 3)
 
     def _shape_group_gpas(osc_list):
+        """Takes list of gradebook scores from same student, returns GPA"""
         if len(osc_list) == 0:
-            return {
-                "id": "group_id",
-            }
+            return None
 
-        osc = osc_list[0]
-        return {
-            "id": group_id,
-            "label": osc.student.last_first,
-            "measure_label": "GPA",
-            "measure": _calculate_gpa_from_grade_list(osc_list),
-            "calculated_at": osc.calculated_at
+        _id = osc_list[0].student_id
+        label = osc_list[0].student.last_first
+        gpa = _calculate_gpa_from_grade_list(osc_list)
+        calculated_at = osc_list[0].calculated_at
+
+        shape = {
+            "id": _id,
+            "type": "Student",
+            "label": label,
+            "measures": [{"measure_label": "GPA", "measure": gpa}],
+            "calculated_at": calculated_at,
+            "children": [_shape_student_grades(o) for o in osc_list]
         }
 
-    def _shape_student_grades(overall_score_cache):
+        return shape
+
+    def _shape_student_grades(overall_score_cache, children=False):
         osc = overall_score_cache
-        return {
-            "id": osc.student_id,
-            "label": str(osc.gradebook),
-            "measure_label": "Mark and Percentage",
-            "measure": f"{osc.mark} ({osc.percentage})",
-            "calculated_at": osc.calculated_at
+        course = (GradebookSectionCourseAffinity.objects
+                  .filter(gradebook_id=osc.gradebook_id)
+                  .order_by('-modified')
+                  .first()
+                  .course)
+
+        shape = {
+            "id": course.id,
+            "type": "Course",
+            "label": str(course),
+            "measures": [
+                {"measure_label": "Mark", "measure": osc.mark},
+                {"measure_label": "Percentage", "measure": osc.percentage},
+            ],
+            "calculated_at": osc.calculated_at,
         }
 
-    def _shape_category_grades(category_score_cache):
+        if children:
+            gb_id = osc.gradebook_id
+
+            category_grades = _get_most_recent_category_grades(
+                group_id, gradebook_id=gb_id
+            )
+
+            shape["children"] = [_shape_category_grades(c)
+                                 for c in category_grades]
+        return shape
+
+    def _shape_category_grades(category_score_cache, children=False):
         csc = category_score_cache
-        return {
+
+        shape = {
             "id": csc.category_id,
-            "label": csc.category,
-            "measure_label": "Mark and Percentage",
-            "measure": f"{csc.mark} ({csc.percentage})"
+            "type": "Category",
+            "label": csc.category_name,
+            "measures": [
+                {"measure_label": "Mark", "measure": csc.mark},
+                {"measure_label": "Percentage", "measure": csc.percentage},
+                {"measure_label": "Missing Assignments",
+                 "measure": csc.missing_count},
+                {"measure_label": "Weight", "measure": csc.weight}
+            ],
+            "calculated_at": csc.calculated_at
         }
+
+        if children:
+            assignment_grades = _get_most_recent_assignment_grades(
+                csc.student_id, csc.category_id
+            )
+            shape["children"] = [_shape_assignment_grades(sc)
+                                 for sc in assignment_grades]
+        return shape
+
+    def _shape_assignment_grades(score_cache):
+        sc = score_cache
+
+        shape = {
+            "id": sc.assignment_id,
+            "type": "Assignment",
+            "label": str(sc.assignment),
+            "measures": [
+                {"measure_label": "Points", "measure": sc.points},
+                {"measure_label": "Percentage", "measure": sc.percentage},
+                {"measure_label": "Missing?", "measure": sc.is_missing}
+            ],
+            "calculated_at": sc.calculated_at
+        }
+        return shape
+
+    def _get_group_name():
+        if group == "section":
+            return str(Section.objects.get(pk=group_id))
+        if group == "grade_level":
+            return str(GradeLevel.objects.get(pk=group_id))
+        if group == "school":
+            return str(Site.objects.get(pk=group_id))
+        return str(Student.objects.get(pk=group_id))
+
+    group_name = _get_group_name()
 
     # Grouping of student grades - all course grades
+    # Params: group, group_id, type (grades)
     # Constituent part: GPAs
     if group != "student":
         data = [_get_all_recent_course_grades_for_student_id(sid)
                 for sid in student_ids]
-        formatted_data = [_shape_group_gpas(i) for i in data]
+        # filter out empty data sets
+        formatted_data = [_shape_group_gpas(i) for i in data if len(i) > 0]
+        title_string = f"Academic grades for {group_name} (latest)"
 
     # Individual student grades - all course grades
+    # Params: group (student), group_id (student_id), type (grades)
     # Constituent parts: Course marks and percentages
-    elif not course_id:
+    elif group == "student" and not (course_id or category_id):
         data = _get_all_recent_course_grades_for_student_id(group_id)
-        formatted_data = [_shape_student_grades(i) for i in data]
+        formatted_data = [_shape_student_grades(i, children=True) for i in data]
+        title_string = f"Academic grades for {group_name} (latest)"
 
     # Individual student grades - single course
+    # Params: group (student), group_id (student_id), type (grades), course_id
     # Constituent parts: Category grades
+    elif course_id and not category_id:
+        data = _get_most_recent_category_grades(group_id, course_id)
+        formatted_data = [_shape_category_grades(d, children=True) for d in data]
+        course_name = Course.objects.get(pk=course_id).short_name
+        title_string = f"{course_name} grades for {group_name} (latest)"
+
+    # Individual student grades - single course - single category
+    # Params: group (student), group_id (student_id), type (grades),
+    #         course_id, category_id
+    # Constituent parts: Assignment grades
     else:
-        data = [_get_most_recent_category_grades_for_student_id_and_course_id(
-            group_id, course_id
-        )]
-        formatted_data = [_shape_category_grades(d) for d in data]
+        data = _get_most_recent_assignment_grades(group_id, category_id)
+        formatted_data = [_shape_assignment_grades(sc) for sc in data]
+        course_name = Course.objects.get(pk=course_id).short_name
+        category_name = Category.objects.get(pk=category_id).category_name
+        title_string = f"{group_name}'s grades for " + \
+                       f"{course_name}: {category_name}"
 
     response = {
-        "title": f"Grades for {str(group)} (latest)",
+        "title": title_string,
         "group": group,
         "group_id": group_id,
         "data": formatted_data

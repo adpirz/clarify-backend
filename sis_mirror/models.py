@@ -633,6 +633,91 @@ class SectionStudentAff(models.Model):
         db_table = 'section_student_aff'
 
 
+class Assignments(models.Model):
+    assignment_id = models.IntegerField(primary_key=True)
+    short_name = models.CharField(max_length=100)
+    long_name = models.CharField(max_length=255, blank=True, null=True)
+    assign_date = models.DateField()
+    due_date = models.DateField()
+    possible_points = models.FloatField(blank=True, null=True)
+    category = models.ForeignKey(Categories, blank=True, null=True)
+    is_active = models.BooleanField()
+    description = models.TextField(blank=True, null=True)
+    field_grading_period_id = models.IntegerField(db_column='_grading_period_id', blank=True, null=True)  # Field renamed because it started with '_'.
+    auto_score_type = models.IntegerField(blank=True, null=True)
+    auto_score_id = models.IntegerField(blank=True, null=True)
+    possible_score = models.FloatField(blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebooks, blank=True, null=True)
+    last_modified_by = models.IntegerField(blank=True, null=True)
+    is_extra_credit = models.BooleanField()
+    tags = models.TextField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'assignments'
+
+
+class AssignmentGscaAff(models.Model):
+    aga_id = models.IntegerField(primary_key=True)
+    assignment = models.ForeignKey(Assignments)
+    gsca = models.ForeignKey(GradebookSectionCourseAff)
+
+    class Meta:
+        managed = False
+        db_table = 'assignment_gsca_aff'
+
+
+class Scores(models.Model):
+    score_id = models.IntegerField(primary_key=True)
+    field_ssa_id = models.IntegerField(db_column='_ssa_id', blank=True, null=True)  # Field renamed because it started with '_'.
+    assignment_id = models.IntegerField()
+    value = models.FloatField(blank=True, null=True)
+    gradebook_id = models.IntegerField()
+    is_excused = models.BooleanField()
+    notes = models.TextField(blank=True, null=True)
+    entry = models.CharField(max_length=255, blank=True, null=True)
+    is_valid = models.BooleanField()
+    created = models.DateTimeField(blank=True, null=True)
+    modified = models.DateTimeField(blank=True, null=True)
+    student_id = models.IntegerField()
+
+    class Meta:
+        managed = False
+        db_table = 'scores'
+
+
+class ScoreCache(models.Model):
+    cache_id = models.AutoField(primary_key=True)
+    student = models.ForeignKey(Students, blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebooks, blank=True, null=True)
+    assignment = models.ForeignKey(Assignments, blank=True, null=True)
+    category = models.ForeignKey(Categories, blank=True, null=True)
+    is_excused = models.NullBooleanField()
+    is_missing = models.NullBooleanField()
+    points = models.FloatField(blank=True, null=True)
+    score = models.FloatField(blank=True, null=True)
+    percentage = models.FloatField(blank=True, null=True)
+    use_for_calc = models.NullBooleanField()
+    use_for_aggregate = models.NullBooleanField()
+    use_category_weights = models.NullBooleanField()
+    last_updated = models.DateTimeField(blank=True, null=True)
+    calculated_at = models.DateTimeField()
+    gs_id = models.IntegerField(blank=True, null=True)
+    eva_id = models.IntegerField(blank=True, null=True)
+
+    @classmethod
+    def pull_query(cls):
+        return (cls.objects
+                .filter(calculated_at__gte='2017-08-01')
+                .order_by('student_id', 'assignment_id', '-calculated_at')
+                .distinct('student_id', 'assignment_id')
+                .all())
+
+    class Meta:
+        managed = False
+        db_table = 'score_cache'
+
+
 class SectionTeacherAff(models.Model):
     sta_id = models.IntegerField(primary_key=True)
     section_id = models.IntegerField()

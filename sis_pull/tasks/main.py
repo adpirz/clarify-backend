@@ -1,7 +1,9 @@
 import pytz
 from collections import OrderedDict
 
+from django.db import IntegrityError
 from django.db.models import DateTimeField, DateField
+from django.utils import timezone
 from tqdm import tqdm
 
 from django.db.models.fields.related import ForeignKey
@@ -22,10 +24,12 @@ from sis_pull.models import (
     SectionLevelRosterPerYear,
     OverallScoreCache as OSC,
     CategoryScoreCache as CSC,
-    AttendanceFlag, SectionTimeblockAffinity, Timeblock,
-    StandardsCache as SC,
-    AttendanceFlag, SessionType, Schedule, Session, Term, UserTermRoleAffinity,
-    Role, State, Subject, Standard, CurrentRoster)
+    AttendanceFlag,
+    SectionTimeblockAffinity,
+    Timeblock,
+    CurrentRoster,
+    Assignment,
+    ScoreCache as SC)
 
 from sis_mirror.models import (
     Students,
@@ -42,10 +46,11 @@ from sis_mirror.models import (
     OverallScoreCache,
     SsCube,
     CategoryScoreCache,
-    SectionTimeblockAff, Timeblocks,
-    StandardsCache,
-    SessionTypes, Schedules, Sessions, UserTermRoleAff, Terms, Roles, States,
-    Subjects, Standards, SsCurrent)
+    SectionTimeblockAff,
+    Timeblocks,
+    SsCurrent,
+    Assignments,
+    ScoreCache)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -102,8 +107,13 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None,
     bulk = clarify_model.is_view if not no_bulk else False
 
     # All SIS model instances
-    sis_rows = sis_model.objects.all()
+    if not hasattr(sis_model, 'pull_query'):
+        sis_rows = sis_model.objects.all()
+    else:
+        sis_rows = sis_model.pull_query()
+
     new_models = 0
+    model_errors = 0
 
     if bulk:
         bulk_list = []
@@ -139,16 +149,20 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None,
             bulk_list.append(clarify_model(**model_args))
             new_models += 1
         else:
-            model, created = clarify_model.objects.get_or_create(**model_args)
-            if created:
-                new_models += 1
+            try:
+                model, created = clarify_model.objects.get_or_create(**model_args)
+                if created:
+                    new_models += 1
+            except IntegrityError as e:
+                model_errors += 1
 
     if bulk:
         print("\tBulk creating {}...".format(clarify_model_name))
-        clarify_model.objects.bulk_create(bulk_list)
+        clarify_model.objects.bulk_create(bulk_list, batch_size=100000)
         print("\tBulk create complete!\n".format(clarify_model_name))
 
-    print(f"\tNew {clarify_model_name} instances created: {new_models}")
+    print(f"\tNew {clarify_model_name} instances created: {new_models}" + \
+          f"\n\tErrors: {model_errors}.")
 
 
 def build_staff_from_sis_users():
@@ -241,7 +255,8 @@ def main(**options):
         'daily_records': (DailyRecords, AttendanceDailyRecord),
         'categories': (Categories, Category, 'category_id'),
         'csc': (CategoryScoreCache, CSC,),
-
+        'assignments': (Assignments, Assignment, 'assignment_id'),
+        'scorecache': (ScoreCache, SC)
     })
 
     model_dict_keys = model_dict.keys()
