@@ -473,67 +473,6 @@ class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     is_primary_teacher = models.NullBooleanField()
 
 
-class Schedule(SourceObjectMixin, models.Model):
-    source_tabe = 'schedules'
-
-    created_by = models.IntegerField(blank=True, null=True)
-    last_modified_by = models.IntegerField(blank=True, null=True)
-    schedule_name = models.CharField(max_length=255, blank=True, null=True)
-    last_mod_time = models.IntegerField(blank=True, null=True)
-    creation_time = models.IntegerField(blank=True, null=True)
-    session_id = models.IntegerField()
-    deleted_at = models.DateTimeField(blank=True, null=True)
-    deleted_by = models.IntegerField(blank=True, null=True)
-    is_locked = models.NullBooleanField()
-
-
-class SessionType(SourceObjectMixin, models.Model):
-    source_table = 'session_types'
-
-    code_key = models.CharField(max_length=255)
-    code_translation = models.CharField(max_length=255, blank=True, null=True)
-    site = models.ForeignKey(Site, blank=True, null=True)
-    system_key = models.CharField(max_length=255, blank=True, null=True)
-    system_key_sort = models.IntegerField(blank=True, null=True)
-    state_id = models.CharField(max_length=255, blank=True, null=True)
-    sort_order = models.IntegerField(blank=True, null=True)
-
-
-class Session(SourceObjectMixin, models.Model):
-    source_table = 'sessions'
-
-    academic_year = models.IntegerField()
-    site = models.ForeignKey(Site)
-    session_type = models.ForeignKey(SessionType)
-    schedule = models.ForeignKey(Schedule, blank=True, null=True)
-
-
-class Term(SourceObjectMixin, models.Model):
-    term_name = models.CharField(max_length=20)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    schedule = models.ForeignKey(Schedule, blank=True, null=True)
-    session = models.ForeignKey(Session)
-    term_num = models.IntegerField()
-    term_type = models.IntegerField()
-    local_term_id = models.IntegerField(blank=True, null=True)
-
-
-class Role(SourceObjectMixin, models.Model):
-    source_table = 'roles'
-
-    role_name = models.CharField(max_length=255)
-    role_level = models.IntegerField(blank=True, null=True)
-    can_teach = models.BooleanField()
-    can_counsel = models.BooleanField()
-    job_classification_id = models.IntegerField(blank=True, null=True)
-    role_short_name = models.CharField(max_length=255, blank=True, null=True)
-    system_key = models.CharField(max_length=255, blank=True, null=True)
-    system_key_sort = models.IntegerField(blank=True, null=True)
-    can_refer_discipline = models.BooleanField()
-    deleted_at = models.DateTimeField(blank=True, null=True)
-
-
 class Gradebook(SourceObjectMixin, models.Model):
     """
     Source: gradebook.gradebooks
@@ -563,14 +502,6 @@ class Category(SourceObjectMixin, models.Model):
     icon = models.CharField(max_length=255)
     gradebook = models.ForeignKey(Gradebook)
     weight = models.FloatField(null=True)
-
-
-class UserTermRoleAffinity(SourceObjectMixin, models.Model):
-    source_table = 'user_term_role_aff'
-    user = models.ForeignKey(Staff)
-    role = models.ForeignKey(Role)
-    term = models.ForeignKey(Term)
-    last_schedule_id = models.IntegerField(blank=True, null=True)
 
 
 class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
@@ -672,77 +603,3 @@ class SectionTimeblockAffinity(SourceObjectMixin, models.Model):
 
     section = models.ForeignKey(Section)
     timeblock = models.ForeignKey(Timeblock)
-
-
-class State(SourceObjectMixin, models.Model):
-    source_table = "states"
-    source_schema = "standards"
-
-    code = models.CharField(max_length=6)
-    name = models.CharField(max_length=255)
-    sort_order = models.IntegerField(blank=True, null=True)
-    country_code = models.CharField(max_length=6, blank=True, null=True)
-
-
-class Subject(SourceObjectMixin, models.Model):
-
-    source_table = "subjects"
-    source_schema = "standards"
-
-    subject_id = models.IntegerField(primary_key=True)
-    document = models.CharField(max_length=225, blank=True, null=True)
-    timestamp = models.DateTimeField(blank=True, null=True)
-    year = models.IntegerField(blank=True, null=True)
-    guid = models.CharField(max_length=255, blank=True, null=True)
-    code = models.CharField(max_length=255, blank=True, null=True)
-    seq = models.IntegerField(blank=True, null=True)
-    title = models.CharField(max_length=255, blank=True, null=True)
-    hidden = models.NullBooleanField()
-    locale = models.CharField(max_length=100, blank=True, null=True)
-    is_custom = models.NullBooleanField()
-    state = models.ForeignKey(State, blank=True, null=True)
-
-
-class Standard(SourceObjectMixin, models.Model):
-
-    source_table = "standards"
-    source_schema = "standards"
-
-    parent_standard_id = models.ForeignKey("Standard", blank=True, null=True)
-    category = models.IntegerField(blank=True, null=True)
-    subject = models.ForeignKey(Subject, blank=True, null=True)
-    guid = models.CharField(max_length=255, blank=True, null=True)
-    state_num = models.CharField(max_length=255, blank=True, null=True)
-    label = models.CharField(max_length=255, blank=True, null=True)
-    seq = models.IntegerField(blank=True, null=True)
-    level = models.IntegerField(blank=True, null=True)
-    placeholder = models.NullBooleanField()
-    organizer = models.CharField(max_length=255, blank=True, null=True)
-    linkable = models.NullBooleanField()
-    stem = models.CharField(max_length=255, blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
-    lft = models.IntegerField(blank=True, null=True)
-    rgt = models.IntegerField(blank=True, null=True)
-    custom_code = models.CharField(max_length=200, blank=True, null=True)
-
-
-class StandardsCache(SourceObjectMixin, models.Model):
-    source_table = "standards_cache"
-    source_schema = "gradebook"
-    is_view = True
-
-    gradebook = models.ForeignKey(Gradebook)
-    student = models.ForeignKey(Student)
-    standard = models.ForeignKey(Standard)
-    percentage = models.FloatField(blank=True, null=True)
-    mark = models.CharField(max_length=255, blank=True, null=True)
-    points_earned = models.FloatField(blank=True, null=True)
-    possible_points = models.FloatField(blank=True, null=True)
-    color = models.CharField(max_length=7, blank=True, null=True)
-    missing_count = models.IntegerField(blank=True, null=True)
-    assignment_count = models.IntegerField(blank=True, null=True)
-    zero_count = models.IntegerField(blank=True, null=True)
-    excused_count = models.IntegerField(blank=True, null=True)
-    timeframe_start_date = models.DateField()
-    timeframe_end_date = models.DateField()
-    calculated_at = models.DateTimeField()
