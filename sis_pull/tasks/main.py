@@ -29,7 +29,7 @@ from sis_pull.models import (
     Timeblock,
     CurrentRoster,
     Assignment,
-    ScoreCache as SC, AssignmentGscaAffinity)
+    ScoreCache as SC)
 
 from sis_mirror.models import (
     Students,
@@ -256,7 +256,6 @@ def main(**options):
         'categories': (Categories, Category, 'category_id'),
         'csc': (CategoryScoreCache, CSC,),
         'assignments': (Assignments, Assignment, 'assignment_id'),
-        'agsca': (AssignmentGscaAff, AssignmentGscaAffinity, 'aga_id'),
         'scorecache': (ScoreCache, SC)
     })
 
