@@ -592,8 +592,12 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     timeframe_end_date = models.DateField(blank=True, null=True)
 
 
-class Assignment(models.Model):
-    short_name = models.CharField(max_length=24)
+class Assignment(SourceObjectMixin, models.Model):
+    
+    source_table = 'assignments'
+    source_schema = 'gradebook'
+    
+    short_name = models.CharField(max_length=100)
     long_name = models.CharField(max_length=255, blank=True, null=True)
     assign_date = models.DateField()
     due_date = models.DateField()
@@ -608,9 +612,9 @@ class Assignment(models.Model):
     tags = models.TextField(blank=True, null=True)
 
 
-class AssignmentGscaAff(SourceObjectMixin, models.Model):
+class AssignmentGscaAffinity(SourceObjectMixin, models.Model):
     
-    source_table = 'assignments'
+    source_table = 'assignment_gsca_aff'
     source_schema = 'gradebook'
     
     assignment = models.ForeignKey(Assignment)

@@ -635,7 +635,7 @@ class SectionStudentAff(models.Model):
 
 class Assignments(models.Model):
     assignment_id = models.IntegerField(primary_key=True)
-    short_name = models.CharField(max_length=24)
+    short_name = models.CharField(max_length=100)
     long_name = models.CharField(max_length=255, blank=True, null=True)
     assign_date = models.DateField()
     due_date = models.DateField()
