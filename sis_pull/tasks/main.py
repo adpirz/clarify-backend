@@ -239,18 +239,8 @@ def main(**options):
                  GradebookSectionCourseAffinity, 'gsca_id'),
         'overallscorecache': (OverallScoreCache, OSC),
         'daily_records': (DailyRecords, AttendanceDailyRecord),
-        'session_types': (SessionTypes, SessionType, 'code_id'),
-        'schedules': (Schedules, Schedule, 'schedule_id'),
-        'sessions': (Sessions, Session, 'session_id'),
-        'terms': (Terms, Term, 'term_id'),
-        'roles': (Roles, Role, 'role_id'),
-        'utra': (UserTermRoleAff, UserTermRoleAffinity, 'utra_id'),
         'categories': (Categories, Category, 'category_id'),
         'csc': (CategoryScoreCache, CSC,),
-        # 'states': (States, State, 'state_id'),
-        # 'subjects': (Subjects, Subject, 'subject_id'),
-        # 'standards': (Standards, Standard, 'standard_id'),
-        # 'standardscache': (StandardsCache, SC, 'cache_id')
 
     })
 
