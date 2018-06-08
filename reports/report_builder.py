@@ -265,7 +265,7 @@ def grades_query_to_data(report_id=None, **query_params):
                 {"measure_label": "Mark", "measure": csc.mark},
                 {"measure_label": "Percentage", "measure": csc.percentage},
                 {"measure_label": "Missing Assignments",
-                 "measure": csc.missing},
+                 "measure": csc.missing_count},
                 {"measure_label": "Weight", "measure": csc.weight}
             ],
             "calculated_at": csc.calculated_at
