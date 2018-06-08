@@ -309,7 +309,8 @@ def grades_query_to_data(report_id=None, **query_params):
                 {"measure_label": "Points", "measure": sc.points},
                 {"measure_label": "Percentage", "measure": sc.percentage},
                 {"measure_label": "Missing?", "measure": sc.is_missing}
-            ]
+            ],
+            "calculated_at": sc.calculated_at
         }
         return shape
 

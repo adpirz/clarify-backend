@@ -50,7 +50,7 @@ from sis_mirror.models import (
     Timeblocks,
     SsCurrent,
     Assignments,
-    ScoreCache, AssignmentGscaAff)
+    ScoreCache)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
