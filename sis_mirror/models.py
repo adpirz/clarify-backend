@@ -665,9 +665,9 @@ class SsCube(models.Model):
 
 
 class SsCurrent(models.Model):
-    student_id = models.IntegerField()
-    site_id = models.IntegerField()
-    grade_level_id = models.IntegerField(blank=True, null=True)
+    student = models.ForeignKey(Students, primary_key=True)
+    site = models.ForeignKey(Sites, primary_key=True)
+    grade_level = models.ForeignKey(GradeLevels, blank=True, null=True)
 
     class Meta:
         managed = False
