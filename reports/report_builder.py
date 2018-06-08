@@ -223,6 +223,7 @@ def grades_query_to_data(report_id=None, **query_params):
 
         shape = {
             "id": _id,
+            "type": "Student",
             "label": label,
             "measures": [{"measure_label": "GPA", "measure": gpa}],
             "calculated_at": calculated_at,
@@ -233,10 +234,16 @@ def grades_query_to_data(report_id=None, **query_params):
 
     def _shape_student_grades(overall_score_cache, children=False):
         osc = overall_score_cache
+        course = (GradebookSectionCourseAffinity.objects
+                  .filter(gradebook_id=osc.gradebook_id)
+                  .order_by('-modified')
+                  .first()
+                  .course)
 
         shape = {
-            "id": osc.student_id,
-            "label": str(osc.gradebook),
+            "id": course.id,
+            "type": "Course",
+            "label": str(course),
             "measures": [
                 {"measure_label": "Mark", "measure": osc.mark},
                 {"measure_label": "Percentage", "measure": osc.percentage},
@@ -260,6 +267,7 @@ def grades_query_to_data(report_id=None, **query_params):
 
         shape = {
             "id": csc.category_id,
+            "type": "Category",
             "label": csc.category_name,
             "measures": [
                 {"measure_label": "Mark", "measure": csc.mark},
