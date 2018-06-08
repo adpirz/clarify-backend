@@ -211,7 +211,6 @@ def grades_query_to_data(report_id=None, **query_params):
         return (ScoreCache.objects
                 .filter(student_id=student_id, category_id=category_id)
                 .filter(assignment__is_active=True)
-                .exclude(points__isnull=True)
                 .order_by('assignment_id', '-calculated_at')
                 .distinct('assignment_id')
                 .all()

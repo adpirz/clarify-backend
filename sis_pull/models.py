@@ -613,16 +613,6 @@ class Assignment(SourceObjectMixin, models.Model):
     
     def __str__(self):
         return self.short_name
-
-
-class AssignmentGscaAffinity(SourceObjectMixin, models.Model):
-    
-    source_table = 'assignment_gsca_aff'
-    source_schema = 'gradebook'
-    is_view = True
-    
-    assignment = models.ForeignKey(Assignment)
-    gsca = models.ForeignKey(GradebookSectionCourseAffinity)
     
 
 class ScoreCache(SourceObjectMixin, models.Model):
