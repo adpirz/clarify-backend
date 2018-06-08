@@ -239,7 +239,9 @@ def grades_query_to_data(report_id=None, **query_params):
             "label": str(osc.gradebook),
             "measures": [
                 {"measure_label": "Mark", "measure": osc.mark},
-                {"measure_label": "Percentage", "measure": osc.percentage}],
+                {"measure_label": "Percentage", "measure": osc.percentage},
+                {"measure_label": "Missing Assignments", "measure": osc.missing}
+            ],
             "calculated_at": osc.calculated_at,
         }
 
@@ -259,10 +261,12 @@ def grades_query_to_data(report_id=None, **query_params):
 
         shape = {
             "id": csc.category_id,
-            "label": csc.category,
+            "label": csc.category_name,
             "measures": [
                 {"measure_label": "Mark", "measure": csc.mark},
-                {"measure_label": "Percentage", "measure": csc.percentage}],
+                {"measure_label": "Percentage", "measure": csc.percentage},
+                {"measure_label": "Missing", "measure": csc.percentage},
+            ],
             "calculated_at": csc.calculated_at
         }
         return shape
