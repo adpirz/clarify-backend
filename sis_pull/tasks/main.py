@@ -247,10 +247,10 @@ def main(**options):
         'utra': (UserTermRoleAff, UserTermRoleAffinity, 'utra_id'),
         'categories': (Categories, Category, 'category_id'),
         'csc': (CategoryScoreCache, CSC,),
-        'states': (States, State, 'state_id'),
-        'subjects': (Subjects, Subject, 'subject_id'),
-        'standards': (Standards, Standard, 'standard_id'),
-        'standardscache': (StandardsCache, SC, 'cache_id')
+        # 'states': (States, State, 'state_id'),
+        # 'subjects': (Subjects, Subject, 'subject_id'),
+        # 'standards': (Standards, Standard, 'standard_id'),
+        # 'standardscache': (StandardsCache, SC, 'cache_id')
 
     })
 
