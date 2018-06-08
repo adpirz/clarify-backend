@@ -153,10 +153,8 @@ def grades_query_to_data(report_id=None, **query_params):
     site_id = query_params.get("site_id", None)
     course_id = query_params.get("course_id", None)
 
-    # course_name = Course.objects.get(id=course_id).short_name
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                    return_set=True)
-    data = []
 
     def _get_all_recent_course_grades_for_student_id(student_id):
         # Get all active sections for student
@@ -208,9 +206,7 @@ def grades_query_to_data(report_id=None, **query_params):
 
     def _shape_group_gpas(osc_list):
         if len(osc_list) == 0:
-            return {
-                "id": "group_id",
-            }
+            return None
 
         osc = osc_list[0]
         return {
@@ -237,21 +233,36 @@ def grades_query_to_data(report_id=None, **query_params):
             "id": csc.category_id,
             "label": csc.category,
             "measure_label": "Mark and Percentage",
-            "measure": f"{csc.mark} ({csc.percentage})"
+            "measure": f"{csc.mark} ({csc.percentage})",
+            "calculated_at": csc.calculated_at
         }
+
+    def _get_group_name():
+        if group == "section":
+            return str(Section.objects.get(pk=group_id))
+        if group == "grade_level":
+            return str(GradeLevel.objects.get(pk=group_id))
+        if group == "school":
+            return str(Site.objects.get(pk=group_id))
+        return str(Student.objects.get(pk=group_id))
+
+    group_name = _get_group_name()
 
     # Grouping of student grades - all course grades
     # Constituent part: GPAs
     if group != "student":
         data = [_get_all_recent_course_grades_for_student_id(sid)
                 for sid in student_ids]
-        formatted_data = [_shape_group_gpas(i) for i in data]
+        # filter out empty data sets
+        formatted_data = [_shape_group_gpas(i) for i in data if len(i) > 0]
+        title_string = f"Academic grades for {group_name} (latest)"
 
     # Individual student grades - all course grades
     # Constituent parts: Course marks and percentages
     elif not course_id:
         data = _get_all_recent_course_grades_for_student_id(group_id)
         formatted_data = [_shape_student_grades(i) for i in data]
+        title_string = f"Academic grades for {group_name} (latest)"
 
     # Individual student grades - single course
     # Constituent parts: Category grades
@@ -260,9 +271,11 @@ def grades_query_to_data(report_id=None, **query_params):
             group_id, course_id
         )]
         formatted_data = [_shape_category_grades(d) for d in data]
+        course_name = Course.objects.get(pk=course_id).short_name
+        title_string = f"{course_name} grades for {group_name} (latest)"
 
     response = {
-        "title": f"Grades for {str(group)} (latest)",
+        "title": title_string,
         "group": group,
         "group_id": group_id,
         "data": formatted_data
