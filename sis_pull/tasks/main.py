@@ -22,10 +22,10 @@ from sis_pull.models import (
     SectionLevelRosterPerYear,
     OverallScoreCache as OSC,
     CategoryScoreCache as CSC,
-    AttendanceFlag, SectionTimeblockAffinity, Timeblock,
-    StandardsCache as SC,
-    AttendanceFlag, SessionType, Schedule, Session, Term, UserTermRoleAffinity,
-    Role, State, Subject, Standard, CurrentRoster)
+    AttendanceFlag,
+    SectionTimeblockAffinity,
+    Timeblock,
+    CurrentRoster)
 
 from sis_mirror.models import (
     Students,
@@ -42,10 +42,9 @@ from sis_mirror.models import (
     OverallScoreCache,
     SsCube,
     CategoryScoreCache,
-    SectionTimeblockAff, Timeblocks,
-    StandardsCache,
-    SessionTypes, Schedules, Sessions, UserTermRoleAff, Terms, Roles, States,
-    Subjects, Standards, SsCurrent)
+    SectionTimeblockAff,
+    Timeblocks,
+    SsCurrent)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
