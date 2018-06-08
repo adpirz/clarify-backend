@@ -152,6 +152,7 @@ def grades_query_to_data(report_id=None, **query_params):
     group_id = query_params["group_id"]
     site_id = query_params.get("site_id", None)
     course_id = query_params.get("course_id", None)
+    category_id = query_params.get("category_id", None)
 
     student_ids = get_student_ids_for_group_and_id(group, group_id,
                                                    return_set=True)
@@ -309,7 +310,7 @@ def grades_query_to_data(report_id=None, **query_params):
 
     # Individual student grades - single course
     # Constituent parts: Category grades
-    else:
+    elif not category_id:
         data = _get_most_recent_category_grades(group_id, course_id)
         formatted_data = [_shape_category_grades(d) for d in data]
         course_name = Course.objects.get(pk=course_id).short_name

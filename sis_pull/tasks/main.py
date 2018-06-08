@@ -240,6 +240,8 @@ def main(**options):
         'daily_records': (DailyRecords, AttendanceDailyRecord),
         'categories': (Categories, Category, 'category_id'),
         'csc': (CategoryScoreCache, CSC,),
+        'assignments': (Assignments, Assignment, 'assignment_id'),
+
 
     })
 
