@@ -25,7 +25,9 @@ from sis_pull.models import (
     AttendanceFlag,
     SectionTimeblockAffinity,
     Timeblock,
-    CurrentRoster)
+    CurrentRoster,
+    Assignment,
+    ScoreCache as SC)
 
 from sis_mirror.models import (
     Students,
@@ -44,7 +46,9 @@ from sis_mirror.models import (
     CategoryScoreCache,
     SectionTimeblockAff,
     Timeblocks,
-    SsCurrent)
+    SsCurrent,
+    Assignments,
+    ScoreCache)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -241,8 +245,7 @@ def main(**options):
         'categories': (Categories, Category, 'category_id'),
         'csc': (CategoryScoreCache, CSC,),
         'assignments': (Assignments, Assignment, 'assignment_id'),
-
-
+        'scorecache': (ScoreCache, SC)
     })
 
     model_dict_keys = model_dict.keys()
