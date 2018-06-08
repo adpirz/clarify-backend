@@ -211,7 +211,7 @@ def grades_query_to_data(report_id=None, **query_params):
         gpas = [GRADE_TO_GPA_POINTS[osc.mark] for osc in osc_list]
         return round(sum(gpas) / len(gpas), 3)
 
-    def _shape_group_gpas(osc_list, children=False):
+    def _shape_group_gpas(osc_list):
         """Takes list of gradebook scores from same student, returns GPA"""
         if len(osc_list) == 0:
             return None
