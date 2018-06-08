@@ -354,6 +354,7 @@ def grades_query_to_data(report_id=None, **query_params):
     # Individual student grades - single course - single category
     # Params: group (student), group_id (student_id), type (grades),
     #         course_id, category_id
+    # Constituent parts: Assignment grades
     else:
         data = _get_most_recent_assignment_grades(group_id, category_id)
         formatted_data = [_shape_assignment_grades(sc) for sc in data]
