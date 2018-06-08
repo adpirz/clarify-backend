@@ -42,21 +42,19 @@ def query_to_data(query):
     if not report_query:
         raise ValueError("Query or report id required")
 
-    if report_query["category"] == "attendance":
+    if report_query["type"] == "attendance":
         report_data = attendance_query_to_data(report_id, **report_query)
-        report_data['query'] = report.query if report_id else query.urlencode()
-        return report_data
 
-    if report_query["category"] == "grades":
+    if report_query["type"] == "grades":
         report_data = grades_query_to_data(**report_query)
-        report_data['query'] = report.query if report_id else query.urlencode()
-        return report_data
 
-    raise ValueError(f"Report category {report_query['category']} not supported.")
+    report_data['query'] = report.query if report_id else query.urlencode()
+
+    return report_data
 
 
 def get_student_ids_for_group_and_id(group, object_id, site_id=None,
-                                     return_set=False):
+                                     return_set=True):
 
     """
     Takes an object of type Student, Section, grade_level, or Site, and returns
@@ -160,7 +158,7 @@ def grades_query_to_data(report_id=None, **query_params):
                                                    return_set=True)
     data = []
 
-    def get_all_recent_course_grades_for_student_id(student_id):
+    def _get_all_recent_course_grades_for_student_id(student_id):
         # Get all active sections for student
         now = timezone.now()
         active_section_ids = (SectionLevelRosterPerYear.objects
@@ -185,7 +183,7 @@ def grades_query_to_data(report_id=None, **query_params):
                 .distinct('gradebook_id')
                 .all())
 
-    def get_most_recent_category_grades_for_student_id_and_course_id(
+    def _get_most_recent_category_grades_for_student_id_and_course_id(
             student_id, course_id):
 
         gradebook_ids = (GradebookSectionCourseAffinity.objects
@@ -202,7 +200,7 @@ def grades_query_to_data(report_id=None, **query_params):
                 .all()
                 )
 
-    def calculate_gpa_from_grade_list(osc_list):
+    def _calculate_gpa_from_grade_list(osc_list):
         if len(osc_list) == 0:
             return "NA"
         gpas = [GRADE_TO_GPA_POINTS[osc.mark] for osc in osc_list]
@@ -219,7 +217,7 @@ def grades_query_to_data(report_id=None, **query_params):
             "id": group_id,
             "label": osc.student.last_first,
             "measure_label": "GPA",
-            "measure": calculate_gpa_from_grade_list(osc_list),
+            "measure": _calculate_gpa_from_grade_list(osc_list),
             "calculated_at": osc.calculated_at
         }
 
@@ -242,23 +240,29 @@ def grades_query_to_data(report_id=None, **query_params):
             "measure": f"{csc.mark} ({csc.percentage})"
         }
 
+    # Grouping of student grades - all course grades
+    # Constituent part: GPAs
     if group != "student":
-        data = [get_all_recent_course_grades_for_student_id(sid)
+        data = [_get_all_recent_course_grades_for_student_id(sid)
                 for sid in student_ids]
-        import pdb; pdb.set_trace()
         formatted_data = [_shape_group_gpas(i) for i in data]
 
+    # Individual student grades - all course grades
+    # Constituent parts: Course marks and percentages
     elif not course_id:
-        data = get_all_recent_course_grades_for_student_id(group_id)
+        data = _get_all_recent_course_grades_for_student_id(group_id)
         formatted_data = [_shape_student_grades(i) for i in data]
+
+    # Individual student grades - single course
+    # Constituent parts: Category grades
     else:
-        data += [get_most_recent_category_grades_for_student_id_and_course_id(
+        data = [_get_most_recent_category_grades_for_student_id_and_course_id(
             group_id, course_id
         )]
         formatted_data = [_shape_category_grades(d) for d in data]
 
     response = {
-        "title": f"Grades for {group} {group_id} (latest)",
+        "title": f"Grades for {str(group)} (latest)",
         "group": group,
         "group_id": group_id,
         "data": formatted_data
