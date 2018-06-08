@@ -1,3 +1,4 @@
+import time
 from subprocess import call
 
 from django.core.management.base import BaseCommand, CommandError
@@ -38,7 +39,9 @@ class Command(BaseCommand):
         superuser = False
         if options['clean']:
             self.stdout.write('Deleting current models before updating...')
+        start = time.time()
         models_run = main(**options)
+        end = time.time()
 
         if 'users' in models_run:
             options['superuser'] = True
@@ -47,7 +50,8 @@ class Command(BaseCommand):
             process_exit = call(['python', 'manage.py', 'createsuperuser'])
             superuser = True if process_exit == 0 else False
 
-        output = 'Complete. Models run: {}'.format(', '.join(models_run))
+        output = 'Completed in {} seconds. Models run: {}'.format(
+            round(end - start, 1), ', '.join(models_run))
 
         if superuser:
             output += '\nSuperuser created.'

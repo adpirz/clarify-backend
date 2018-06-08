@@ -35,6 +35,7 @@ def StudentView(request):
             'id': student.id,
             'first_name': student.first_name,
             'last_name': student.last_name,
+            'currently_enrolled': student.is_enrolled()
         }
     user = request.user
     request_teacher = Staff.objects.filter(user=user)
@@ -95,6 +96,26 @@ def GradeLevelView(request):
 
     return JsonResponse({
         'data': [_shape(g) for g in teacher_grade_levels]
+    })
+
+@login_required
+def CourseView(request):
+    def _shape(row):
+        return {
+            'id': row.course.id,
+            'short_name': row.course.short_name,
+            'long_name': row.course.long_name,
+        }
+
+    user = request.user
+    request_teacher = Staff.objects.get(user=user)
+    grade_levels = GradeLevel.get_users_current_grade_levels(request_teacher)
+    return JsonResponse({
+        'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
+                 .filter(user=request_teacher)\
+                 .filter(grade_level_id__in=grade_levels)
+                 .distinct('course_id')
+                 ]
     })
 
 
@@ -250,6 +271,7 @@ def WorksheetView(request):
         return JsonResponse({
             'error': 'Method not allowed.'
         }, status=405)
+
     def _shape(worksheet):
         return {
             'id': worksheet.id,

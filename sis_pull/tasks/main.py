@@ -22,7 +22,10 @@ from sis_pull.models import (
     SectionLevelRosterPerYear,
     OverallScoreCache as OSC,
     CategoryScoreCache as CSC,
-    AttendanceFlag, SectionTimeblockAffinity, Timeblock)
+    AttendanceFlag, SectionTimeblockAffinity, Timeblock,
+    StandardsCache as SC,
+    AttendanceFlag, SessionType, Schedule, Session, Term, UserTermRoleAffinity,
+    Role, State, Subject, Standard, CurrentRoster)
 
 from sis_mirror.models import (
     Students,
@@ -39,7 +42,10 @@ from sis_mirror.models import (
     OverallScoreCache,
     SsCube,
     CategoryScoreCache,
-    SectionTimeblockAff, Timeblocks)
+    SectionTimeblockAff, Timeblocks,
+    StandardsCache,
+    SessionTypes, Schedules, Sessions, UserTermRoleAff, Terms, Roles, States,
+    Subjects, Standards, SsCurrent)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -86,7 +92,7 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None,
     """
     clarify_model_fields = field_list_to_names(fields_list(clarify_model))
     sis_fields = field_list_to_names(fields_list(sis_model,
-                                                remove_autos=False))
+                                                 remove_autos=False))
 
     clarify_model_name = clarify_model.__name__
 
@@ -126,7 +132,8 @@ def sis_to_django_model(sis_model, clarify_model, source_id_field=None,
         for field in fields_list(clarify_model):
             if field.name in model_args and isinstance(field, DateTimeField):
                 old_date_time = model_args[field.name]
-                model_args[field.name] = pytz.utc.localize(old_date_time)
+                model_args[field.name] = pytz.utc.localize(old_date_time) \
+                    if old_date_time else None
 
         if bulk:
             bulk_list.append(clarify_model(**model_args))
@@ -191,7 +198,7 @@ def build_staff_from_sis_users():
         else:
             model_args['prefix'] = 'MS'
 
-        model, created = Staff.objects.\
+        model, created = Staff.objects. \
             get_or_create(
                 id=sis_user.user_id, user_id=dj_user.id,
                 **model_args)
@@ -204,7 +211,6 @@ def build_staff_from_sis_users():
 
 
 def main(**options):
-
     clean = options['clean']
     no_bulk = options['no_bulk']
     selected_models = options['models']
@@ -222,14 +228,30 @@ def main(**options):
         'users': True,
         'grade_levels': (GradeLevels, GradeLevel, 'grade_level_id'),
         'sites': (Sites, Site, 'site_id'),
+        'ss_current': (SsCurrent, CurrentRoster),
         'courses': (Courses, Course, 'course_id'),
         'sections': (Sections, Section, 'section_id'),
         'ss_cube': (SsCube, SectionLevelRosterPerYear),
         'gradebooks': (Gradebooks, Gradebook, 'gradebook_id'),
         'timeblocks': (Timeblocks, Timeblock, 'timeblock_id'),
         'stba': (SectionTimeblockAff, SectionTimeblockAffinity, 'stba_id'),
+        'gsca': (GradebookSectionCourseAff,
+                 GradebookSectionCourseAffinity, 'gsca_id'),
         'overallscorecache': (OverallScoreCache, OSC),
         'daily_records': (DailyRecords, AttendanceDailyRecord),
+        'session_types': (SessionTypes, SessionType, 'code_id'),
+        'schedules': (Schedules, Schedule, 'schedule_id'),
+        'sessions': (Sessions, Session, 'session_id'),
+        'terms': (Terms, Term, 'term_id'),
+        'roles': (Roles, Role, 'role_id'),
+        'utra': (UserTermRoleAff, UserTermRoleAffinity, 'utra_id'),
+        'categories': (Categories, Category, 'category_id'),
+        'csc': (CategoryScoreCache, CSC,),
+        'states': (States, State, 'state_id'),
+        'subjects': (Subjects, Subject, 'subject_id'),
+        'standards': (Standards, Standard, 'standard_id'),
+        'standardscache': (StandardsCache, SC, 'cache_id')
+
     })
 
     model_dict_keys = model_dict.keys()

@@ -10,9 +10,11 @@ from django.shortcuts import get_object_or_404
 
 from sis_pull.models import (
     Student, User, Site, GradeLevel, Section,
-    AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear
-)
+    AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear,
+    OverallScoreCache, GradebookSectionCourseAffinity, Course,
+    CategoryScoreCache)
 from reports.models import Report
+from utils import get_academic_year, GRADE_TO_GPA_POINTS
 
 GROUPS_AND_MODELS = {
     'site': Site,
@@ -40,15 +42,20 @@ def query_to_data(query):
     if not report_query:
         raise ValueError("Query or report id required")
 
-    if report_query["category"] == "attendance":
+    if report_query["type"] == "attendance":
         report_data = attendance_query_to_data(report_id, **report_query)
-        report_data['query'] = report.query if report_id else query.urlencode()
-        return report_data
 
-    raise ValueError("Only supports attendance.")
+    if report_query["type"] == "grades":
+        report_data = grades_query_to_data(**report_query)
+
+    report_data['query'] = report.query if report_id else query.urlencode()
+
+    return report_data
 
 
-def get_student_ids_for_group_and_id(group, object_id, site_id=None):
+def get_student_ids_for_group_and_id(group, object_id, site_id=None,
+                                     return_set=True):
+
     """
     Takes an object of type Student, Section, grade_level, or Site, and returns
     the students associated with that object
@@ -62,6 +69,10 @@ def get_student_ids_for_group_and_id(group, object_id, site_id=None):
             .get_current_student_ids(site_id=site_id)
 
     model = get_object_from_group_and_id(group, object_id)
+
+    if return_set:
+        return set(model.get_current_student_ids())
+
     return model.get_current_student_ids()
 
 
@@ -132,6 +143,135 @@ def attendance_query_to_data(report_id=None, **query_params):
         data["id"] = report_id
 
     return data
+
+
+def grades_query_to_data(report_id=None, **query_params):
+    """Currently supports getting most up to date data for grade"""
+
+    group = query_params["group"]
+    group_id = query_params["group_id"]
+    site_id = query_params.get("site_id", None)
+    course_id = query_params.get("course_id", None)
+
+    # course_name = Course.objects.get(id=course_id).short_name
+    student_ids = get_student_ids_for_group_and_id(group, group_id,
+                                                   return_set=True)
+    data = []
+
+    def _get_all_recent_course_grades_for_student_id(student_id):
+        # Get all active sections for student
+        now = timezone.now()
+        active_section_ids = (SectionLevelRosterPerYear.objects
+                           .filter(student_id=student_id)
+                           .filter(entry_date__lte=now, leave_date__gte=now)
+                           .distinct('section_id')
+                           .values_list('section_id', flat=True))
+
+        # Get all associated gradebooks
+        gradebook_ids = (GradebookSectionCourseAffinity.objects
+                         .filter(section_id__in=active_section_ids)
+                         .order_by('course_id', '-id')
+                         .distinct('course_id')
+                         .values_list('gradebook_id', flat=True))
+
+        # Get most recent score per gradebook
+        return (OverallScoreCache.objects
+                .filter(student_id=student_id)
+                .filter(gradebook_id__in=gradebook_ids)
+                .exclude(possible_points__isnull=True)
+                .order_by('gradebook_id', '-calculated_at')
+                .distinct('gradebook_id')
+                .all())
+
+    def _get_most_recent_category_grades_for_student_id_and_course_id(
+            student_id, course_id):
+
+        gradebook_ids = (GradebookSectionCourseAffinity.objects
+                        .filter(course_id=course_id)
+                        .distinct('gradebook_id')
+                        .values('gradebook_id', flat=True))
+
+        return (CategoryScoreCache.objects
+                .filter(student_id=student_id)
+                .filter(gradebook_id__in=gradebook_ids)
+                .exclude(possible_points__isnull=True)
+                .order_by('category_id', '-calculated_at')
+                .distinct('category_id')
+                .all()
+                )
+
+    def _calculate_gpa_from_grade_list(osc_list):
+        if len(osc_list) == 0:
+            return "NA"
+        gpas = [GRADE_TO_GPA_POINTS[osc.mark] for osc in osc_list]
+        return sum(gpas) / len(gpas)
+
+    def _shape_group_gpas(osc_list):
+        if len(osc_list) == 0:
+            return {
+                "id": "group_id",
+            }
+
+        osc = osc_list[0]
+        return {
+            "id": group_id,
+            "label": osc.student.last_first,
+            "measure_label": "GPA",
+            "measure": _calculate_gpa_from_grade_list(osc_list),
+            "calculated_at": osc.calculated_at
+        }
+
+    def _shape_student_grades(overall_score_cache):
+        osc = overall_score_cache
+        return {
+            "id": osc.student_id,
+            "label": str(osc.gradebook),
+            "measure_label": "Mark and Percentage",
+            "measure": f"{osc.mark} ({osc.percentage})",
+            "calculated_at": osc.calculated_at
+        }
+
+    def _shape_category_grades(category_score_cache):
+        csc = category_score_cache
+        return {
+            "id": csc.category_id,
+            "label": csc.category,
+            "measure_label": "Mark and Percentage",
+            "measure": f"{csc.mark} ({csc.percentage})"
+        }
+
+    # Grouping of student grades - all course grades
+    # Constituent part: GPAs
+    if group != "student":
+        data = [_get_all_recent_course_grades_for_student_id(sid)
+                for sid in student_ids]
+        formatted_data = [_shape_group_gpas(i) for i in data]
+
+    # Individual student grades - all course grades
+    # Constituent parts: Course marks and percentages
+    elif not course_id:
+        data = _get_all_recent_course_grades_for_student_id(group_id)
+        formatted_data = [_shape_student_grades(i) for i in data]
+
+    # Individual student grades - single course
+    # Constituent parts: Category grades
+    else:
+        data = [_get_most_recent_category_grades_for_student_id_and_course_id(
+            group_id, course_id
+        )]
+        formatted_data = [_shape_category_grades(d) for d in data]
+
+    response = {
+        "title": f"Grades for {str(group)} (latest)",
+        "group": group,
+        "group_id": group_id,
+        "data": formatted_data
+    }
+
+    if report_id:
+        response["report_id"] = report_id
+
+    return response
 
 
 def query_parser(querydict):

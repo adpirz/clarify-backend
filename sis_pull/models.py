@@ -1,4 +1,6 @@
+
 from django.apps import apps
+from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import User
 from utils import camel_to_underscore, get_academic_year
@@ -26,10 +28,16 @@ class GetCurrentStudentsMixin(object):
         return roster_model.objects.filter(**kwargs)
 
     def get_current_student_ids(self, **kwargs):
+        """
+        Return a list of distinct student_ids
+        from current year and kwargs
+        """
         new_kwargs = dict(kwargs)
         new_kwargs.update({"academic_year": get_academic_year()})
         rows = self._get_student_roster_rows(**new_kwargs)
-        return rows.values_list('student_id', flat=True)
+        return rows\
+            .distinct('student_id')\
+            .values_list('student_id', flat=True)
 
 
 class SourceObjectMixin:
@@ -55,6 +63,14 @@ class GradeLevel(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
     def __str__(self):
         return self.long_name or self.short_name
+
+    @staticmethod
+    def get_users_current_grade_levels(staff):
+        return SectionLevelRosterPerYear.objects\
+            .filter(academic_year=get_academic_year())\
+            .filter(user=staff)\
+            .distinct('grade_level_id')\
+            .values_list('grade_level_id', flat=True)
 
 
 class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
@@ -88,6 +104,9 @@ class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     city = models.CharField(max_length=255, null=True)
     state = models.CharField(max_length=100, null=True)
     zip = models.CharField(max_length=10, null=True)
+
+    def __str__(self):
+        return self.site_name
 
     def get_site_type_label(self):
         return self.SITE_TYPE_CHOICES[self.site_type_id][1]
@@ -132,10 +151,48 @@ class Student(SourceObjectMixin, models.Model):
     def __str__(self):
         return "{} {}".format(self.first_name, self.last_name)
 
+    @property
+    def full_name(self):
+        return "{} {}".format(self.first_name, self.last_name)
+
+    @property
+    def last_first(self):
+        return "{}, {}".format(self.last_name, self.first_name)
+
+    def get_current_active_section_ids(self):
+        """Returns sections student is currently enrolled in"""
+        now = timezone.now()
+        return SectionLevelRosterPerYear.objects\
+            .filter(student_id=self.id)\
+            .filter(entry_date__lte=now, leave_date__gte=now)\
+            .distinct('section_id')\
+            .values_list('section_id', flat=True)
+
+    def get_active_section_gradebook_ids(self):
+        """Returns current gradebooks for given student"""
+        sections_list = self.get_current_active_section_ids()
+        return GradebookSectionCourseAffinity.objects\
+            .filter(section_id__in=sections_list)\
+            .distinct('gradebook_id')\
+            .values_list('gradebook_id', flat=True)
+
+    def is_enrolled(self):
+        return CurrentRoster.objects.filter(student_id=self.id).exists()
+    
+
+class CurrentRoster(SourceObjectMixin, models.Model):
+    
+    source_table = 'ss_current'
+    source_schema = 'matviews'
+    is_view = True
+    
+    student = models.ForeignKey(Student)
+    site = models.ForeignKey(Site)
+    grade_level = models.ForeignKey(GradeLevel, blank=True, null=True)
+
 
 class AttendanceFlag(SourceObjectMixin, models.Model):
     source_table = "attendance_flag"
-
     character_code = models.CharField(max_length=30, blank=True)
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
@@ -334,6 +391,31 @@ class Course(SourceObjectMixin, models.Model):
     site = models.ForeignKey(Site)
     is_active = models.BooleanField(default=True)
 
+    def __str__(self):
+        return self.short_name or self.id
+
+    @classmethod
+    def get_current_course_ids(cls):
+        """Returns a list of currently taught course source_ids"""
+        return SectionLevelRosterPerYear.objects\
+                .filter(academic_year=get_academic_year())\
+                .distinct('course_id')\
+                .values_list('course_id', flat=True)
+
+    def get_current_section_ids(self):
+        return SectionLevelRosterPerYear.objects\
+                .filter(academic_year=get_academic_year())\
+                .filter(course_id=self.source_id)\
+                .distinct('section_id')\
+                .values_list('section_id', flat=True)
+    @classmethod
+    def get_current_courses_for_user(cls, staff):
+        return SectionLevelRosterPerYear.objects\
+                .filter(academic_year=get_academic_year())\
+                .filter(user=staff)\
+                .distinct('course_id')\
+                .values_list('course_id', flat=True)
+
 
 class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     """
@@ -360,6 +442,15 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
         return f"{timeblock_name} {course_name}"
 
+    def get_course_id(self):
+        gsca = GradebookSectionCourseAffinity.objects.filter(
+            section_id=self.source_id).first()
+
+        if gsca:
+            return gsca.course_id
+        else:
+            return None
+
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     """
@@ -382,6 +473,67 @@ class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     is_primary_teacher = models.NullBooleanField()
 
 
+class Schedule(SourceObjectMixin, models.Model):
+    source_tabe = 'schedules'
+
+    created_by = models.IntegerField(blank=True, null=True)
+    last_modified_by = models.IntegerField(blank=True, null=True)
+    schedule_name = models.CharField(max_length=255, blank=True, null=True)
+    last_mod_time = models.IntegerField(blank=True, null=True)
+    creation_time = models.IntegerField(blank=True, null=True)
+    session_id = models.IntegerField()
+    deleted_at = models.DateTimeField(blank=True, null=True)
+    deleted_by = models.IntegerField(blank=True, null=True)
+    is_locked = models.NullBooleanField()
+
+
+class SessionType(SourceObjectMixin, models.Model):
+    source_table = 'session_types'
+
+    code_key = models.CharField(max_length=255)
+    code_translation = models.CharField(max_length=255, blank=True, null=True)
+    site = models.ForeignKey(Site, blank=True, null=True)
+    system_key = models.CharField(max_length=255, blank=True, null=True)
+    system_key_sort = models.IntegerField(blank=True, null=True)
+    state_id = models.CharField(max_length=255, blank=True, null=True)
+    sort_order = models.IntegerField(blank=True, null=True)
+
+
+class Session(SourceObjectMixin, models.Model):
+    source_table = 'sessions'
+
+    academic_year = models.IntegerField()
+    site = models.ForeignKey(Site)
+    session_type = models.ForeignKey(SessionType)
+    schedule = models.ForeignKey(Schedule, blank=True, null=True)
+
+
+class Term(SourceObjectMixin, models.Model):
+    term_name = models.CharField(max_length=20)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    schedule = models.ForeignKey(Schedule, blank=True, null=True)
+    session = models.ForeignKey(Session)
+    term_num = models.IntegerField()
+    term_type = models.IntegerField()
+    local_term_id = models.IntegerField(blank=True, null=True)
+
+
+class Role(SourceObjectMixin, models.Model):
+    source_table = 'roles'
+
+    role_name = models.CharField(max_length=255)
+    role_level = models.IntegerField(blank=True, null=True)
+    can_teach = models.BooleanField()
+    can_counsel = models.BooleanField()
+    job_classification_id = models.IntegerField(blank=True, null=True)
+    role_short_name = models.CharField(max_length=255, blank=True, null=True)
+    system_key = models.CharField(max_length=255, blank=True, null=True)
+    system_key_sort = models.IntegerField(blank=True, null=True)
+    can_refer_discipline = models.BooleanField()
+    deleted_at = models.DateTimeField(blank=True, null=True)
+
+
 class Gradebook(SourceObjectMixin, models.Model):
     """
     Source: gradebook.gradebooks
@@ -396,6 +548,9 @@ class Gradebook(SourceObjectMixin, models.Model):
     academic_year = models.PositiveIntegerField()
     is_deleted = models.BooleanField(default=False)
 
+    def __str__(self):
+        return self.gradebook_name
+
 
 class Category(SourceObjectMixin, models.Model):
     """
@@ -407,7 +562,15 @@ class Category(SourceObjectMixin, models.Model):
     category_name = models.CharField(max_length=255)
     icon = models.CharField(max_length=255)
     gradebook = models.ForeignKey(Gradebook)
-    weight = models.FloatField()
+    weight = models.FloatField(null=True)
+
+
+class UserTermRoleAffinity(SourceObjectMixin, models.Model):
+    source_table = 'user_term_role_aff'
+    user = models.ForeignKey(Staff)
+    role = models.ForeignKey(Role)
+    term = models.ForeignKey(Term)
+    last_schedule_id = models.IntegerField(blank=True, null=True)
 
 
 class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
@@ -421,8 +584,11 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     section = models.ForeignKey(Section)
     course = models.ForeignKey(Course)
     user = models.ForeignKey(Staff)
-    created = models.DateTimeField()
-    modified = models.DateTimeField()
+    created = models.DateTimeField(null=True)
+    modified = models.DateTimeField(null=True)
+
+    def __str__(self):
+        return f"{self.gradebook} - {self.section} - {self.course}"
 
 
 class OverallScoreCache(SourceObjectMixin, models.Model):
@@ -444,6 +610,26 @@ class OverallScoreCache(SourceObjectMixin, models.Model):
     missing_count = models.IntegerField(null=True)
     zero_count = models.IntegerField(null=True)
     excused_count = models.IntegerField(null=True)
+    calculated_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.student} grades for {self.gradebook}'"
+
+    @classmethod
+    def get_latest_for_student_and_gradebook(cls, student_id, gradebook_id):
+        """Returns the latest row calculated for a given and student."""
+        return cls.objects.exclude(possible_points__isnull=True)\
+                    .filter(student_id=student_id, gradebook_id=gradebook_id)\
+                    .order_by('-calculated_at')\
+                    .first()
+
+    @staticmethod
+    def get_columns():
+
+        return [{"column_code": i, "label": x} for i, x in enumerate(
+            ['mark', 'percentage', 'possible_points',
+             'points_earned', 'calculated_at']
+        )]
 
 
 class CategoryScoreCache(SourceObjectMixin, models.Model):
@@ -454,18 +640,18 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     source_schema = 'gradebook'
     is_view = True
 
-    student = models.ForeignKey(Student)
-    gradebook = models.ForeignKey(Gradebook)
-    category = models.ForeignKey(Category)
-    possible_points = models.FloatField()
-    points_earned = models.FloatField()
-    percentage = models.FloatField()
-    category_name = models.CharField(max_length=255)
-    mark = models.CharField(max_length=255)
-    assignment_count = models.IntegerField()
-    calculated_at = models.DateTimeField()
-    timeframe_start_date = models.DateField()
-    timeframe_end_date = models.DateField()
+    student = models.ForeignKey(Student, blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebook, blank=True, null=True)
+    category = models.ForeignKey(Category, blank=True, null=True)
+    possible_points = models.FloatField(blank=True, null=True)
+    points_earned = models.FloatField(blank=True, null=True)
+    percentage = models.FloatField(blank=True, null=True)
+    category_name = models.CharField(max_length=255, blank=True, null=True)
+    mark = models.CharField(max_length=255, blank=True, null=True)
+    assignment_count = models.IntegerField(blank=True, null=True)
+    calculated_at = models.DateTimeField(blank=True, null=True)
+    timeframe_start_date = models.DateField(blank=True, null=True)
+    timeframe_end_date = models.DateField(blank=True, null=True)
 
 
 class Timeblock(SourceObjectMixin, models.Model):
@@ -486,3 +672,77 @@ class SectionTimeblockAffinity(SourceObjectMixin, models.Model):
 
     section = models.ForeignKey(Section)
     timeblock = models.ForeignKey(Timeblock)
+
+
+class State(SourceObjectMixin, models.Model):
+    source_table = "states"
+    source_schema = "standards"
+
+    code = models.CharField(max_length=6)
+    name = models.CharField(max_length=255)
+    sort_order = models.IntegerField(blank=True, null=True)
+    country_code = models.CharField(max_length=6, blank=True, null=True)
+
+
+class Subject(SourceObjectMixin, models.Model):
+
+    source_table = "subjects"
+    source_schema = "standards"
+
+    subject_id = models.IntegerField(primary_key=True)
+    document = models.CharField(max_length=225, blank=True, null=True)
+    timestamp = models.DateTimeField(blank=True, null=True)
+    year = models.IntegerField(blank=True, null=True)
+    guid = models.CharField(max_length=255, blank=True, null=True)
+    code = models.CharField(max_length=255, blank=True, null=True)
+    seq = models.IntegerField(blank=True, null=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    hidden = models.NullBooleanField()
+    locale = models.CharField(max_length=100, blank=True, null=True)
+    is_custom = models.NullBooleanField()
+    state = models.ForeignKey(State, blank=True, null=True)
+
+
+class Standard(SourceObjectMixin, models.Model):
+
+    source_table = "standards"
+    source_schema = "standards"
+
+    parent_standard_id = models.ForeignKey("Standard", blank=True, null=True)
+    category = models.IntegerField(blank=True, null=True)
+    subject = models.ForeignKey(Subject, blank=True, null=True)
+    guid = models.CharField(max_length=255, blank=True, null=True)
+    state_num = models.CharField(max_length=255, blank=True, null=True)
+    label = models.CharField(max_length=255, blank=True, null=True)
+    seq = models.IntegerField(blank=True, null=True)
+    level = models.IntegerField(blank=True, null=True)
+    placeholder = models.NullBooleanField()
+    organizer = models.CharField(max_length=255, blank=True, null=True)
+    linkable = models.NullBooleanField()
+    stem = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    lft = models.IntegerField(blank=True, null=True)
+    rgt = models.IntegerField(blank=True, null=True)
+    custom_code = models.CharField(max_length=200, blank=True, null=True)
+
+
+class StandardsCache(SourceObjectMixin, models.Model):
+    source_table = "standards_cache"
+    source_schema = "gradebook"
+    is_view = True
+
+    gradebook = models.ForeignKey(Gradebook)
+    student = models.ForeignKey(Student)
+    standard = models.ForeignKey(Standard)
+    percentage = models.FloatField(blank=True, null=True)
+    mark = models.CharField(max_length=255, blank=True, null=True)
+    points_earned = models.FloatField(blank=True, null=True)
+    possible_points = models.FloatField(blank=True, null=True)
+    color = models.CharField(max_length=7, blank=True, null=True)
+    missing_count = models.IntegerField(blank=True, null=True)
+    assignment_count = models.IntegerField(blank=True, null=True)
+    zero_count = models.IntegerField(blank=True, null=True)
+    excused_count = models.IntegerField(blank=True, null=True)
+    timeframe_start_date = models.DateField()
+    timeframe_end_date = models.DateField()
+    calculated_at = models.DateTimeField()
