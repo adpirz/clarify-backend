@@ -122,8 +122,7 @@ def attendance_query_to_data(report_id=None, **query_params):
     else:
         to_date = datetime.strptime(to_date, DATE_FORMAT).date()
 
-    student_ids = get_student_ids_for_group_and_id(group, group_id, staff,
-                                                site_id=site_id)
+    student_ids = get_student_ids_for_group_and_id(group, group_id, staff)
 
     time_string = get_time_string()
     group_name = get_object_from_group_and_id(group, group_id)
@@ -162,8 +161,7 @@ def grades_query_to_data(report_id=None, **query_params):
     category_id = query_params.get("category_id", None)
     staff = query_params.get("staff", None)
 
-    student_ids = get_student_ids_for_group_and_id(group, group_id, staff,
-                                                   return_set=True)
+    student_ids = get_student_ids_for_group_and_id(group, group_id, staff)
 
     def _get_all_recent_course_grades_for_student_id(student_id):
         # Get all active sections for student
