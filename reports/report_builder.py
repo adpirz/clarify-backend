@@ -24,13 +24,13 @@ GROUPS_AND_MODELS = {
 }
 
 
-def query_to_data(query):
+def query_to_data(request):
     """
     Takes in a QueryDict (ie, request.GET) and returns happy data!
     :param query: QueryDict<request.GET>
     :return: Data dict
     """
-    report_query = {}
+    query = request.GET
     report_id = query.get('report_id')
     if report_id:
         report = get_object_or_404(Report, pk=report_id)
@@ -41,12 +41,17 @@ def query_to_data(query):
         # check category, pass to proper function
     if not report_query:
         raise ValueError("Query or report id required")
+        
+    report_query["staff"] = request.user.staff
 
-    if report_query['type'] == 'attendance':
+    if report_query["type"] == "attendance":
         report_data = attendance_query_to_data(report_id, **report_query)
 
-    if report_query['type'] == 'grades':
-        report_data = grades_query_to_data(**report_query)
+    elif report_query["type"] == "grades":
+        report_data = grades_query_to_data(report_id, **report_query)
+
+    else:
+        raise ValueError(f"Unsupported query type: {report_query['type']}")
 
     report_data['type'] = report_query['type']
     report_data['query'] = report.query if report_id else query.urlencode()
@@ -54,7 +59,7 @@ def query_to_data(query):
     return report_data
 
 
-def get_student_ids_for_group_and_id(group, object_id, site_id=None,
+def get_student_ids_for_group_and_id(group, object_id, staff,
                                      return_set=True):
 
     """
@@ -66,6 +71,7 @@ def get_student_ids_for_group_and_id(group, object_id, site_id=None,
         return [object_id]
 
     if group_is_model(group, "grade_level"):
+        site_id = staff.get_current_site_id()
         return GradeLevel.objects.get(pk=object_id)\
             .get_current_student_ids(site_id=site_id)
 
@@ -109,13 +115,14 @@ def attendance_query_to_data(report_id=None, **query_params):
     site_id = query_params.get("site_id", None)
     is_single_day = from_date == to_date
     from_date = datetime.strptime(from_date, DATE_FORMAT).date()
+    staff = query_params.get("staff", None)
 
     if not to_date:
         to_date = timezone.now().date()
     else:
         to_date = datetime.strptime(to_date, DATE_FORMAT).date()
 
-    student_ids = get_student_ids_for_group_and_id(group, group_id,
+    student_ids = get_student_ids_for_group_and_id(group, group_id, staff,
                                                 site_id=site_id)
 
     time_string = get_time_string()
@@ -151,11 +158,11 @@ def grades_query_to_data(report_id=None, **query_params):
 
     group = query_params["group"]
     group_id = query_params["group_id"]
-    site_id = query_params.get("site_id", None)
     course_id = query_params.get("course_id", None)
     category_id = query_params.get("category_id", None)
+    staff = query_params.get("staff", None)
 
-    student_ids = get_student_ids_for_group_and_id(group, group_id,
+    student_ids = get_student_ids_for_group_and_id(group, group_id, staff,
                                                    return_set=True)
 
     def _get_all_recent_course_grades_for_student_id(student_id):

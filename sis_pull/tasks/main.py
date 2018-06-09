@@ -29,7 +29,7 @@ from sis_pull.models import (
     Timeblock,
     CurrentRoster,
     Assignment,
-    ScoreCache as SC)
+    ScoreCache as SC, SessionType, Session, Role, Term, UserTermRoleAffinity)
 
 from sis_mirror.models import (
     Students,
@@ -50,7 +50,7 @@ from sis_mirror.models import (
     Timeblocks,
     SsCurrent,
     Assignments,
-    ScoreCache)
+    ScoreCache, SessionTypes, Sessions, Roles, Terms, UserTermRoleAff)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -84,20 +84,20 @@ def field_list_to_names(field_list):
             for i in field_list]
 
 
-def sis_to_django_model(sis_model, clarify_model, source_id_field=None,
-                        no_bulk=False):
+def sis_to_django_model(sis_model, clarify_model, no_bulk=False):
     """
     Pull SIS models into Django models
 
     :param sis_model: Base SIS Model Class
     :param clarify_model: Base Django Model Class
-    :param source_id_field: SIS column for id
     :param no_bulk: Boolean; force any views or bulk inserts to do row by row
     :return: None
     """
     clarify_model_fields = field_list_to_names(fields_list(clarify_model))
     sis_fields = field_list_to_names(fields_list(sis_model,
                                                  remove_autos=False))
+
+    source_id_field = clarify_model.source_id_field
 
     clarify_model_name = clarify_model.__name__
 
@@ -236,27 +236,31 @@ def main(**options):
     # FK dependencies
 
     model_dict = OrderedDict({
-        'attendance_flags': (AttendanceFlags, AttendanceFlag,
-                             'attendance_flag_id'),
-        'students': (Students, Student, 'student_id'),
+        'attendance_flags': (AttendanceFlags, AttendanceFlag),
+        'students': (Students, Student),
         'users': True,
-        'grade_levels': (GradeLevels, GradeLevel, 'grade_level_id'),
-        'sites': (Sites, Site, 'site_id'),
+        'grade_levels': (GradeLevels, GradeLevel),
+        'sites': (Sites, Site),
         'ss_current': (SsCurrent, CurrentRoster),
-        'courses': (Courses, Course, 'course_id'),
-        'sections': (Sections, Section, 'section_id'),
+        'courses': (Courses, Course),
+        'sections': (Sections, Section),
         'ss_cube': (SsCube, SectionLevelRosterPerYear),
-        'gradebooks': (Gradebooks, Gradebook, 'gradebook_id'),
-        'timeblocks': (Timeblocks, Timeblock, 'timeblock_id'),
-        'stba': (SectionTimeblockAff, SectionTimeblockAffinity, 'stba_id'),
+        'gradebooks': (Gradebooks, Gradebook),
+        'timeblocks': (Timeblocks, Timeblock),
+        'stba': (SectionTimeblockAff, SectionTimeblockAffinity),
         'gsca': (GradebookSectionCourseAff,
-                 GradebookSectionCourseAffinity, 'gsca_id'),
+                 GradebookSectionCourseAffinity),
         'overallscorecache': (OverallScoreCache, OSC),
         'daily_records': (DailyRecords, AttendanceDailyRecord),
-        'categories': (Categories, Category, 'category_id'),
+        'categories': (Categories, Category),
         'csc': (CategoryScoreCache, CSC,),
-        'assignments': (Assignments, Assignment, 'assignment_id'),
-        'scorecache': (ScoreCache, SC)
+        'assignments': (Assignments, Assignment,),
+        'scorecache': (ScoreCache, SC),
+        'sessiontypes': (SessionTypes, SessionType),
+        'sessions': (Sessions, Session),
+        'roles': (Roles, Role),
+        'terms': (Terms, Term),
+        'usta': (UserTermRoleAff, UserTermRoleAffinity)
     })
 
     model_dict_keys = model_dict.keys()

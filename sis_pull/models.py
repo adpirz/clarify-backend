@@ -47,6 +47,7 @@ class SourceObjectMixin:
     """
     source_table = None
     source_schema = 'public'
+    source_id_field = None
     is_view = False
 
 
@@ -55,6 +56,7 @@ class GradeLevel(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     Source: public.grade_levels
     """
     source_table = 'grade_levels'
+    source_id_field = 'grade_level_id'
 
     sort_order = models.IntegerField()
     short_name = models.CharField(max_length=255)
@@ -79,6 +81,7 @@ class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     Source for site types: public.site_types
     """
     source_table = 'sites'
+    source_id_field = 'site_id'
 
     SITE_TYPE_CHOICES = (
         (1, 'Middle and K-8 Schools'),
@@ -121,6 +124,7 @@ class Student(SourceObjectMixin, models.Model):
     """
 
     source_table = 'students'
+    source_id_field = 'student_id'
 
     ETHNICITY_CHOICES = (
         (146, 'Refused to Identify'),
@@ -192,7 +196,10 @@ class CurrentRoster(SourceObjectMixin, models.Model):
 
 
 class AttendanceFlag(SourceObjectMixin, models.Model):
-    source_table = "attendance_flag"
+    
+    source_table = 'attendance_flag'
+    source_id_field = 'attendance_flag_id'
+    
     character_code = models.CharField(max_length=30, blank=True)
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
@@ -372,7 +379,15 @@ class Staff(SourceObjectMixin, models.Model):
         return "{} {} {}".format(self.get_prefix_display(),
                                  self.user.first_name,
                                  self.user.last_name)
-
+    
+    def get_current_site_id(self):
+        now = timezone.now()
+        return (UserTermRoleAffinity.objects
+                .filter(term__start_date__lte=now, term__end_date__gte=now)
+                .filter(user_id=self.id)
+                .first()
+                .term.session.site_id)
+    
     class Meta:
         verbose_name = 'staff'
         verbose_name_plural = verbose_name
@@ -383,6 +398,7 @@ class Course(SourceObjectMixin, models.Model):
     Source: public.courses
     """
     source_table = 'courses'
+    source_id_field = 'course_id'
 
     short_name = models.CharField(max_length=30)
     long_name = models.CharField(max_length=255)
@@ -422,6 +438,7 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     Source: public.sections
     """
     source_table = 'sections'
+    source_id_field = 'section_id'
 
     section_name = models.CharField(max_length=255, null=True)
 
@@ -479,6 +496,7 @@ class Gradebook(SourceObjectMixin, models.Model):
     """
     source_table = 'gradebooks'
     source_schema = 'gradebook'
+    source_id_field = 'gradebook_id'
 
     created_on = models.DateTimeField()
     created_by = models.ForeignKey(Staff)
@@ -497,6 +515,7 @@ class Category(SourceObjectMixin, models.Model):
     """
     source_table = 'categories'
     source_schema = 'gradebook'
+    source_id_field = 'category_id'
 
     category_name = models.CharField(max_length=255)
     icon = models.CharField(max_length=255)
@@ -513,6 +532,7 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     """
     source_table = 'gradebook_section_course_aff'
     source_schema = 'gradebook'
+    source_id_field = 'gsca_id'
 
     gradebook = models.ForeignKey(Gradebook)
     section = models.ForeignKey(Section)
@@ -596,6 +616,7 @@ class Assignment(SourceObjectMixin, models.Model):
     
     source_table = 'assignments'
     source_schema = 'gradebook'
+    source_id_field = 'assignment_id'
     
     short_name = models.CharField(max_length=100)
     long_name = models.CharField(max_length=255, blank=True, null=True)
@@ -640,6 +661,7 @@ class ScoreCache(SourceObjectMixin, models.Model):
 class Timeblock(SourceObjectMixin, models.Model):
 
     source_table = 'timeblocks'
+    source_id_field = 'timeblock_id'
 
     timeblock_name = models.CharField(max_length=255, blank=True, null=True)
     order_num = models.IntegerField()
@@ -652,6 +674,87 @@ class Timeblock(SourceObjectMixin, models.Model):
 class SectionTimeblockAffinity(SourceObjectMixin, models.Model):
 
     source_table = 'section_timeblock_aff'
+    source_id_field = 'stba_id'
 
     section = models.ForeignKey(Section)
     timeblock = models.ForeignKey(Timeblock)
+
+
+class SessionType(SourceObjectMixin, models.Model):
+    
+    source_table = 'session_types'
+    source_schema = 'session_types'
+    source_id_field = 'code_id'
+    
+    code_key = models.CharField(max_length=255)
+    code_translation = models.CharField(max_length=255, blank=True, null=True)
+    site = models.ForeignKey(Site, blank=True, null=True)
+    system_key = models.CharField(max_length=255, blank=True, null=True)
+    system_key_sort = models.IntegerField(blank=True, null=True)
+    state_id = models.CharField(max_length=255, blank=True, null=True)
+    sort_order = models.IntegerField(blank=True, null=True)
+    system_state_id = models.IntegerField(blank=True, null=True)
+    system_key_translation = models.CharField(max_length=100, blank=True, null=True)
+    
+    def __str__(self):
+        return self.code_translation
+
+
+class Session(SourceObjectMixin, models.Model):
+    
+    source_table = 'sessions'
+    source_id_field = 'session_id'
+    
+    academic_year = models.IntegerField()
+    site = models.ForeignKey(Site)
+    session_type = models.ForeignKey(SessionType, blank=True, null=True)
+    
+    def __str__(self):
+        return f"{self.academic_year}: {self.site}: {self.session_type}"
+
+
+class Role(SourceObjectMixin, models.Model):
+    
+    source_table = 'roles'
+    source_id_field = 'role_id'
+    
+    role_name = models.CharField(max_length=255)
+    role_level = models.IntegerField(blank=True, null=True)
+    can_teach = models.BooleanField()
+    can_counsel = models.BooleanField()
+    job_classification_id = models.IntegerField(blank=True, null=True)
+    role_short_name = models.CharField(max_length=255, blank=True, null=True)
+    system_key = models.CharField(max_length=255, blank=True, null=True)
+    system_key_sort = models.IntegerField(blank=True, null=True)
+    can_refer_discipline = models.BooleanField()
+    deleted_at = models.DateTimeField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.role_name
+
+
+class Term(SourceObjectMixin, models.Model):
+    
+    source_table = 'terms'
+    source_id_field = 'term_id'
+    
+    term_name = models.CharField(max_length=20)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    session = models.ForeignKey(Session)
+    term_num = models.IntegerField()
+    term_type = models.IntegerField()
+    local_term_id = models.IntegerField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.term_name
+
+
+class UserTermRoleAffinity(SourceObjectMixin, models.Model):
+    
+    source_table = 'user_term_role_aff'
+    source_id_field = 'utra_id'
+    
+    user = models.ForeignKey(Staff)
+    role = models.ForeignKey(Role)
+    term = models.ForeignKey(Term)
