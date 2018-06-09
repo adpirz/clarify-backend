@@ -42,12 +42,13 @@ def query_to_data(query):
     if not report_query:
         raise ValueError("Query or report id required")
 
-    if report_query["type"] == "attendance":
+    if report_query['type'] == 'attendance':
         report_data = attendance_query_to_data(report_id, **report_query)
 
-    if report_query["type"] == "grades":
+    if report_query['type'] == 'grades':
         report_data = grades_query_to_data(**report_query)
 
+    report_data['type'] = report_query['type']
     report_data['query'] = report.query if report_id else query.urlencode()
 
     return report_data
@@ -234,7 +235,7 @@ def grades_query_to_data(report_id=None, **query_params):
 
         shape = {
             "id": _id,
-            "type": "Student",
+            "depth": "student",
             "label": label,
             "measures": [{"measure_label": "GPA", "measure": gpa}],
             "calculated_at": calculated_at,
@@ -253,11 +254,11 @@ def grades_query_to_data(report_id=None, **query_params):
 
         shape = {
             "id": course.id,
-            "type": "Course",
+            "depth": "course",
             "label": str(course),
             "measures": [
                 {"measure_label": "Mark", "measure": osc.mark},
-                {"measure_label": "Percentage", "measure": osc.percentage},
+                {"measure_label": "Percentage", "measure": f"{osc.percentage}%"},
             ],
             "calculated_at": osc.calculated_at,
         }
@@ -278,14 +279,14 @@ def grades_query_to_data(report_id=None, **query_params):
 
         shape = {
             "id": csc.category_id,
-            "type": "Category",
+            "depth": "category",
             "label": csc.category_name,
             "measures": [
                 {"measure_label": "Mark", "measure": csc.mark},
-                {"measure_label": "Percentage", "measure": csc.percentage},
+                {"measure_label": "Percentage", "measure": f"{csc.percentage}%"},
                 {"measure_label": "Missing Assignments",
                  "measure": csc.missing_count},
-                {"measure_label": "Weight", "measure": csc.weight}
+                # {"measure_label": "Weight", "measure": csc.weight}
             ],
             "calculated_at": csc.calculated_at
         }
@@ -303,12 +304,12 @@ def grades_query_to_data(report_id=None, **query_params):
 
         shape = {
             "id": sc.assignment_id,
-            "type": "Assignment",
+            "depth": "assignment",
             "label": str(sc.assignment),
             "measures": [
                 {"measure_label": "Points", "measure": sc.points},
-                {"measure_label": "Percentage", "measure": sc.percentage},
-                {"measure_label": "Missing?", "measure": sc.is_missing}
+                {"measure_label": "Percentage", "measure": f"{sc.percentage}%"},
+                # {"measure_label": "Missing", "measure": sc.is_missing}
             ],
             "calculated_at": sc.calculated_at
         }

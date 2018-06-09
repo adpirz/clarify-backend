@@ -7,9 +7,9 @@ Clarify is data for made easy for schools. The backend runs Django, see below fo
 - django-extensions
 - django-debug-toolbar
 
-You'll also need to ensure your environment is running **Python 3.6** or above. 
+You'll also need to ensure your environment is running **Python 3.6** or above.
 
-For macOS, you can use **[Homebrew](https://brew.sh)** to install Python 3. 
+For macOS, you can use **[Homebrew](https://brew.sh)** to install Python 3.
 
 ```
 $ brew install python3
@@ -45,7 +45,7 @@ To exit the environment, use `deactivate`, and with **virtualenvwrapper**, every
 $ workon clarify
 ```
 
-You'll also need to have PostgreSQL installed. For macOS, [see here](http://postgresapp.com/). 
+You'll also need to have PostgreSQL installed. For macOS, [see here](http://postgresapp.com/).
 
 For this build, Clarify needs two databases: the Django database and the mirror (cache) database.
 
@@ -102,11 +102,18 @@ The final step is to load the Django models by running the following command.
 $ ./manage.py pull_models_from_sis
 ```
 
-This step may take up to 30 minutes or more. 
+This step may take up to 30 minutes or more.
 
+Debugging this process can be tricky. Things should _just work_ but we've collected a few of the common problems below with some suggested solutions:
+
+```
+django.db.utils.IntegrityError: insert or update on table "sis_pull_scorecache" violates foreign key constraint "sis_pull_scorecache_assignment_id_b1fadf3e_fk_sis_pull_"
+DETAIL:  Key (assignment_id)=(58758) is not present in table "sis_pull_assignment".
+```
+ suggests that there are scorecache records that don't have a corresponding assignment. Since that's a foreign key, Django complains. Understandable. For some reason the SIS doesn't honor that FK constraint and allows such records to exist. You'll need to run `./manage.py pull_data scorecache --no-bulk` to get around this.
 ### Loading `clarify` database from dump file
 
-Alternatively, if you have a Django database dump file (`clarify_dump.pgsql`), you can run the same command from earlier to load the data directly into Django instead. 
+Alternatively, if you have a Django database dump file (`clarify_dump.pgsql`), you can run the same command from earlier to load the data directly into Django instead.
 
 ```
 $ psql clarify < clarify_dump.pgsql
@@ -129,13 +136,13 @@ Let's hold off on this for a minute.
 
 ## Deployment
 
-We're getting there. 
+We're getting there.
 
 ## Commit messages
 Commit messages should be written in the imperative, sentance form. This makes the git history a list of statements of work that are easy to scan. E.g. "Change the base font size to 14px" is preferable to "base font changes". Include as many details as possible while maintaining a 50 character limit. This allows commit messages to display in most editors. If you can't limit yourself to 50 characters, that's a good indication that your commit is doing too much. Consider breaking it up into a few different commits each responsible for their own pieces of functionality.
 
 
 ## Branches and Pull Requests
-Resist the urge to push directly to the `master` branch. For most organization members this functionality is disabled to encourage pull request-based review and development. PR's should be opened early and often during a workflow. Think of them as works in progress, even if there's only a skeleton initial commit. Tag or assign the PR to the relevent parties and use the description as a statement of intended work. That way the commits reflect the evolution of that work and tagged team members can validate or redirect as it progresses. 
+Resist the urge to push directly to the `master` branch. For most organization members this functionality is disabled to encourage pull request-based review and development. PR's should be opened early and often during a workflow. Think of them as works in progress, even if there's only a skeleton initial commit. Tag or assign the PR to the relevent parties and use the description as a statement of intended work. That way the commits reflect the evolution of that work and tagged team members can validate or redirect as it progresses.
 
 
