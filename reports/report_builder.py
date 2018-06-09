@@ -53,6 +53,7 @@ def query_to_data(request):
     else:
         raise ValueError(f"Unsupported query type: {report_query['type']}")
 
+
     report_data['query'] = report.query if report_id else query.urlencode()
 
     return report_data
