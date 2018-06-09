@@ -735,6 +735,6 @@ class UserTermRoleAffinity(SourceObjectMixin, models.Model):
     source_table = 'user_term_role_aff'
     source_id_field = 'utra_id'
     
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(Staff)
     role = models.ForeignKey(Role)
     term = models.ForeignKey(Term)
