@@ -29,7 +29,7 @@ from sis_pull.models import (
     Timeblock,
     CurrentRoster,
     Assignment,
-    ScoreCache as SC)
+    ScoreCache as SC, SessionType, Session, Role, Term, UserTermRoleAffinity)
 
 from sis_mirror.models import (
     Students,
@@ -50,7 +50,7 @@ from sis_mirror.models import (
     Timeblocks,
     SsCurrent,
     Assignments,
-    ScoreCache)
+    ScoreCache, SessionTypes, Sessions, Roles, Terms, UserTermRoleAff)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -97,7 +97,7 @@ def sis_to_django_model(sis_model, clarify_model, no_bulk=False):
     sis_fields = field_list_to_names(fields_list(sis_model,
                                                  remove_autos=False))
 
-    source_id_field = sis_model.source_id_field
+    source_id_field = clarify_model.source_id_field
 
     clarify_model_name = clarify_model.__name__
 
@@ -255,7 +255,12 @@ def main(**options):
         'categories': (Categories, Category),
         'csc': (CategoryScoreCache, CSC,),
         'assignments': (Assignments, Assignment,),
-        'scorecache': (ScoreCache, SC)
+        'scorecache': (ScoreCache, SC),
+        'sessiontypes': (SessionTypes, SessionType),
+        'sessions': (Sessions, Session),
+        'roles': (Roles, Role),
+        'terms': (Terms, Term),
+        'usta': (UserTermRoleAff, UserTermRoleAffinity)
     })
 
     model_dict_keys = model_dict.keys()

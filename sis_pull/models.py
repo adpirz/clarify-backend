@@ -718,8 +718,8 @@ class Role(SourceObjectMixin, models.Model):
 
 class Term(SourceObjectMixin, models.Model):
     
-    source_table = 'roles'
-    source_id_field = 'role_id'
+    source_table = 'terms'
+    source_id_field = 'term_id'
     
     term_name = models.CharField(max_length=20)
     start_date = models.DateField()
