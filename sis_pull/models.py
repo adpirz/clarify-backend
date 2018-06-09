@@ -379,7 +379,15 @@ class Staff(SourceObjectMixin, models.Model):
         return "{} {} {}".format(self.get_prefix_display(),
                                  self.user.first_name,
                                  self.user.last_name)
-
+    
+    def get_current_site_id(self):
+        now = timezone.now()
+        return (UserTermRoleAffinity.objects
+                .filter(term__start_date__lte=now, term__end_date__gte=now)
+                .filter(user_id=self.id)
+                .first()
+                .term.session.site_id)
+    
     class Meta:
         verbose_name = 'staff'
         verbose_name_plural = verbose_name
@@ -687,6 +695,9 @@ class SessionType(SourceObjectMixin, models.Model):
     sort_order = models.IntegerField(blank=True, null=True)
     system_state_id = models.IntegerField(blank=True, null=True)
     system_key_translation = models.CharField(max_length=100, blank=True, null=True)
+    
+    def __str__(self):
+        return self.code_translation
 
 
 class Session(SourceObjectMixin, models.Model):
@@ -697,6 +708,9 @@ class Session(SourceObjectMixin, models.Model):
     academic_year = models.IntegerField()
     site = models.ForeignKey(Site)
     session_type = models.ForeignKey(SessionType, blank=True, null=True)
+    
+    def __str__(self):
+        return f"{self.academic_year}: {self.site}: {self.session_type}"
 
 
 class Role(SourceObjectMixin, models.Model):
@@ -714,6 +728,9 @@ class Role(SourceObjectMixin, models.Model):
     system_key_sort = models.IntegerField(blank=True, null=True)
     can_refer_discipline = models.BooleanField()
     deleted_at = models.DateTimeField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.role_name
 
 
 class Term(SourceObjectMixin, models.Model):
@@ -728,6 +745,9 @@ class Term(SourceObjectMixin, models.Model):
     term_num = models.IntegerField()
     term_type = models.IntegerField()
     local_term_id = models.IntegerField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.term_name
 
 
 class UserTermRoleAffinity(SourceObjectMixin, models.Model):

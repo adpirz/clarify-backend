@@ -14,4 +14,4 @@ from .report_builder import query_to_data
 
 @login_required
 def ReportView(request):
-    return JsonResponse(query_to_data(request.GET))
+    return JsonResponse(query_to_data(request))
