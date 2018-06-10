@@ -57,6 +57,7 @@ def SectionView(request):
         return {
             'id': section.id,
             'section_name': section.section_name,
+            'tags': [str(section.get_timeblock()), str(section.get_course())]
         }
     # Decided somewhat arbitrarily to return all sections associated with a
     # staff member. We'll want to come up with more specific rules for that soon,

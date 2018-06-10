@@ -467,6 +467,15 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
             return gsca.course_id
         else:
             return None
+        
+    def get_course(self):
+        return Course.objects.get(pk=self.get_course_id())
+    
+    def get_timeblock(self):
+        return (SectionLevelRosterPerYear.objects
+                .order_by('-id')
+                .filter(section_id=self.id)
+                .first().timeblock)
 
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
@@ -669,6 +678,9 @@ class Timeblock(SourceObjectMixin, models.Model):
     occurrence_order = models.SmallIntegerField()
     is_primary = models.BooleanField()
     short_name = models.CharField(max_length=20, blank=True, null=True)
+    
+    def __str__(self):
+        return self.timeblock_name or self.short_name
 
 
 class SectionTimeblockAffinity(SourceObjectMixin, models.Model):
