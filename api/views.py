@@ -54,10 +54,14 @@ def StudentView(request):
 @login_required
 def SectionView(request):
     def _shape(section):
+        tags = [str(section.get_timeblock())]
+        course = section.get_course()
+        if course:
+            tags.append(str(course))
         return {
             'id': section.id,
             'section_name': section.section_name,
-            'tags': [str(section.get_timeblock()), str(section.get_course())]
+            'tags': tags
         }
     # Decided somewhat arbitrarily to return all sections associated with a
     # staff member. We'll want to come up with more specific rules for that soon,

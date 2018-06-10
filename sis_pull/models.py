@@ -461,7 +461,7 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
     def get_course_id(self):
         gsca = GradebookSectionCourseAffinity.objects.filter(
-            section_id=self.source_id).first()
+            section_id=self.id).first()
 
         if gsca:
             return gsca.course_id
@@ -469,10 +469,13 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
             return None
         
     def get_course(self):
-        return Course.objects.get(pk=self.get_course_id())
+        try:
+            return Course.objects.get(pk=self.get_course_id())
+        except Course.DoesNotExist:
+            return None
     
     def get_timeblock(self):
-        return (SectionLevelRosterPerYear.objects
+        return (SectionTimeblockAffinity.objects
                 .order_by('-id')
                 .filter(section_id=self.id)
                 .first().timeblock)
