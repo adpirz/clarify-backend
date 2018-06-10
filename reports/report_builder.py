@@ -41,7 +41,7 @@ def query_to_data(request):
         # check category, pass to proper function
     if not report_query:
         raise ValueError("Query or report id required")
-        
+
     report_query["staff"] = request.user.staff
 
     if report_query["type"] == "attendance":
@@ -134,7 +134,6 @@ def attendance_query_to_data(report_id=None, **query_params):
         "from_date": from_date,
         "to_date": to_date,
         "columns": AttendanceFlag.get_flag_columns(),  # can we cache somehow?
-        "exclude_columns": AttendanceFlag.get_exclude_columns(),
     }
 
     if is_single_day:
@@ -263,7 +262,11 @@ def grades_query_to_data(report_id=None, **query_params):
             "label": str(course),
             "measures": [
                 {"measure_label": "Mark", "measure": osc.mark},
-                {"measure_label": "Percentage", "measure": f"{osc.percentage}%"},
+                {
+                    "measure_label": "Percentage",
+                    "measure": f"{osc.percentage}%" if osc.percentage else None,
+                    "primary": True,
+                },
             ],
             "calculated_at": osc.calculated_at,
         }
@@ -287,10 +290,19 @@ def grades_query_to_data(report_id=None, **query_params):
             "depth": "category",
             "label": csc.category_name,
             "measures": [
-                {"measure_label": "Mark", "measure": csc.mark},
-                {"measure_label": "Percentage", "measure": f"{csc.percentage}%"},
-                {"measure_label": "Missing Assignments",
-                 "measure": csc.missing_count},
+                {
+                    "measure_label": "Mark",
+                    "measure": csc.mark
+                },
+                {
+                    "measure_label": "Percentage",
+                    "measure": f"{csc.percentage}%" if csc.percentage else None,
+                    "primary": True,
+                },
+                {
+                    "measure_label": "Missing Assignments",
+                    "measure": csc.missing_count
+                },
                 # {"measure_label": "Weight", "measure": csc.weight}
             ],
             "calculated_at": csc.calculated_at
@@ -312,8 +324,15 @@ def grades_query_to_data(report_id=None, **query_params):
             "depth": "assignment",
             "label": str(sc.assignment),
             "measures": [
-                {"measure_label": "Points", "measure": sc.points},
-                {"measure_label": "Percentage", "measure": f"{sc.percentage}%"},
+                {
+                    "measure_label": "Points",
+                    "measure": sc.points
+                },
+                {
+                    "measure_label": "Percentage",
+                    "measure": f"{sc.percentage}%" if sc.percentage else None,
+                    "primary": True,
+                },
                 # {"measure_label": "Missing", "measure": sc.is_missing}
             ],
             "calculated_at": sc.calculated_at
@@ -378,7 +397,7 @@ def grades_query_to_data(report_id=None, **query_params):
     }
 
     if report_id:
-        response["report_id"] = report_id
+        response["id"] = report_id
 
     return response
 
