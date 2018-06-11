@@ -27,6 +27,7 @@ Order of loading:
 from __future__ import unicode_literals
 
 from django.db import models
+from django.utils import timezone
 
 
 class Students(models.Model):
@@ -719,7 +720,7 @@ class ScoreCache(models.Model):
     @classmethod
     def pull_query(cls):
         return (cls.objects
-                .filter(calculated_at__gte='2018-02-01')
+                .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
                 .order_by('student_id', 'assignment_id', '-calculated_at')
                 .distinct('student_id', 'assignment_id')
                 .all())
