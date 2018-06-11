@@ -720,7 +720,6 @@ class ScoreCache(models.Model):
     def pull_query(cls):
         return (cls.objects
                 .filter(calculated_at__gte='2018-02-01')
-                .exclude(possible_points__isnull=True)
                 .order_by('student_id', 'assignment_id', '-calculated_at')
                 .distinct('student_id', 'assignment_id')
                 .all())
