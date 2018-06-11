@@ -642,7 +642,7 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     calculated_at = models.DateTimeField(blank=True, null=True)
     timeframe_start_date = models.DateField(blank=True, null=True)
     timeframe_end_date = models.DateField(blank=True, null=True)
-
+    
 
 class Assignment(SourceObjectMixin, models.Model):
     

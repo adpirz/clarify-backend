@@ -469,6 +469,10 @@ class DailyRecords(models.Model):
     site = models.ForeignKey(Sites, primary_key=True)
     date = models.DateField(primary_key=True)
 
+    @classmethod
+    def pull_query(cls):
+        return cls.objects.filter(date__gte='2017-08-01')
+
     class Meta:
         managed = False
         db_table = 'daily_records'
@@ -525,6 +529,13 @@ class OverallScoreCache(models.Model):
     timeframe_start_date = models.DateField()
     timeframe_end_date = models.DateField()
     calculated_at = models.DateTimeField()
+
+    @classmethod
+    def pull_query(cls):
+        return (cls.objects.filter(calculated_at__gte='2018-08-01')
+                .exclude(possible_points__isnull=True)
+                .order_by('gradebook_id', '-calculated_at')
+                .distinct('gradebook_id'))
 
     def __str__(self):
         return f"{self.student} grades for {self.gradebook}'"
@@ -856,6 +867,15 @@ class CategoryScoreCache(models.Model):
     class Meta:
         managed = False
         db_table = 'category_score_cache'
+
+    @classmethod
+    def pull_query(cls):
+        return (cls.objects
+                .filter(calculated_at__gte='2018-01-01')
+                .exclude(possible_points__isnull=True)
+                .order_by('category_id', '-calculated_at')
+                .distinct('category_id')
+                )
 
 
 class Standards(models.Model):
