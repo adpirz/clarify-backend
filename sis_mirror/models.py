@@ -873,8 +873,8 @@ class CategoryScoreCache(models.Model):
         return (cls.objects
                 .filter(calculated_at__gte='2018-01-01')
                 .exclude(possible_points__isnull=True)
-                .order_by('category_id', '-calculated_at')
-                .distinct('category_id')
+                .order_by('category_id', 'student_id', '-calculated_at')
+                .distinct('category_id', 'student_id')
                 )
 
 
