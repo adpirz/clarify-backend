@@ -38,21 +38,31 @@ def StudentView(request):
             'is_enrolled': student.is_enrolled()
         }
     user = request.user
-    request_teacher = Staff.objects.filter(user=user)
-    teacher_student_ids = (SectionLevelRosterPerYear.objects
-        .filter(user=request_teacher.first())
-        .filter(academic_year=get_academic_year())
-        .values_list('student_id')
-    )
-    teacher_students = Student.objects.filter(id__in=teacher_student_ids)
-
+    staff_level = user.staff.get_max_role_level()
+    if staff_level < 700:
+        request_teacher = Staff.objects.filter(user=user)
+        teacher_student_ids = (SectionLevelRosterPerYear.objects
+            .filter(user=request_teacher.first())
+            .filter(academic_year=get_academic_year())
+            .values_list('student_id')
+        )
+        staff_students = Student.objects.filter(id__in=teacher_student_ids)
+    else:
+        current_site_id = user.staff.get_current_site_id()
+        site_student_ids = (SectionLevelRosterPerYear.objects
+            .filter(site_id=current_site_id)
+            .filter(academic_year=get_academic_year())
+            .values_list('student_id')
+        )
+        staff_students = Student.objects.filter(id__in=site_student_ids)
     return JsonResponse({
-        'data': [_shape(s) for s in teacher_students]
+        'data': [_shape(s) for s in staff_students]
     })
 
 
 @login_required
 def SectionView(request):
+    # TODO
     def _shape(section):
         tags = [str(section.get_timeblock())]
         course = section.get_course()
@@ -68,22 +78,33 @@ def SectionView(request):
     # aka all sections at a staff member's site, that accounts for multi-site
     # staff, etc.
     user = request.user
-    request_teacher = Staff.objects.filter(user=user)
-    teacher_section_ids = (SectionLevelRosterPerYear.objects
-        .filter(user=request_teacher.first())
-        .filter(academic_year=get_academic_year())
-        .filter(section__section_name__isnull=False)
-        .exclude(section__section_name__exact="")
-        .values_list('section_id')
-    )
-    teacher_sections = Section.objects.filter(id__in=teacher_section_ids)
+    staff_level = user.staff.get_max_role_level()
+    if staff_level < 700:
+        request_teacher = Staff.objects.filter(user=user)
+        teacher_section_ids = (SectionLevelRosterPerYear.objects
+            .filter(user=request_teacher.first())
+            .filter(academic_year=get_academic_year())
+            .filter(section__section_name__isnull=False)
+            .exclude(section__section_name__exact="")
+            .values_list('section_id')
+        )
+        staff_sections = Section.objects.filter(id__in=teacher_section_ids)
+    else:
+        current_site_id = user.staff.get_current_site_id()
+        site_section_ids = (SectionLevelRosterPerYear.objects
+            .filter(site_id=current_site_id)
+            .filter(academic_year=get_academic_year())
+            .values_list('section_id')
+        )
+        staff_sections = Section.objects.filter(id__in=site_section_ids)
     return JsonResponse({
-        'data': [_shape(s) for s in teacher_sections]
+        'data': [_shape(s) for s in staff_sections]
     })
 
 
 @login_required
 def GradeLevelView(request):
+    # TODO
     def _shape(grade_level):
         return {
             'id': grade_level.id,
@@ -91,20 +112,35 @@ def GradeLevelView(request):
             'long_name': grade_level.long_name,
         }
     user = request.user
-    request_teacher = Staff.objects.filter(user=user)
-    teacher_grade_level_ids = (SectionLevelRosterPerYear.objects
-        .filter(user=request_teacher.first())
-        .filter(academic_year=get_academic_year())
-        .values_list('grade_level_id')
-    )
-    teacher_grade_levels = GradeLevel.objects.filter(id__in=teacher_grade_level_ids)
-
+    staff_level = user.staff.get_max_role_level()
+    if staff_level < 700:
+        request_teacher = Staff.objects.filter(user=user)
+        teacher_grade_level_ids = (SectionLevelRosterPerYear.objects
+            .filter(user=request_teacher.first())
+            .filter(academic_year=get_academic_year())
+            .values_list('grade_level_id')
+        )
+        staff_grade_levels = GradeLevel.objects.filter(
+            id__in=teacher_grade_level_ids
+        )
+    else:
+        current_site_id = user.staff.get_current_site_id()
+        site_grade_level_ids = (SectionLevelRosterPerYear.objects
+            .filter(site_id=current_site_id)
+            .filter(academic_year=get_academic_year())
+            .values_list('grade_level_id')
+        )
+        staff_grade_levels = GradeLevel.objects.filter(
+            id__in=site_grade_level_ids
+        )
     return JsonResponse({
-        'data': [_shape(g) for g in teacher_grade_levels]
+        'data': [_shape(g) for g in staff_grade_levels]
     })
+
 
 @login_required
 def CourseView(request):
+    # TODO
     def _shape(row):
         return {
             'id': row.course.id,
@@ -113,12 +149,19 @@ def CourseView(request):
         }
 
     user = request.user
-    request_teacher = Staff.objects.get(user=user)
-    grade_levels = GradeLevel.get_users_current_grade_levels(request_teacher)
+    request_staff = Staff.objects.get(user=user)
+    filter_kwargs = {}
+
+    if request_staff.get_max_role_level() < 700:
+        grade_levels = GradeLevel.get_users_current_grade_levels(request_staff)
+        filter_kwargs["grade_level_id__in"] = grade_levels
+        filter_kwargs["user"] = request_staff
+    else:
+        filter_kwargs["site_id"] = request_staff.get_current_site_id()
+
     return JsonResponse({
         'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
-                 .filter(user=request_teacher)\
-                 .filter(grade_level_id__in=grade_levels)
+                 .filter(**filter_kwargs)\
                  .distinct('course_id')
                  ]
     })

@@ -388,6 +388,26 @@ class Staff(SourceObjectMixin, models.Model):
                 .first()
                 .term.session.site_id)
     
+    def get_current_role_ids(self):
+        now = timezone.now()
+        return (UserTermRoleAffinity.objects
+                .filter(term__start_date__lte=now, term__end_date__gte=now)
+                .filter(user_id=self.id)
+                .values_list('role_id', flat=True)
+                )
+    
+    def get_max_role_level(self):
+        """ Above 700 is a site admin """
+        max_level = 0
+        role_ids = self.get_current_role_ids()
+        if len(role_ids) == 1:
+            return Role.objects.get(pk=role_ids[0]).role_level
+        for rid in role_ids:
+            level = Role.objects.get(pk=rid).role_level
+            max_level = level if level > max_level else max_level
+        
+        return max_level
+
     class Meta:
         verbose_name = 'staff'
         verbose_name_plural = verbose_name
