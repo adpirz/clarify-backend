@@ -390,8 +390,9 @@ class Staff(SourceObjectMixin, models.Model):
     
     def get_current_role_ids(self):
         now = timezone.now()
+        end = timezone.datetime(2018, 6, 1)
         return (UserTermRoleAffinity.objects
-                .filter(term__start_date__lte=now, term__end_date__gte=now)
+                .filter(term__start_date__lte=now, term__end_date__gte=end)
                 .filter(user_id=self.id)
                 .values_list('role_id', flat=True)
                 )
