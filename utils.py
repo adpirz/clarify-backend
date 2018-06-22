@@ -49,7 +49,10 @@ GRADE_TO_GPA_POINTS = {
     "C+": 2.33,
     "C": 2.0,
     "C-": 1.7,
+    "D+": 1.2,
     "D": 1.0,
+    "D-": 0,
     "F": 0,
-    "NCR": 1.0
+    "NCR": 1.0,
+    "Not College Ready": 1.0
 }

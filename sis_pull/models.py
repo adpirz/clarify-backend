@@ -166,9 +166,10 @@ class Student(SourceObjectMixin, models.Model):
     def get_current_active_section_ids(self):
         """Returns sections student is currently enrolled in"""
         now = timezone.now()
+        end = timezone.datetime(2018, 6, 1)
         return SectionLevelRosterPerYear.objects\
             .filter(student_id=self.id)\
-            .filter(entry_date__lte=now, leave_date__gte=now)\
+            .filter(entry_date__lte=now, leave_date__gte=end)\
             .distinct('section_id')\
             .values_list('section_id', flat=True)
 

@@ -165,9 +165,10 @@ def grades_query_to_data(report_id=None, **query_params):
     def _get_all_recent_course_grades_for_student_id(student_id):
         # Get all active sections for student
         now = timezone.now()
+        end = timezone.datetime(2016,6,1)
         active_section_ids = (SectionLevelRosterPerYear.objects
                            .filter(student_id=student_id)
-                           .filter(entry_date__lte=now, leave_date__gte=now)
+                           .filter(entry_date__lte=now, leave_date__gte=end)
                            .distinct('section_id')
                            .values_list('section_id', flat=True))
 
@@ -224,7 +225,7 @@ def grades_query_to_data(report_id=None, **query_params):
     def _calculate_gpa_from_grade_list(osc_list):
         if len(osc_list) == 0:
             return "NA"
-        gpas = [GRADE_TO_GPA_POINTS[osc.mark] for osc in osc_list]
+        gpas = [GRADE_TO_GPA_POINTS[osc.mark.strip()] for osc in osc_list]
         return round(sum(gpas) / len(gpas), 3)
 
     def _shape_group_gpas(osc_list):
