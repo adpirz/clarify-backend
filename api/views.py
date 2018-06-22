@@ -70,7 +70,7 @@ def SectionView(request):
             tags.append(str(course))
         return {
             'id': section.id,
-            'section_name': section.section_name,
+            'section_name': str(section),
             'tags': tags
         }
     # Decided somewhat arbitrarily to return all sections associated with a
