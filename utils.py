@@ -32,7 +32,7 @@ def camel_to_underscore(name):
 
 def get_academic_year(date=None):
     today = date or timezone.now().date()
-    return today.year if today.month < 7 else today.year + 1
+    return today.year if today.month < 8 else today.year + 1
 
 
 def SourceObjectForeignKey(fk_model, **kwargs):
