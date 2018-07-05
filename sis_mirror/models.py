@@ -533,10 +533,10 @@ class OverallScoreCache(models.Model):
 
     @classmethod
     def pull_query(cls):
-        return (cls.objects.filter(calculated_at__gte='2018-08-01')
+        return (cls.objects.filter(calculated_at__gte='2017-08-01')
                 .exclude(possible_points__isnull=True)
-                .order_by('gradebook_id', '-calculated_at')
-                .distinct('gradebook_id'))
+                .order_by('gradebook_id', 'student_id', '-calculated_at')
+                .distinct('gradebook_id', 'student_id'))
 
     def __str__(self):
         return f"{self.student} grades for {self.gradebook}'"
