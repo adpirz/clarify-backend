@@ -94,11 +94,7 @@ DATABASES = {
     'default': env.db('DATABASE_URL', default="postgres:///clarify"),
     'cache': {
         'NAME': 'clarifycache',
-        'USER': 'adpirz',
-        'PASSWORD': 'NDBhNTRiOWRjZGJiOTUwY2VmZTdhYWI3',
         'ENGINE': 'django.db.backends.postgresql',
-        'HOST': 'clarifycacheread.cn6x84yd45h7.us-east-1.rds.amazonaws.com',
-        'PORT': '5432'
     }
 
 }

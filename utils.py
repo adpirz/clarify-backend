@@ -32,7 +32,7 @@ def camel_to_underscore(name):
 
 def get_academic_year(date=None):
     today = date or timezone.now().date()
-    return today.year if today.month < 7 else today.year + 1
+    return today.year if today.month < 8 else today.year + 1
 
 
 def SourceObjectForeignKey(fk_model, **kwargs):
@@ -49,7 +49,10 @@ GRADE_TO_GPA_POINTS = {
     "C+": 2.33,
     "C": 2.0,
     "C-": 1.7,
+    "D+": 1.2,
     "D": 1.0,
+    "D-": 0,
     "F": 0,
-    "NCR": 1.0
+    "NCR": 1.0,
+    "Not College Ready": 1.0
 }

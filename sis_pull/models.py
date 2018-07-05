@@ -166,9 +166,10 @@ class Student(SourceObjectMixin, models.Model):
     def get_current_active_section_ids(self):
         """Returns sections student is currently enrolled in"""
         now = timezone.now()
+        end = timezone.datetime(2018, 6, 1)
         return SectionLevelRosterPerYear.objects\
             .filter(student_id=self.id)\
-            .filter(entry_date__lte=now, leave_date__gte=now)\
+            .filter(entry_date__lte=now, leave_date__gte=end)\
             .distinct('section_id')\
             .values_list('section_id', flat=True)
 
@@ -382,12 +383,34 @@ class Staff(SourceObjectMixin, models.Model):
     
     def get_current_site_id(self):
         now = timezone.now()
+        end = timezone.datetime(2018, 6, 1)
         return (UserTermRoleAffinity.objects
-                .filter(term__start_date__lte=now, term__end_date__gte=now)
+                .filter(term__start_date__lte=now, term__end_date__gte=end)
                 .filter(user_id=self.id)
                 .first()
                 .term.session.site_id)
     
+    def get_current_role_ids(self):
+        now = timezone.now()
+        end = timezone.datetime(2018, 6, 1)
+        return (UserTermRoleAffinity.objects
+                .filter(term__start_date__lte=now, term__end_date__gte=end)
+                .filter(user_id=self.id)
+                .values_list('role_id', flat=True)
+                )
+    
+    def get_max_role_level(self):
+        """ Above 700 is a site admin """
+        max_level = 0
+        role_ids = self.get_current_role_ids()
+        if len(role_ids) == 1:
+            return Role.objects.get(pk=role_ids[0]).role_level
+        for rid in role_ids:
+            level = Role.objects.get(pk=rid).role_level
+            max_level = level if level > max_level else max_level
+        
+        return max_level
+
     class Meta:
         verbose_name = 'staff'
         verbose_name_plural = verbose_name
@@ -461,12 +484,24 @@ class Section(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
 
     def get_course_id(self):
         gsca = GradebookSectionCourseAffinity.objects.filter(
-            section_id=self.source_id).first()
+            section_id=self.id).first()
 
         if gsca:
             return gsca.course_id
         else:
             return None
+        
+    def get_course(self):
+        try:
+            return Course.objects.get(pk=self.get_course_id())
+        except Course.DoesNotExist:
+            return None
+    
+    def get_timeblock(self):
+        return (SectionTimeblockAffinity.objects
+                .order_by('-id')
+                .filter(section_id=self.id)
+                .first().timeblock)
 
 
 class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
@@ -610,7 +645,7 @@ class CategoryScoreCache(SourceObjectMixin, models.Model):
     calculated_at = models.DateTimeField(blank=True, null=True)
     timeframe_start_date = models.DateField(blank=True, null=True)
     timeframe_end_date = models.DateField(blank=True, null=True)
-
+    
 
 class Assignment(SourceObjectMixin, models.Model):
     
@@ -669,6 +704,9 @@ class Timeblock(SourceObjectMixin, models.Model):
     occurrence_order = models.SmallIntegerField()
     is_primary = models.BooleanField()
     short_name = models.CharField(max_length=20, blank=True, null=True)
+    
+    def __str__(self):
+        return self.timeblock_name or self.short_name
 
 
 class SectionTimeblockAffinity(SourceObjectMixin, models.Model):

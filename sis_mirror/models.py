@@ -27,6 +27,7 @@ Order of loading:
 from __future__ import unicode_literals
 
 from django.db import models
+from django.utils import timezone
 
 
 class Students(models.Model):
@@ -469,6 +470,10 @@ class DailyRecords(models.Model):
     site = models.ForeignKey(Sites, primary_key=True)
     date = models.DateField(primary_key=True)
 
+    @classmethod
+    def pull_query(cls):
+        return cls.objects.filter(date__gte='2017-08-01')
+
     class Meta:
         managed = False
         db_table = 'daily_records'
@@ -525,6 +530,13 @@ class OverallScoreCache(models.Model):
     timeframe_start_date = models.DateField()
     timeframe_end_date = models.DateField()
     calculated_at = models.DateTimeField()
+
+    @classmethod
+    def pull_query(cls):
+        return (cls.objects.filter(calculated_at__gte='2018-08-01')
+                .exclude(possible_points__isnull=True)
+                .order_by('gradebook_id', '-calculated_at')
+                .distinct('gradebook_id'))
 
     def __str__(self):
         return f"{self.student} grades for {self.gradebook}'"
@@ -708,7 +720,7 @@ class ScoreCache(models.Model):
     @classmethod
     def pull_query(cls):
         return (cls.objects
-                .filter(calculated_at__gte='2017-08-01')
+                .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
                 .order_by('student_id', 'assignment_id', '-calculated_at')
                 .distinct('student_id', 'assignment_id')
                 .all())
@@ -856,6 +868,15 @@ class CategoryScoreCache(models.Model):
     class Meta:
         managed = False
         db_table = 'category_score_cache'
+
+    @classmethod
+    def pull_query(cls):
+        return (cls.objects
+                .filter(calculated_at__gte='2018-01-01')
+                .exclude(possible_points__isnull=True)
+                .order_by('category_id', 'student_id', '-calculated_at')
+                .distinct('category_id', 'student_id')
+                )
 
 
 class Standards(models.Model):
