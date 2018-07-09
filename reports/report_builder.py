@@ -242,7 +242,7 @@ def grades_query_to_data(report_id=None, **query_params):
             "id": _id,
             "depth": "student",
             "label": label,
-            "measures": [{"measure_label": "GPA", "measure": gpa}],
+            "measures": [{"measure_label": "GPA", "measure": gpa, "primary": True}],
             "calculated_at": calculated_at,
             "children": [_shape_student_grades(o) for o in osc_list]
         }
