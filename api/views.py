@@ -85,7 +85,7 @@ def SectionView(request):
             .filter(user=request_teacher.first())
             .filter(academic_year=get_academic_year())
             .filter(section__section_name__isnull=False)
-            .exclude(section__section_name__exact="")
+            # .exclude(section__section_name__exact="")
             .values_list('section_id')
         )
         staff_sections = Section.objects.filter(id__in=teacher_section_ids)
