@@ -25,10 +25,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'xc*okanrxohxi-s^yae6l=ve^-1no7ga$)r=-(8#c)#b8ro@+u'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-
 # Application definition
 
 DJANGO_APPS = [
