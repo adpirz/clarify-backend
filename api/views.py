@@ -155,7 +155,7 @@ def CourseView(request):
     if request_staff.get_max_role_level() < 700:
         grade_levels = GradeLevel.get_users_current_grade_levels(request_staff)
         filter_kwargs["grade_level_id__in"] = grade_levels
-        filter_kwargs["user"] = request_staff
+        filter_kwargs["staff"] = request_staff
     else:
         filter_kwargs["site_id"] = request_staff.get_current_site_id()
 
@@ -262,6 +262,7 @@ def ReportView(request, report_id=None):
         return JsonResponse({
             'error': 'Method not allowed.'
         }, status=405)
+
     def _shape(report):
         return {
             'id': report.id,
