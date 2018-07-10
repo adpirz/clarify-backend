@@ -42,7 +42,7 @@ def StudentView(request):
     if staff_level < 700:
         request_teacher = Staff.objects.filter(user=user)
         teacher_student_ids = (SectionLevelRosterPerYear.objects
-            .filter(user=request_teacher.first())
+            .filter(staff=request_teacher.first())
             .filter(academic_year=get_academic_year())
             .values_list('student_id')
         )
@@ -82,7 +82,7 @@ def SectionView(request):
     if staff_level < 700:
         request_teacher = Staff.objects.filter(user=user)
         teacher_section_ids = (SectionLevelRosterPerYear.objects
-            .filter(user=request_teacher.first())
+            .filter(staff=request_teacher.first())
             .filter(academic_year=get_academic_year())
             .filter(section__section_name__isnull=False)
             # .exclude(section__section_name__exact="")
@@ -116,7 +116,7 @@ def GradeLevelView(request):
     if staff_level < 700:
         request_teacher = Staff.objects.filter(user=user)
         teacher_grade_level_ids = (SectionLevelRosterPerYear.objects
-            .filter(user=request_teacher.first())
+            .filter(staff=request_teacher.first())
             .filter(academic_year=get_academic_year())
             .values_list('grade_level_id')
         )
@@ -178,7 +178,7 @@ def SiteView(request):
     user = request.user
     request_teacher = Staff.objects.filter(user=user)
     teacher_site_ids = (SectionLevelRosterPerYear.objects
-        .filter(user=request_teacher.first())
+        .filter(staff=request_teacher.first())
         .values_list('site_id')
     )
     teacher_sites = Site.objects.filter(id__in=teacher_site_ids)
