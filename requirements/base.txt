@@ -11,3 +11,9 @@ mimesis==2.0.1
 
 # progress bars for CLI
 tqdm==4.22.0
+
+# Django Extensions
+django-extensions==2.0.6
+
+# bpython for shell_plus
+bpython==0.17.1
