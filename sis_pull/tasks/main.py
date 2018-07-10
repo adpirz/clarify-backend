@@ -29,7 +29,7 @@ from sis_pull.models import (
     Timeblock,
     CurrentRoster,
     Assignment,
-    ScoreCache as SC, SessionType, Session, Role, Term, UserTermRoleAffinity)
+    ScoreCache as SC, SessionType, Session, Role, Term, StaffTermRoleAffinity)
 
 from sis_mirror.models import (
     Students,
@@ -84,12 +84,14 @@ def field_list_to_names(field_list):
             for i in field_list]
 
 
-def sis_to_django_model(sis_model, clarify_model, no_bulk=False):
+def sis_to_django_model(sis_model, clarify_model,
+                        field_map=None, no_bulk=False):
     """
     Pull SIS models into Django models
 
     :param sis_model: Base SIS Model Class
     :param clarify_model: Base Django Model Class
+    :param field_map: Dict; map of sis_field to clarify_model field
     :param no_bulk: Boolean; force any views or bulk inserts to do row by row
     :return: None
     """
@@ -132,12 +134,16 @@ def sis_to_django_model(sis_model, clarify_model, no_bulk=False):
         for field_name in out_fields:
             model_args[field_name] = row.__getattribute__(field_name)
 
+        # For field in mapped fields:
+        if field_map:
+            for sis_field, clarify_field in field_map.items():
+                model_args[clarify_field] = row.__getattribute__(sis_field)
+
         # For SIS tables with primary key (ie, non-view tables),
         # use the source_id_field to get source_object_id
         if source_id_field:
             model_args['id'] = row.\
                 __getattribute__(source_id_field)
-
         # Datetime cleanup with timezones
         for field in fields_list(clarify_model):
             if field.name in model_args and isinstance(field, DateTimeField):
@@ -234,6 +240,7 @@ def main(**options):
     # We make an ordered dict so that getting the
     # keys gives us a proper insertion order for
     # FK dependencies
+    user_staff_map = {'user_id': 'staff_id'}
 
     model_dict = OrderedDict({
         'attendance_flags': (AttendanceFlags, AttendanceFlag),
@@ -244,12 +251,12 @@ def main(**options):
         'ss_current': (SsCurrent, CurrentRoster),
         'courses': (Courses, Course),
         'sections': (Sections, Section),
-        'ss_cube': (SsCube, SectionLevelRosterPerYear),
+        'ss_cube': (SsCube, SectionLevelRosterPerYear, user_staff_map),
         'gradebooks': (Gradebooks, Gradebook),
         'timeblocks': (Timeblocks, Timeblock),
         'stba': (SectionTimeblockAff, SectionTimeblockAffinity),
         'gsca': (GradebookSectionCourseAff,
-                 GradebookSectionCourseAffinity),
+                 GradebookSectionCourseAffinity, user_staff_map),
         'overallscorecache': (OverallScoreCache, OSC),
         'daily_records': (DailyRecords, AttendanceDailyRecord),
         'categories': (Categories, Category),
@@ -260,7 +267,7 @@ def main(**options):
         'sessions': (Sessions, Session),
         'roles': (Roles, Role),
         'terms': (Terms, Term),
-        'usta': (UserTermRoleAff, UserTermRoleAffinity)
+        'usta': (UserTermRoleAff, StaffTermRoleAffinity, user_staff_map)
     })
 
     model_dict_keys = model_dict.keys()
