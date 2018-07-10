@@ -516,7 +516,7 @@ class SectionLevelRosterPerYear(SourceObjectMixin, models.Model):
     site = models.ForeignKey(Site)
     academic_year = models.PositiveIntegerField()
     grade_level = models.ForeignKey(GradeLevel)
-    user = models.ForeignKey(Staff)
+    staff = models.ForeignKey(Staff)
     section = models.ForeignKey(Section)
     course = models.ForeignKey(Course)
     student= models.ForeignKey(Student)
@@ -572,7 +572,7 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     gradebook = models.ForeignKey(Gradebook)
     section = models.ForeignKey(Section)
     course = models.ForeignKey(Course)
-    user = models.ForeignKey(Staff)
+    staff = models.ForeignKey(Staff)
     created = models.DateTimeField(null=True)
     modified = models.DateTimeField(null=True)
 
@@ -788,11 +788,11 @@ class Term(SourceObjectMixin, models.Model):
         return self.term_name
 
 
-class UserTermRoleAffinity(SourceObjectMixin, models.Model):
+class StaffTermRoleAffinity(SourceObjectMixin, models.Model):
     
     source_table = 'user_term_role_aff'
     source_id_field = 'utra_id'
     
-    user = models.ForeignKey(Staff)
+    staff = models.ForeignKey(Staff)
     role = models.ForeignKey(Role)
     term = models.ForeignKey(Term)
