@@ -12,7 +12,7 @@ from sis_pull.models import (
     Student, User, Site, GradeLevel, Section,
     AttendanceFlag, AttendanceDailyRecord, SectionLevelRosterPerYear,
     OverallScoreCache, GradebookSectionCourseAffinity, Course,
-    CategoryScoreCache, ScoreCache, Category)
+    CategoryScoreCache, ScoreCache, Category, Gradebook)
 from reports.models import Report
 from utils import get_academic_year, GRADE_TO_GPA_POINTS
 
@@ -61,7 +61,6 @@ def query_to_data(request):
 
 def get_student_ids_for_group_and_id(group, object_id, staff,
                                      return_set=True):
-
     """
     Takes an object of type Student, Section, grade_level, or Site, and returns
     the students associated with that object
@@ -72,7 +71,7 @@ def get_student_ids_for_group_and_id(group, object_id, staff,
 
     if group_is_model(group, "grade_level"):
         site_id = staff.get_current_site_id()
-        return GradeLevel.objects.get(pk=object_id)\
+        return GradeLevel.objects.get(pk=object_id) \
             .get_current_student_ids(site_id=site_id)
 
     model = get_object_from_group_and_id(group, object_id)
@@ -102,7 +101,7 @@ def attendance_query_to_data(report_id=None, **query_params):
 
         if from_date.year == to_date.year:
             from_string = from_date.strftime(DISPLAY_DATE_FORMAT).split(',')[0]
-            return f"{from_string} " +\
+            return f"{from_string} " + \
                    f"to {to_date.strftime(DISPLAY_DATE_FORMAT)}"
 
         return f"{from_date.strftime(DISPLAY_DATE_FORMAT)} to " + \
@@ -165,12 +164,12 @@ def grades_query_to_data(report_id=None, **query_params):
     def _get_all_recent_course_grades_for_student_id(student_id):
         # Get all active sections for student
         now = timezone.now()
-        end = timezone.datetime(2016,6,1)
+        end = timezone.datetime(2016, 6, 1)
         active_section_ids = (SectionLevelRosterPerYear.objects
-                           .filter(student_id=student_id)
-                           .filter(entry_date__lte=now, leave_date__gte=end)
-                           .distinct('section_id')
-                           .values_list('section_id', flat=True))
+                              .filter(student_id=student_id)
+                              .filter(entry_date__lte=now, leave_date__gte=end)
+                              .distinct('section_id')
+                              .values_list('section_id', flat=True))
 
         # Get all associated gradebooks
         gradebook_ids = (GradebookSectionCourseAffinity.objects
@@ -199,13 +198,22 @@ def grades_query_to_data(report_id=None, **query_params):
             gradebook_ids = [gradebook_id]
         else:
             gradebook_ids = (GradebookSectionCourseAffinity.objects
-                            .filter(course_id=course_id)
-                            .distinct('gradebook_id')
-                            .values_list('gradebook_id', flat=True))
+                             .filter(course_id=course_id)
+                             .distinct('gradebook_id')
+                             .values_list('gradebook_id', flat=True))
+
+        category_ids = []
+
+        for gid in gradebook_ids:
+            category_ids += (Gradebook.objects
+                .get(id=gid)
+                .category_set
+                .values_list('id', flat=True))
 
         return (CategoryScoreCache.objects
                 .filter(student_id=student_id)
                 .filter(gradebook_id__in=gradebook_ids)
+                .filter(category_id__in=category_ids)
                 .exclude(possible_points__isnull=True)
                 .order_by('category_id', '-calculated_at')
                 .distinct('category_id')
@@ -242,7 +250,8 @@ def grades_query_to_data(report_id=None, **query_params):
             "id": _id,
             "depth": "student",
             "label": label,
-            "measures": [{"measure_label": "GPA", "measure": gpa, "primary": True}],
+            "measures": [
+                {"measure_label": "GPA", "measure": gpa, "primary": True}],
             "calculated_at": calculated_at,
             "children": [_shape_student_grades(o) for o in osc_list]
         }
@@ -374,7 +383,8 @@ def grades_query_to_data(report_id=None, **query_params):
     # Constituent parts: Category grades
     elif course_id and not category_id:
         data = _get_most_recent_category_grades(group_id, course_id)
-        formatted_data = [_shape_category_grades(d, children=True) for d in data]
+        formatted_data = [_shape_category_grades(d, children=True) for d in
+                          data]
         course_name = Course.objects.get(pk=course_id).short_name
         title_string = f"{course_name} grades for {group_name} (latest)"
 
@@ -449,4 +459,3 @@ def get_object_from_group_and_id(group, object_id):
         return model_for_group.objects.get(pk=object_id)
 
     raise ValueError(f"Group {group} is not supported.")
-
