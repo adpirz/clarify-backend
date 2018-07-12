@@ -7,7 +7,6 @@ class Report(models.Model):
     staff = models.ForeignKey(Staff)
     title = models.CharField(max_length=100, null=True, blank=True)
     query = models.TextField(null=False)
-    source_report = models.ForeignKey("Report", null=True, blank=True)
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -37,3 +36,14 @@ class WorksheetMembership(models.Model):
 
     class Meta:
         unique_together = ('report', 'worksheet',)
+
+
+class ReportShare(models.Model):
+    parent = models.ForeignKey(Report, related_name="parent", null=True, blank=True)
+    child = models.ForeignKey(Report, related_name="child")
+    by = models.ForeignKey(Staff)
+    created_on = models.DateTimeField(default=timezone.now)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('parent', 'child',)
