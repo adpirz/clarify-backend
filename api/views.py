@@ -1,6 +1,7 @@
 from json import loads
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
+from django.db.models import Q
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
@@ -39,8 +40,10 @@ def StudentView(request):
             'last_name': student.last_name,
             'is_enrolled': student.is_enrolled()
         }
+
     user = request.user
     staff_level = user.staff.get_max_role_level()
+
     if staff_level < 700:
         request_teacher = Staff.objects.filter(user=user)
         teacher_student_ids = (SectionLevelRosterPerYear.objects
@@ -57,6 +60,7 @@ def StudentView(request):
             .values_list('student_id')
         )
         staff_students = Student.objects.filter(id__in=site_student_ids)
+
     return JsonResponse({
         'data': [_shape(s) for s in staff_students]
     })
@@ -200,11 +204,13 @@ def SessionView(request):
     if request.method == 'GET':
         if user.is_authenticated():
             return JsonResponse({
-                'id': user.id,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
+                'data': {
+                    'id': user.id,
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                }
             }, status=200)
         else:
             return JsonResponse(
@@ -214,11 +220,13 @@ def SessionView(request):
     elif request.method == 'POST':
         if user.is_authenticated():
             return JsonResponse({
-                'id': user.id,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
+                'data': {
+                    'id': user.id,
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                }
             }, status=200)
         else:
             parseable_post = request.body.decode('utf8').replace("'", '"')
@@ -229,11 +237,13 @@ def SessionView(request):
             if user:
                 login(request, user)
                 return JsonResponse({
-                    'id': user.id,
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
+                    'data': {
+                        'id': user.id,
+                        'username': user.username,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                        'email': user.email,
+                    }
                 }, status=201)
             else:
                 return JsonResponse(
@@ -277,12 +287,12 @@ def ReportView(request, report_id=None):
 
         report_children = ReportShare.objects.filter(parent=report)
         if len(report_children):
-            sharing_staff = report.source_report.staff
-            report_shape['shared_with'] = [str(r.staff) for r in report_children]
+            report_shape['shared_with'] = [str(r.by) for r in report_children]
 
         report_parent = ReportShare.objects.filter(child=report)
         if len(report_parent):
-            report_shape['shared_by']: str(report_parent.by)
+            report_shape['shared_by'] = str(report_parent.first().by)
+
         return report_shape
 
     requesting_staff = Staff.objects.get(user=request.user)
@@ -366,6 +376,8 @@ def ReportShareView(request):
                 'updated_on': report_share.parent.updated_on,
             }
 
+        return shape_object
+
     if request.method not in ['POST', 'GET']:
         return JsonResponse({
             'error': 'Method not allowed.'
@@ -377,8 +389,10 @@ def ReportShareView(request):
 
     if request.method == 'GET':
         requesting_staff_shares = (ReportShare.objects
-                                       .filter(parent__staff=requesting_staff)
-                                       .filter(child__staff=requesting_staff)
+                                       .filter(
+                                           Q(parent__staff=requesting_staff)
+                                           | Q(child__staff=requesting_staff)
+                                       )
                                    )
         return JsonResponse({
             'data': [_shape(r) for r in requesting_staff_shares]
@@ -387,7 +401,7 @@ def ReportShareView(request):
         parent_report_id = parsed_post.get('parent_report_id')
         child_report_id = parsed_post.get('child_report_id')
 
-        if not parent_report_id or not child_report_id:
+        if not child_report_id:
             return JsonResponse({
                 'error': 'Missing required parameters'
             }, status=400)
@@ -395,7 +409,7 @@ def ReportShareView(request):
         parent_report = Report.objects.filter(id=parent_report_id)
         child_report = Report.objects.filter(id=child_report_id)
 
-        if not len(parent_report) or not len(child_report):
+        if (parent_report_id and not len(parent_report)) or not len(child_report):
             return JsonResponse({
                 'error': 'Either parent or child report do not exist anymore'
             }, status=400)
