@@ -92,57 +92,24 @@ def attendance_query_to_data(report_id=None, **query_params):
     DATE_FORMAT = "%Y-%m-%d"
     DISPLAY_DATE_FORMAT = "%b %-d, %Y"  # YYYY-MM-DD
 
-    def get_time_string():
-        """For formatting in titles"""
-        if from_date and not to_date:
-            return f"{from_date.strftime(DISPLAY_DATE_FORMAT)} to now"
-        if is_single_day:
-            return f" On {from_date.strftime(DISPLAY_DATE_FORMAT)}"
-
-        if from_date.year == to_date.year:
-            from_string = from_date.strftime(DISPLAY_DATE_FORMAT).split(',')[0]
-            return f"{from_string} " + \
-                   f"to {to_date.strftime(DISPLAY_DATE_FORMAT)}"
-
-        return f"{from_date.strftime(DISPLAY_DATE_FORMAT)} to " + \
-               f"{to_date.strftime(DISPLAY_DATE_FORMAT)}"
-
     group = query_params["group"]
     group_id = query_params["group_id"]
-    from_date = query_params.get("from_date", None)
-    to_date = query_params.get("to_date", None)
     site_id = query_params.get("site_id", None)
-    is_single_day = from_date == to_date
-    from_date = datetime.strptime(from_date, DATE_FORMAT).date()
     staff = query_params.get("staff", None)
-
-    if not to_date:
-        to_date = timezone.now().date()
-    else:
-        to_date = datetime.strptime(to_date, DATE_FORMAT).date()
 
     student_ids = get_student_ids_for_group_and_id(group, group_id, staff)
 
-    time_string = get_time_string()
     group_name = get_object_from_group_and_id(group, group_id)
     data = {
         "title": f"Attendance: {group_name}",
-        "subheading": time_string,
         "group": group,
         "group_id": group_id,
-        "from_date": from_date,
-        "to_date": to_date,
         "columns": AttendanceFlag.get_flag_columns(),  # can we cache somehow?
     }
 
-    if is_single_day:
-        data["data"] = AttendanceDailyRecord.get_student_records_for_date(
-            student_ids, from_date
-        )
-    else:
-        data["data"] = AttendanceDailyRecord.get_summaries_for_students(
-            student_ids, from_date, to_date
-        )
+    data["data"] = AttendanceDailyRecord.get_summaries_for_students(
+        student_ids
+    )
 
     if report_id:
         data["id"] = report_id
