@@ -9,7 +9,7 @@ from sis_pull.models import (
     Student, Section, GradeLevel, Site, Staff,
     SectionLevelRosterPerYear
 )
-from reports.models import Report, Worksheet, WorksheetMembership, ReportShare
+from reports.models import Report, ReportShare
 from mimesis import Person
 from utils import get_academic_year
 # Create your views here.
@@ -20,11 +20,13 @@ def UserView(request):
     if request.method == 'GET':
         user = request.user
         return JsonResponse({
-            'id': user.id,
-            'username': user.username,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email,
+            'data': {
+                'id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+            }
         })
 
 
@@ -288,7 +290,7 @@ def ReportView(request, report_id=None):
     if request.method == 'GET':
         if report_id:
             requested_report = get_object_or_404(Report, pk=report_id)
-            return JsonResponse(_shape(requested_report), status=200)
+            return JsonResponse({'data': _shape(requested_report)}, status=200)
         else:
             requested_reports = Report.objects.filter(staff=requesting_staff)
             return JsonResponse(
@@ -406,83 +408,6 @@ def ReportShareView(request):
         return JsonResponse({
             'data': _shape(new_report_share),
         }, status=201)
-
-
-@login_required
-@csrf_exempt
-def WorksheetView(request):
-    if request.method not in ['GET']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status=405)
-
-    def _shape(worksheet):
-        return {
-            'id': worksheet.id,
-            'title': worksheet.title,
-            'reports': [
-                {
-                    'id': r.id,
-                } for r in worksheet.reports.all()
-            ],
-        }
-    requesting_staff = Staff.objects.get(user=request.user)
-    user_worksheets = Worksheet.objects.filter(staff=requesting_staff)
-    return JsonResponse({'data': [_shape(w) for w in user_worksheets]}, status=200)
-
-
-@login_required
-@csrf_exempt
-def WorksheetMembershipView(request):
-    def _shape(worksheet_membership):
-        return {
-            'report_id': worksheet_membership.report.id,
-            'worksheet_id': worksheet_membership.worksheet.id,
-            'created_on': worksheet_membership.created_on,
-            'updated_on': worksheet_membership.updated_on,
-        }
-    if request.method not in ['POST']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status=405)
-    requesting_staff = Staff.objects.get(user=request.user)
-    parseable_post = request.body.decode('utf8').replace("'", '"')
-    parsed_post = loads(parseable_post)
-    report_id = parsed_post.get('report_id')
-    if not report_id:
-        return JsonResponse({
-            'error': 'Missing required parameters'
-        }, status=400)
-    report = get_object_or_404(Report, pk=report_id)
-
-    target_worksheet_id = parsed_post.get('target_worksheet')
-    target_worksheet = None
-    if target_worksheet_id:
-        target_worksheet = get_object_or_404(Worksheet, pk=target_worksheet_id)
-    else:
-        # If the client didn't specify a worksheet, try to grab the user's default
-        target_worksheet = Worksheet.objects.filter(staff=requesting_staff).first()
-        if not target_worksheet:
-            # The user doesn't have a worksheet yet! That means it's their first
-            # time saving a report. So let's create a worksheet for them to save
-            target_worksheet = Worksheet(
-                staff=requesting_staff,
-                title="{}'s first worksheet".format(requesting_staff)
-            )
-            target_worksheet.save()
-    if WorksheetMembership.objects.filter(report=report, worksheet=target_worksheet).exists():
-        return JsonResponse({
-            'error': 'Worksheet membership already exists'
-        }, status=400)
-
-    new_worksheet_membership = WorksheetMembership(
-        report=report,
-        worksheet=target_worksheet
-    )
-    new_worksheet_membership.save()
-    return JsonResponse({
-        'data': _shape(new_worksheet_membership),
-    }, status=201)
 
 
 @login_required
