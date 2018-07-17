@@ -1,6 +1,7 @@
 from json import loads
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
+from django.db.models import Q
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
@@ -9,7 +10,7 @@ from sis_pull.models import (
     Student, Section, GradeLevel, Site, Staff,
     SectionLevelRosterPerYear
 )
-from reports.models import Report, Worksheet, WorksheetMembership
+from reports.models import Report, ReportShare
 from mimesis import Person
 from utils import get_academic_year
 # Create your views here.
@@ -20,11 +21,13 @@ def UserView(request):
     if request.method == 'GET':
         user = request.user
         return JsonResponse({
-            'id': user.id,
-            'username': user.username,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email,
+            'data': {
+                'id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+            }
         })
 
 
@@ -37,8 +40,10 @@ def StudentView(request):
             'last_name': student.last_name,
             'is_enrolled': student.is_enrolled()
         }
+
     user = request.user
     staff_level = user.staff.get_max_role_level()
+
     if staff_level < 700:
         request_teacher = Staff.objects.filter(user=user)
         teacher_student_ids = (SectionLevelRosterPerYear.objects
@@ -55,6 +60,7 @@ def StudentView(request):
             .values_list('student_id')
         )
         staff_students = Student.objects.filter(id__in=site_student_ids)
+
     return JsonResponse({
         'data': [_shape(s) for s in staff_students]
     })
@@ -198,11 +204,13 @@ def SessionView(request):
     if request.method == 'GET':
         if user.is_authenticated():
             return JsonResponse({
-                'id': user.id,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
+                'data': {
+                    'id': user.id,
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                }
             }, status=200)
         else:
             return JsonResponse(
@@ -212,11 +220,13 @@ def SessionView(request):
     elif request.method == 'POST':
         if user.is_authenticated():
             return JsonResponse({
-                'id': user.id,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
+                'data': {
+                    'id': user.id,
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                }
             }, status=200)
         else:
             parseable_post = request.body.decode('utf8').replace("'", '"')
@@ -227,11 +237,13 @@ def SessionView(request):
             if user:
                 login(request, user)
                 return JsonResponse({
-                    'id': user.id,
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
+                    'data': {
+                        'id': user.id,
+                        'username': user.username,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                        'email': user.email,
+                    }
                 }, status=201)
             else:
                 return JsonResponse(
@@ -264,47 +276,75 @@ def ReportView(request, report_id=None):
         }, status=405)
 
     def _shape(report):
-        return {
+        report_shape = {
             'id': report.id,
             'staff': report.staff.id,
             'title': report.title,
             'query': report.query,
             'created_on': report.created_on,
             'updated_on': report.updated_on,
-            'source_report': report.source_report,
         }
+
+        report_children = ReportShare.objects.filter(parent=report)
+        if len(report_children):
+            report_shape['shared_with'] = [str(r.shared_by) for r in report_children]
+
+        report_parent = ReportShare.objects.filter(child=report)
+        if len(report_parent):
+            report_shape['shared_by'] = str(report_parent.first().shared_by)
+
+        return report_shape
+
     requesting_staff = Staff.objects.get(user=request.user)
+
     if request.method == 'GET':
         if report_id:
             requested_report = get_object_or_404(Report, pk=report_id)
-            return JsonResponse(_shape(requested_report), status=200)
+            return JsonResponse({'data': _shape(requested_report)}, status=200)
         else:
             requested_reports = Report.objects.filter(staff=requesting_staff)
             return JsonResponse(
-                {'data': [_shape(requested_reports) for r in requested_reports]}
+                {'data': [_shape(r) for r in requested_reports]}
             )
+
 
     if request.method == 'POST':
         parseable_post = request.body.decode('utf8').replace("'", '"')
         parsed_post = loads(parseable_post)
-        if parsed_post.get('report_id'):
-            reportForUpdate = Report.objects.get(id=parsed_post.get('report_id'))
-            reportForUpdate.title = parsed_post.get('title')
-            reportForUpdate.query = parsed_post.get('query')
-            reportForUpdate.save()
-            return JsonResponse({'data': 'success'}, status=200)
-        else:
-            if Report.objects.filter(staff=requesting_staff, query=parsed_post.get('query')).exists():
-                return JsonResponse({
-                    'error': 'Report already exists.'
-                }, status=400)
-            new_report = Report(
-                staff=requesting_staff,
-                title=parsed_post.get('title'),
-                query=parsed_post.get('query')
-            )
-            new_report.save()
-            return JsonResponse({'data': _shape(new_report)}, status=201)
+
+        query = parsed_post.get('query')
+        title = parsed_post.get('title')
+        staff_id_for_report = parsed_post.get('staff_id_for_report', requesting_staff.id)
+        if not query:
+            return JsonResponse({
+                'error': 'Missing required parameters'
+            }, status=400)
+
+        staff_for_report = Staff.objects.filter(id=staff_id_for_report)
+
+        if not len(staff_for_report):
+            return JsonResponse({
+                'error': 'That staff member does not exist'
+            }, status=400)
+
+        existing_report = Report.objects.filter(query=query, staff=staff_for_report)
+        if existing_report.exists():
+            return JsonResponse(
+                       {'data': _shape(existing_report.first())},
+                       status=200,
+                   )
+
+        new_report = Report(
+            staff=staff_for_report.first(),
+            title=title,
+            query=query,
+        )
+        new_report.save()
+
+        return JsonResponse(
+                   {'data': _shape(new_report)},
+                   status=201,
+               )
     if request.method == 'DELETE':
         if not report_id:
             return JsonResponse({'error': 'report_id is required'}, status=400)
@@ -315,76 +355,99 @@ def ReportView(request, report_id=None):
 
 @login_required
 @csrf_exempt
-def WorksheetView(request):
+def ReportShareView(request):
+    def _shape(report_share):
+        shape_object = {
+            'child_report': {
+                'id': report_share.child.id,
+                'staff': report_share.child.staff.id,
+                'created_on': report_share.child.created_on,
+                'updated_on': report_share.child.updated_on,
+            },
+            'shared_by': str(report_share.shared_by),
+            'created_on': report_share.created_on,
+            'updated_on': report_share.updated_on,
+        }
+
+        if report_share.parent:
+            shape_object['parent_report'] = {
+                'id': report_share.parent.id,
+                'created_on': report_share.parent.created_on,
+                'updated_on': report_share.parent.updated_on,
+            }
+
+        return shape_object
+
+    if request.method not in ['POST', 'GET']:
+        return JsonResponse({
+            'error': 'Method not allowed.'
+        }, status=405)
+
+    requesting_staff = Staff.objects.get(user=request.user)
+    parseable_post = request.body.decode('utf8').replace("'", '"')
+    parsed_post = loads(parseable_post)
+
+    if request.method == 'GET':
+        requesting_staff_shares = (ReportShare.objects
+                                       .filter(
+                                           Q(parent__staff=requesting_staff)
+                                           | Q(child__staff=requesting_staff)
+                                       )
+                                   )
+        return JsonResponse({
+            'data': [_shape(r) for r in requesting_staff_shares]
+        }, status=405)
+    elif request.method == 'POST':
+        parent_report_id = parsed_post.get('parent_report_id')
+        child_report_id = parsed_post.get('child_report_id')
+
+        if not child_report_id:
+            return JsonResponse({
+                'error': 'Missing required parameters'
+            }, status=400)
+
+        parent_report = Report.objects.filter(id=parent_report_id)
+        child_report = Report.objects.filter(id=child_report_id)
+
+        if (parent_report_id and not len(parent_report)) or not len(child_report):
+            return JsonResponse({
+                'error': 'Either parent or child report do not exist anymore'
+            }, status=400)
+
+        new_report_share = ReportShare(
+                              parent=parent_report.first(),
+                              child=child_report.first(),
+                              shared_by=requesting_staff)
+        new_report_share.save()
+        return JsonResponse({
+            'data': _shape(new_report_share),
+        }, status=201)
+
+
+@login_required
+@csrf_exempt
+def StaffView(request):
+    def _shape(staff):
+        return {
+            'id': staff.id,
+            'first_name': staff.user.first_name,
+            'last_name': staff.user.last_name,
+        }
+
     if request.method not in ['GET']:
         return JsonResponse({
             'error': 'Method not allowed.'
         }, status=405)
 
-    def _shape(worksheet):
-        return {
-            'id': worksheet.id,
-            'title': worksheet.title,
-            'reports': [
-                {
-                    'id': r.id,
-                } for r in worksheet.reports.all()
-            ],
-        }
-    requesting_staff = Staff.objects.get(user=request.user)
-    user_worksheets = Worksheet.objects.filter(staff=requesting_staff)
-    return JsonResponse({'data': [_shape(w) for w in user_worksheets]}, status=200)
+    requesting_staff = request.user.staff
+    requesting_user_site = (SectionLevelRosterPerYear.objects.filter(staff=requesting_staff)
+                           .order_by('-id').first().site)
+    staff_for_roster_records = (SectionLevelRosterPerYear.objects
+                    .filter(site=requesting_user_site)
+                    .exclude(staff=requesting_staff)
+                    .values_list('staff__id', flat=True))
+    staff_records = Staff.objects.filter(id__in=staff_for_roster_records)
 
-
-@login_required
-@csrf_exempt
-def WorksheetMembershipView(request):
-    def _shape(worksheet_membership):
-        return {
-            'report_id': worksheet_membership.report.id,
-            'worksheet_id': worksheet_membership.worksheet.id,
-            'created_on': worksheet_membership.created_on,
-            'updated_on': worksheet_membership.updated_on,
-        }
-    if request.method not in ['POST']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status=405)
-    requesting_staff = Staff.objects.get(user=request.user)
-    parseable_post = request.body.decode('utf8').replace("'", '"')
-    parsed_post = loads(parseable_post)
-    report_id = parsed_post.get('report_id')
-    if not report_id:
-        return JsonResponse({
-            'error': 'Missing required parameters'
-        }, status=400)
-    report = get_object_or_404(Report, pk=report_id)
-
-    target_worksheet_id = parsed_post.get('target_worksheet')
-    target_worksheet = None
-    if target_worksheet_id:
-        target_worksheet = get_object_or_404(Worksheet, pk=target_worksheet_id)
-    else:
-        # If the client didn't specify a worksheet, try to grab the user's default
-        target_worksheet = Worksheet.objects.filter(staff=requesting_staff).first()
-        if not target_worksheet:
-            # The user doesn't have a worksheet yet! That means it's their first
-            # time saving a report. So let's create a worksheet for them to save
-            target_worksheet = Worksheet(
-                staff=requesting_staff,
-                title="{}'s first worksheet".format(requesting_staff)
-            )
-            target_worksheet.save()
-    if WorksheetMembership.objects.filter(report=report, worksheet=target_worksheet).exists():
-        return JsonResponse({
-            'error': 'Worksheet membership already exists'
-        }, status=400)
-
-    new_worksheet_membership = WorksheetMembership(
-        report=report,
-        worksheet=target_worksheet
-    )
-    new_worksheet_membership.save()
     return JsonResponse({
-        'data': _shape(new_worksheet_membership),
-    }, status=201)
+        'data': [_shape(staff) for staff in staff_records],
+    }, status=200)

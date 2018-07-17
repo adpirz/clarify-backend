@@ -137,7 +137,6 @@ def grades_query_to_data(report_id=None, **query_params):
                               .filter(entry_date__lte=now, leave_date__gte=end)
                               .distinct('section_id')
                               .values_list('section_id', flat=True))
-
         # Get all associated gradebooks
         gradebook_ids = (GradebookSectionCourseAffinity.objects
                          .filter(section_id__in=active_section_ids)
@@ -188,7 +187,6 @@ def grades_query_to_data(report_id=None, **query_params):
                 )
 
     def _get_most_recent_assignment_grades(student_id, category_id):
-
         return (ScoreCache.objects
                 .filter(student_id=student_id, category_id=category_id)
                 .filter(assignment__is_active=True)

@@ -7,8 +7,8 @@ from django.conf.urls import include, url
 from django.contrib import admin
 from .views import (
     StudentView, SectionView, GradeLevelView,
-    SiteView, SessionView, UserView, ReportView,
-    WorksheetView, WorksheetMembershipView, CourseView)
+    SiteView, SessionView, UserView, ReportView, CourseView,
+    StaffView, ReportShareView)
 
 urlpatterns = [
     url(r'^user/me/', UserView),
@@ -20,6 +20,6 @@ urlpatterns = [
     url(r'^session/', SessionView),
     url(r'^report/(?P<report_id>\w+)', ReportView),
     url(r'^report/', ReportView),
-    url(r'^worksheet/', WorksheetView),
-    url(r'^worksheet-membership/', WorksheetMembershipView),
+    url(r'^report-share/', ReportShareView),
+    url(r'^staff/', StaffView),
 ]
