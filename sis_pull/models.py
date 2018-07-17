@@ -239,26 +239,15 @@ class AttendanceDailyRecord(SourceObjectMixin, models.Model):
 
 
     @classmethod
-    def get_records_for_student(cls, student_id,
-                                from_date=None, to_date=None):
+    def get_records_for_student(cls, student_id):
         """
-        Get all relevant AttendanceDailyRecord instances for
-        params.
+        Get all relevant AttendanceDailyRecord instances
         :return: QuerySet<AttendanceDailyRecord>
         """
-        if to_date and not from_date:
-            raise LookupError("Must have a from_date with a to_date")
-        all_objects = cls.objects.filter(student_id=student_id)
-
-        if from_date and to_date:
-            return all_objects.filter(date__gte=from_date, date__lte=to_date)
-        if from_date:
-            return all_objects.filter(date__gte=from_date)
-        return all_objects
+        return cls.objects.filter(student_id=student_id)
 
     @classmethod
-    def get_records_for_students(cls, student_ids,
-                                 from_date=None, to_date=None):
+    def get_records_for_students(cls, student_ids):
         """
         Get all relevant AttendanceDailyRecords instances for a
         list of student_ids.
@@ -267,9 +256,7 @@ class AttendanceDailyRecord(SourceObjectMixin, models.Model):
         attendance_records_by_student = []
         for student_id in student_ids:
             student_records = dict({"student_id": student_id})
-            student_records["records"] = cls.get_records_for_student(
-                student_id, from_date=from_date, to_date=to_date
-            )
+            student_records["records"] = cls.get_records_for_student(student_id)
             attendance_records_by_student.append(student_records)
 
         return attendance_records_by_student
@@ -314,20 +301,18 @@ class AttendanceDailyRecord(SourceObjectMixin, models.Model):
 
 
     @classmethod
-    def get_summaries_for_student(cls, student_id, from_date, to_date):
+    def get_summaries_for_student(cls, student_id):
         """
-        Returns a summary dict for a student with given date params.
+        Returns a summary dict for a student
         """
         return \
             cls.calculate_summaries_for_student_records(
-                cls.get_records_for_student(student_id,
-                                            from_date=from_date,
-                                            to_date=to_date),
+                cls.get_records_for_student(student_id),
                 student_id
             )
 
     @classmethod
-    def get_summaries_for_students(cls, student_ids, from_date, to_date):
+    def get_summaries_for_students(cls, student_ids):
         """
         :return: List[{
             student_id: int, <flag_id>: (<val>, <percentage>)
@@ -335,24 +320,9 @@ class AttendanceDailyRecord(SourceObjectMixin, models.Model):
         """
         summaries = []
         for student_id in student_ids:
-            summaries.append(cls.get_summaries_for_student(
-                student_id, from_date=from_date, to_date=to_date
-            ))
+            summaries.append(cls.get_summaries_for_student(student_id))
 
         return summaries
-
-    @classmethod
-    def get_student_record_for_date(cls, student_id, date):
-        """Get an individual date record for one student"""
-
-        return cls.objects.get(student_id=student_id, date=date)
-
-    @classmethod
-    def get_student_records_for_date(cls, student_ids, date):
-        """Get an individual date record for list of students"""
-
-        return [cls.get_student_record_for_date(i, date)
-                for i in student_ids]
 
 
 class Staff(SourceObjectMixin, models.Model):
