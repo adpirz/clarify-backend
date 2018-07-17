@@ -13,7 +13,7 @@ class ReportAdmin(admin.ModelAdmin):
 
     def shared_by(self, instance):
         reportParentShare = ReportShare.objects.filter(child=instance)
-        return str(reportParentShare.first().by) if reportParentShare.first() else ''
+        return str(reportParentShare.first().shared_by) if reportParentShare.first() else ''
 
 @admin.register(ReportShare)
 class ReportShareAdmin(admin.ModelAdmin):

@@ -287,11 +287,11 @@ def ReportView(request, report_id=None):
 
         report_children = ReportShare.objects.filter(parent=report)
         if len(report_children):
-            report_shape['shared_with'] = [str(r.by) for r in report_children]
+            report_shape['shared_with'] = [str(r.shared_by) for r in report_children]
 
         report_parent = ReportShare.objects.filter(child=report)
         if len(report_parent):
-            report_shape['shared_by'] = str(report_parent.first().by)
+            report_shape['shared_by'] = str(report_parent.first().shared_by)
 
         return report_shape
 
@@ -364,7 +364,7 @@ def ReportShareView(request):
                 'created_on': report_share.child.created_on,
                 'updated_on': report_share.child.updated_on,
             },
-            'by': str(report_share.by),
+            'shared_by': str(report_share.shared_by),
             'created_on': report_share.created_on,
             'updated_on': report_share.updated_on,
         }
@@ -417,7 +417,7 @@ def ReportShareView(request):
         new_report_share = ReportShare(
                               parent=parent_report.first(),
                               child=child_report.first(),
-                              by=requesting_staff)
+                              shared_by=requesting_staff)
         new_report_share.save()
         return JsonResponse({
             'data': _shape(new_report_share),

@@ -20,7 +20,7 @@ class Report(models.Model):
 class ReportShare(models.Model):
     parent = models.ForeignKey(Report, related_name="parent", null=True, blank=True)
     child = models.ForeignKey(Report, related_name="child")
-    by = models.ForeignKey(Staff)
+    shared_by = models.ForeignKey(Staff)
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
 
