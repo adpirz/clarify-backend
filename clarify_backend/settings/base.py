@@ -38,7 +38,8 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'corsheaders',
-    'django_extensions'
+    'django_extensions',
+    'social_django'
 ]
 
 CLARIFY_APPS = [
