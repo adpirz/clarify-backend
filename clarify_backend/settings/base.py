@@ -119,3 +119,6 @@ STATIC_URL = '/static/'
 
 # Silence an FK warning from sis_mirror which is a necessary field
 SILENCED_SYSTEM_CHECKS = ['fields.W342']
+
+# Google auth
+GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', None)

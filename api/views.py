@@ -1,4 +1,8 @@
 from json import loads
+
+from google.oauth2 import id_token
+from google.auth.transport import requests
+
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q
@@ -6,6 +10,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from sis_pull.models import (
     Student, Section, GradeLevel, Site, Staff,
     SectionLevelRosterPerYear
@@ -13,6 +18,8 @@ from sis_pull.models import (
 from reports.models import Report, ReportShare
 from mimesis import Person
 from utils import get_academic_year
+
+
 # Create your views here.
 
 
@@ -231,9 +238,32 @@ def SessionView(request):
         else:
             parseable_post = request.body.decode('utf8').replace("'", '"')
             parsed_post = loads(parseable_post)
-            request_username = parsed_post.get('username')
+            request_username = parsed_post.get('username', '')
             request_password = parsed_post.get('password', '')
-            user = authenticate(username=request_username, password=request_password)
+            request_is_google = parsed_post.get('is_google', False)
+            request_google_token = parsed_post.get('google_token', '')
+            if request_is_google:
+                try:
+                    idinfo = id_token.verify_oauth2_token(
+                        request_google_token,
+                        requests.Request(),
+                        settings.GOOGLE_CLIENT_ID
+                    )
+                except ValueError:
+                    return JsonResponse(
+                        {'error': 'Google authentication failed'},
+                        status=400)
+                email = idinfo["email"]
+                try:
+                    user = User.objects.get(email=email)
+                except (User.DoesNotExist, User.MultipleObjectsReturned) as e:
+                    return JsonResponse(
+                        {'error': e},
+                        status=400
+                    )
+            else:
+                user = authenticate(username=request_username,
+                                    password=request_password)
             if user:
                 login(request, user)
                 return JsonResponse({
