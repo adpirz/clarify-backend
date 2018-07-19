@@ -17,3 +17,7 @@ django-extensions==2.0.6
 
 # bpython for shell_plus
 bpython==0.17.1
+
+# Google API Python client
+google-api-python-client==1.7.4
+

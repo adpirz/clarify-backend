@@ -40,3 +40,6 @@ pg_dumps/
 
 _cache_inspect.py
 _testing/
+
+# Environment variables
+.env

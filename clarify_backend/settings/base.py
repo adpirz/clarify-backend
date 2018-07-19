@@ -15,6 +15,7 @@ import os
 import environ
 
 env = environ.Env()
+environ.Env.read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -38,7 +39,8 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'corsheaders',
-    'django_extensions'
+    'django_extensions',
+    'social_django'
 ]
 
 CLARIFY_APPS = [
@@ -119,3 +121,6 @@ STATIC_URL = '/static/'
 
 # Silence an FK warning from sis_mirror which is a necessary field
 SILENCED_SYSTEM_CHECKS = ['fields.W342']
+
+# Google auth
+GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', None)
