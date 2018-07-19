@@ -317,11 +317,20 @@ def ReportView(request, report_id=None):
 
         report_children = ReportShare.objects.filter(parent=report)
         if len(report_children):
-            report_shape['shared_with'] = [str(r.shared_by) for r in report_children]
+            report_shape['shared_with'] = [
+                {
+                    'staff': str(r.shared_by),
+                    'note': r.note,
+                } for r in report_children
+            ]
 
         report_parent = ReportShare.objects.filter(child=report)
         if len(report_parent):
-            report_shape['shared_by'] = str(report_parent.first().shared_by)
+            report_share = report_parent.first()
+            report_shape['shared_by'] = {
+                'staff': str(report_share.shared_by),
+                'note': report_share.note,
+            }
 
         return report_shape
 
@@ -397,6 +406,7 @@ def ReportShareView(request):
             'shared_by': str(report_share.shared_by),
             'created_on': report_share.created_on,
             'updated_on': report_share.updated_on,
+            'note': report_share.note,
         }
 
         if report_share.parent:
@@ -430,6 +440,7 @@ def ReportShareView(request):
     elif request.method == 'POST':
         parent_report_id = parsed_post.get('parent_report_id')
         child_report_id = parsed_post.get('child_report_id')
+        note = parsed_post.get('note')
 
         if not child_report_id:
             return JsonResponse({
@@ -447,7 +458,8 @@ def ReportShareView(request):
         new_report_share = ReportShare(
                               parent=parent_report.first(),
                               child=child_report.first(),
-                              shared_by=requesting_staff)
+                              shared_by=requesting_staff,
+                              note=note)
         new_report_share.save()
         return JsonResponse({
             'data': _shape(new_report_share),
@@ -470,10 +482,10 @@ def StaffView(request):
         }, status=405)
 
     requesting_staff = request.user.staff
-    requesting_user_site = (SectionLevelRosterPerYear.objects.filter(staff=requesting_staff)
-                           .order_by('-id').first().site)
+    requesting_user_site_id = requesting_staff.get_current_site_id()
+
     staff_for_roster_records = (SectionLevelRosterPerYear.objects
-                    .filter(site=requesting_user_site)
+                    .filter(site=requesting_user_site_id)
                     .exclude(staff=requesting_staff)
                     .values_list('staff__id', flat=True))
     staff_records = Staff.objects.filter(id__in=staff_for_roster_records)
