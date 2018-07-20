@@ -100,21 +100,24 @@ def attendance_query_to_data(report_id=None, **query_params):
     student_ids = get_student_ids_for_group_and_id(group, group_id, staff)
 
     group_name = get_object_from_group_and_id(group, group_id)
-    data = {
+    response = {
         "title": f"Attendance: {group_name}",
         "group": group,
         "group_id": group_id,
         "columns": AttendanceFlag.get_flag_columns(),  # can we cache somehow?
     }
 
-    data["data"] = AttendanceDailyRecord.get_summaries_for_students(
+    response["data"] = AttendanceDailyRecord.get_summaries_for_students(
         student_ids
     )
 
     if report_id:
-        data["id"] = report_id
+        try:
+            response["id"] = int(report_id)
+        except:
+            pass
 
-    return data
+    return response
 
 
 def grades_query_to_data(report_id=None, **query_params):
@@ -373,8 +376,10 @@ def grades_query_to_data(report_id=None, **query_params):
     }
 
     if report_id:
-        response["id"] = report_id
-
+        try:
+            response["id"] = int(report_id)
+        except:
+            pass
     return response
 
 
