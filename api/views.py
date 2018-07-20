@@ -317,7 +317,7 @@ def ReportView(request, report_id=None):
         report_children = ReportShare.objects.filter(parent=report)
         if len(report_children):
             report_shape['shared_with'] = [{
-                'staff': str(r.shared_by),
+                'staff': str(r.child.staff),
                 'note': r.note,
             } for r in report_children]
 
