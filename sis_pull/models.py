@@ -347,7 +347,7 @@ class Staff(SourceObjectMixin, models.Model):
     gender = models.CharField(choices=GENDER_CHOICES, max_length=1, blank=True, null=True)
 
     def __str__(self):
-        return "{} {}".format(self.get_prefix_display(),
+        return "{} {}".format(self.user.first_name,
                                  self.user.last_name)
 
     def get_current_site_id(self):

@@ -100,21 +100,24 @@ def attendance_query_to_data(report_id=None, **query_params):
     student_ids = get_student_ids_for_group_and_id(group, group_id, staff)
 
     group_name = get_object_from_group_and_id(group, group_id)
-    data = {
+    response = {
         "title": f"Attendance: {group_name}",
         "group": group,
         "group_id": group_id,
         "columns": AttendanceFlag.get_flag_columns(),  # can we cache somehow?
     }
 
-    data["data"] = AttendanceDailyRecord.get_summaries_for_students(
+    response["data"] = AttendanceDailyRecord.get_summaries_for_students(
         student_ids
     )
 
     if report_id:
-        data["id"] = report_id
+        try:
+            response["id"] = int(report_id)
+        except:
+            pass
 
-    return data
+    return response
 
 
 def grades_query_to_data(report_id=None, **query_params):
@@ -333,7 +336,7 @@ def grades_query_to_data(report_id=None, **query_params):
                 for sid in student_ids]
         # filter out empty data sets
         formatted_data = [_shape_group_gpas(i) for i in data if len(i) > 0]
-        title_string = f"Academic grades for {group_name} (latest)"
+        title_string = f"Academic grades for {group_name}"
 
     # Individual student grades - all course grades
     # Params: group (student), group_id (student_id), type (grades)
@@ -341,7 +344,7 @@ def grades_query_to_data(report_id=None, **query_params):
     elif group == "student" and not (course_id or category_id):
         data = _get_all_recent_course_grades_for_student_id(group_id)
         formatted_data = [_shape_student_grades(i, children=True) for i in data]
-        title_string = f"Academic grades for {group_name} (latest)"
+        title_string = f"Academic grades for {group_name}"
 
     # Individual student grades - single course
     # Params: group (student), group_id (student_id), type (grades), course_id
@@ -351,7 +354,7 @@ def grades_query_to_data(report_id=None, **query_params):
         formatted_data = [_shape_category_grades(d, children=True) for d in
                           data]
         course_name = Course.objects.get(pk=course_id).short_name
-        title_string = f"{course_name} grades for {group_name} (latest)"
+        title_string = f"{course_name} grades for {group_name}"
 
     # Individual student grades - single course - single category
     # Params: group (student), group_id (student_id), type (grades),
@@ -373,8 +376,10 @@ def grades_query_to_data(report_id=None, **query_params):
     }
 
     if report_id:
-        response["id"] = report_id
-
+        try:
+            response["id"] = int(report_id)
+        except:
+            pass
     return response
 
 
