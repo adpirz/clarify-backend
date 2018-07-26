@@ -21,6 +21,7 @@ class ReportShare(models.Model):
     parent = models.ForeignKey(Report, related_name="parent", null=True, blank=True)
     child = models.ForeignKey(Report, related_name="child")
     shared_by = models.ForeignKey(Staff)
+    note = models.TextField(null=True, blank=True)
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
 

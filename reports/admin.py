@@ -8,7 +8,7 @@ from django.contrib import messages
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
     search_fields = ['query', 'staff__user__username', 'staff__user__last_name']
-    list_display = ('query', 'staff', 'created_on', 'shared_with', 'shared_by')
+    list_display = ('query', 'staff', 'shared_with', 'shared_by')
 
     def shared_with(self, instance):
         reportChildrenShares = ReportShare.objects.filter(parent=instance)
