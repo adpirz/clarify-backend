@@ -238,32 +238,25 @@ def SessionView(request):
         else:
             parseable_post = request.body.decode('utf8').replace("'", '"')
             parsed_post = loads(parseable_post)
-            request_username = parsed_post.get('username', '')
-            request_password = parsed_post.get('password', '')
-            request_is_google = parsed_post.get('is_google', False)
             request_google_token = parsed_post.get('google_token', '')
-            if request_is_google:
-                try:
-                    idinfo = id_token.verify_oauth2_token(
-                        request_google_token,
-                        requests.Request(),
-                        settings.GOOGLE_CLIENT_ID
-                    )
-                except ValueError:
-                    return JsonResponse(
-                        {'error': 'Google authentication failed'},
-                        status=400)
-                email = idinfo["email"]
-                try:
-                    user = User.objects.get(email=email)
-                except (User.DoesNotExist, User.MultipleObjectsReturned) as e:
-                    return JsonResponse(
-                        {'error': e},
-                        status=400
-                    )
-            else:
-                user = authenticate(username=request_username,
-                                    password=request_password)
+            try:
+                idinfo = id_token.verify_oauth2_token(
+                    request_google_token,
+                    requests.Request(),
+                    settings.GOOGLE_CLIENT_ID
+                )
+            except ValueError:
+                return JsonResponse(
+                    {'error': 'google-auth'},
+                    status=400)
+            email = idinfo["email"]
+            try:
+                user = User.objects.get(email=email)
+            except (User.DoesNotExist, User.MultipleObjectsReturned):
+                return JsonResponse(
+                    {'error': 'user-lookup'},
+                    status=400
+                )
             if user:
                 login(request, user)
                 return JsonResponse({
@@ -275,11 +268,6 @@ def SessionView(request):
                         'email': user.email,
                     }
                 }, status=201)
-            else:
-                return JsonResponse(
-                    {'error': 'Username and password were incorrect'},
-                    status=400
-                )
     elif request.method == 'DELETE':
         if not user.is_authenticated():
             return JsonResponse(
