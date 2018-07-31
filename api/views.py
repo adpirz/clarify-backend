@@ -45,7 +45,7 @@ def StudentView(request):
             'id': student.id,
             'first_name': student.first_name,
             'last_name': student.last_name,
-            'is_enrolled': student.is_enrolled(),
+            'is_enrolled': student.is_enrolled,
             'is_searchable': student.is_searchable,
         }
 
@@ -93,6 +93,11 @@ def StudentView(request):
     staff_students = (Student.objects.filter(id__in=site_student_ids)
                       .annotate(is_searchable=Case(
                         When(id__in=staff_student_ids, then=Value(True)),
+                        default=Value(False),
+                        output_field=BooleanField(),
+                      ))
+                      .annotate(is_enrolled=Case(
+                        When(currentroster__isnull=False, then=Value(True)),
                         default=Value(False),
                         output_field=BooleanField(),
                       )))
