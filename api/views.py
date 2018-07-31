@@ -5,7 +5,7 @@ from google.auth.transport import requests
 
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Case, When, Value, BooleanField
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
@@ -45,28 +45,57 @@ def StudentView(request):
             'id': student.id,
             'first_name': student.first_name,
             'last_name': student.last_name,
-            'is_enrolled': student.is_enrolled()
+            'is_enrolled': student.is_enrolled(),
+            'is_searchable': student.is_searchable,
         }
 
-    user = request.user
-    staff_level = user.staff.get_max_role_level()
+    try:
+        request_staff = request.user.staff
+    except:
+        return JsonResponse(
+            {'error': 'No staff for that user'},
+            status=401
+        )
+
+    staff_level = request_staff.get_max_role_level()
+    staff_site_id = request_staff.get_current_site_id()
+
+    if not staff_level:
+        return JsonResponse(
+            {'error': 'Could not determine staff level'},
+            status=400
+        )
+
+    if not staff_site_id:
+        return JsonResponse(
+            {'error': 'Could not determine site for that staff'},
+            status=400
+        )
+
+    site_student_ids = (SectionLevelRosterPerYear.objects
+        .filter(site_id=staff_site_id)
+        .filter(academic_year=get_academic_year())
+        .values_list('student_id')
+    )
 
     if staff_level < 700:
-        request_teacher = Staff.objects.filter(user=user)
-        teacher_student_ids = (SectionLevelRosterPerYear.objects
-            .filter(staff=request_teacher.first())
+        # Staff member isn't an admin. The client should only allow them to
+        # search for students that they teach. Indicate which students those are.
+        staff_student_ids = (SectionLevelRosterPerYear.objects
+            .filter(staff=request_staff)
             .filter(academic_year=get_academic_year())
             .values_list('student_id')
         )
-        staff_students = Student.objects.filter(id__in=teacher_student_ids)
     else:
-        current_site_id = user.staff.get_current_site_id()
-        site_student_ids = (SectionLevelRosterPerYear.objects
-            .filter(site_id=current_site_id)
-            .filter(academic_year=get_academic_year())
-            .values_list('student_id')
-        )
-        staff_students = Student.objects.filter(id__in=site_student_ids)
+        # Staff is an admin, which means they can see all students at their site
+        staff_student_ids = site_student_ids
+
+    staff_students = (Student.objects.filter(id__in=site_student_ids)
+                      .annotate(is_searchable=Case(
+                        When(id__in=staff_student_ids, then=Value(True)),
+                        default=Value(False),
+                        output_field=BooleanField(),
+                      )))
 
     return JsonResponse({
         'data': [_shape(s) for s in staff_students]

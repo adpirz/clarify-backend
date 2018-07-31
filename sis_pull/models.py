@@ -353,11 +353,14 @@ class Staff(SourceObjectMixin, models.Model):
     def get_current_site_id(self):
         now = timezone.now()
         end = timezone.datetime(2018, 6, 1)
-        return (StaffTermRoleAffinity.objects
-                .filter(term__start_date__lte=now, term__end_date__gte=end)
-                .filter(staff_id=self.id)
-                .first()
-                .term.session.site_id)
+        if StaffTermRoleAffinity.objects.filter(staff_id=self.id).exists():
+            return (StaffTermRoleAffinity.objects
+                    .filter(term__start_date__lte=now, term__end_date__gte=end)
+                    .filter(staff_id=self.id)
+                    .first()
+                    .term.session.site_id)
+        else:
+            return None
 
     def get_current_role_ids(self):
         now = timezone.now()
