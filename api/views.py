@@ -3,11 +3,11 @@ from json import loads
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, Case, When, Value, BooleanField
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
@@ -285,13 +285,19 @@ def SessionView(request):
                     status=400)
             email = idinfo["email"]
             try:
-                user = User.objects.get(email=email)
+                # In Illuminate, no email objects stored
+                user = User.objects.get(username=email)
             except (User.DoesNotExist, User.MultipleObjectsReturned):
                 return JsonResponse(
                     {'error': 'user-lookup'},
                     status=400
                 )
             if user:
+                if not user.is_active:
+                    return JsonResponse({
+                        'error': 'user-inactive'
+                    }, status=400)
+
                 login(request, user)
                 return JsonResponse({
                     'data': {

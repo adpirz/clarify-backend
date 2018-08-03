@@ -40,7 +40,10 @@ class Command(BaseCommand):
         if options['clean']:
             self.stdout.write('Deleting current models before updating...')
         start = time.time()
+
+        # CENTRAL METHOD
         models_run = main(**options)
+
         end = time.time()
 
         if 'users' in models_run:
