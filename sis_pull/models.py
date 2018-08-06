@@ -1,4 +1,3 @@
-
 from django.apps import apps
 from django.utils import timezone
 from django.db import models
@@ -107,6 +106,7 @@ class Site(GetCurrentStudentsMixin, SourceObjectMixin, models.Model):
     city = models.CharField(max_length=255, null=True)
     state = models.CharField(max_length=100, null=True)
     zip = models.CharField(max_length=10, null=True)
+    has_students = models.NullBooleanField()
 
     def __str__(self):
         return self.site_name
@@ -374,38 +374,34 @@ class Staff(SourceObjectMixin, models.Model):
         return "{} {}".format(self.user.first_name,
                                  self.user.last_name)
 
-    def get_current_site_id(self):
-        now = timezone.now()
-        end = timezone.datetime(2018, 6, 1)
-        if StaffTermRoleAffinity.objects.filter(staff_id=self.id).exists():
-            return (StaffTermRoleAffinity.objects
-                    .filter(term__start_date__lte=now, term__end_date__gte=end)
-                    .filter(staff_id=self.id)
-                    .first()
-                    .term.session.site_id)
-        else:
-            return None
-
-    def get_current_role_ids(self):
-        now = timezone.now()
-        end = timezone.datetime(2018, 6, 1)
+    def get_most_recent_stafftermroleaffinity_rows(self):
+        """
+        Returns most recent StaffTermRoleAffinity row;
+        If not current,
+        """
         return (StaffTermRoleAffinity.objects
-                .filter(term__start_date__lte=now, term__end_date__gte=end)
                 .filter(staff_id=self.id)
-                .values_list('role_id', flat=True)
+                .filter(term__start_date__lte=timezone.now())
+                .filter(term__session__site__has_students=True)
+                .order_by('-term__end_date', '-role__role_level')
                 )
+
+    def get_most_recent_site_ids(self):
+        stra = self.get_most_recent_stafftermroleaffinity_rows()
+        if stra:
+            return stra.term.session.site_id
+        return None
 
     def get_max_role_level(self):
         """ Above 700 is a site admin """
-        max_level = 0
-        role_ids = self.get_current_role_ids()
-        if len(role_ids) == 1:
-            return Role.objects.get(pk=role_ids[0]).role_level
-        for rid in role_ids:
-            level = Role.objects.get(pk=rid).role_level
-            max_level = level if level > max_level else max_level
+        stras = self.get_most_recent_stafftermroleaffinity_rows()
 
-        return max_level
+        max_role_level = 0
+        for stra in stras:
+            if stra.role.role_level > max_role_level:
+                max_role_level = stra.role.role_level
+
+        return max_role_level
 
     class Meta:
         verbose_name = 'staff'

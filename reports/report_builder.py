@@ -70,7 +70,7 @@ def get_student_ids_for_group_and_id(group, object_id, staff,
         return [object_id]
 
     if group_is_model(group, "grade_level"):
-        site_id = staff.get_current_site_id()
+        site_id = staff.get_most_recent_site_ids()
         return GradeLevel.objects.get(pk=object_id) \
             .get_current_student_ids(site_id=site_id)
 

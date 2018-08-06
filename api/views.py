@@ -13,14 +13,11 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from sis_pull.models import (
     Student, Section, GradeLevel, Site, Staff,
-    SectionLevelRosterPerYear
-)
+    SectionLevelRosterPerYear,
+    StaffTermRoleAffinity)
 from reports.models import Report, ReportShare
 from mimesis import Person
 from utils import get_academic_year
-
-
-# Create your views here.
 
 
 @login_required
@@ -58,7 +55,7 @@ def StudentView(request):
         )
 
     staff_level = request_staff.get_max_role_level()
-    staff_site_id = request_staff.get_current_site_id()
+    staff_site_id = request_staff.get_most_recent_site_ids()
 
     if not staff_level:
         return JsonResponse(
@@ -137,7 +134,7 @@ def SectionView(request):
         )
         staff_sections = Section.objects.filter(id__in=teacher_section_ids)
     else:
-        current_site_id = user.staff.get_current_site_id()
+        current_site_id = user.staff.get_most_recent_site_ids()
         site_section_ids = (SectionLevelRosterPerYear.objects
             .filter(site_id=current_site_id)
             .filter(academic_year=get_academic_year())
@@ -171,7 +168,7 @@ def GradeLevelView(request):
             id__in=teacher_grade_level_ids
         )
     else:
-        current_site_id = user.staff.get_current_site_id()
+        current_site_id = user.staff.get_most_recent_site_ids()
         site_grade_level_ids = (SectionLevelRosterPerYear.objects
             .filter(site_id=current_site_id)
             .filter(academic_year=get_academic_year())
@@ -204,7 +201,7 @@ def CourseView(request):
         filter_kwargs["grade_level_id__in"] = grade_levels
         filter_kwargs["staff"] = request_staff
     else:
-        filter_kwargs["site_id"] = request_staff.get_current_site_id()
+        filter_kwargs["site_id"] = request_staff.get_most_recent_site_ids()
 
     return JsonResponse({
         'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
@@ -504,13 +501,23 @@ def StaffView(request):
         }, status=405)
 
     requesting_staff = request.user.staff
-    requesting_user_site_id = requesting_staff.get_current_site_id()
+    requesting_user_site_id = requesting_staff.get_most_recent_site_ids()
 
-    staff_for_roster_records = (SectionLevelRosterPerYear.objects
-                    .filter(site=requesting_user_site_id)
-                    .exclude(staff=requesting_staff)
-                    .values_list('staff__id', flat=True))
-    staff_records = Staff.objects.filter(id__in=staff_for_roster_records)
+    # most recent active term for a user
+    term = (StaffTermRoleAffinity.objects
+            .filter(term__session__site_id=requesting_user_site_id)
+            .filter(term__session__site__has_students=True)
+            .order_by('-term__end_date')
+            .first().term_id)
+
+    # get all staff for current term
+    staff_for_term_and_site = (StaffTermRoleAffinity.objects
+                               .filter(term=term)
+                               .exclude(staff=requesting_staff)
+                               .distinct('staff_id')
+                               .values_list('staff_id', flat=True))
+
+    staff_records = Staff.objects.filter(id__in=staff_for_term_and_site)
 
     return JsonResponse({
         'data': [_shape(staff) for staff in staff_records],
