@@ -1,3 +1,4 @@
+from django.utils import timezone
 from json import loads
 
 from google.oauth2 import id_token
@@ -55,7 +56,7 @@ def StudentView(request):
         )
 
     staff_level = request_staff.get_max_role_level()
-    staff_site_id = request_staff.get_most_recent_site_ids()
+    staff_site_id = request_staff.get_most_recent_primary_site_id()
 
     if not staff_level:
         return JsonResponse(
@@ -134,7 +135,7 @@ def SectionView(request):
         )
         staff_sections = Section.objects.filter(id__in=teacher_section_ids)
     else:
-        current_site_id = user.staff.get_most_recent_site_ids()
+        current_site_id = user.staff.get_most_recent_primary_site_id()
         site_section_ids = (SectionLevelRosterPerYear.objects
             .filter(site_id=current_site_id)
             .filter(academic_year=get_academic_year())
@@ -168,7 +169,7 @@ def GradeLevelView(request):
             id__in=teacher_grade_level_ids
         )
     else:
-        current_site_id = user.staff.get_most_recent_site_ids()
+        current_site_id = user.staff.get_most_recent_primary_site_id()
         site_grade_level_ids = (SectionLevelRosterPerYear.objects
             .filter(site_id=current_site_id)
             .filter(academic_year=get_academic_year())
@@ -201,7 +202,7 @@ def CourseView(request):
         filter_kwargs["grade_level_id__in"] = grade_levels
         filter_kwargs["staff"] = request_staff
     else:
-        filter_kwargs["site_id"] = request_staff.get_most_recent_site_ids()
+        filter_kwargs["site_id"] = request_staff.get_most_recent_primary_site_id()
 
     return JsonResponse({
         'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
@@ -501,21 +502,25 @@ def StaffView(request):
         }, status=405)
 
     requesting_staff = request.user.staff
-    requesting_user_site_id = requesting_staff.get_most_recent_site_ids()
+    requesting_user_site_id = requesting_staff.get_most_recent_primary_site_id()
 
     # most recent active term for a user
     term = (StaffTermRoleAffinity.objects
             .filter(term__session__site_id=requesting_user_site_id)
-            .filter(term__session__site__has_students=True)
+            .filter(term__end_date__lte=timezone.now())
             .order_by('-term__end_date')
             .first().term_id)
 
-    # get all staff for current term
-    staff_for_term_and_site = (StaffTermRoleAffinity.objects
-                               .filter(term=term)
-                               .exclude(staff=requesting_staff)
-                               .distinct('staff_id')
-                               .values_list('staff_id', flat=True))
+    # get all staff for current term who are "teacher" or "principal" roles
+    staff_for_term_and_site = (
+        StaffTermRoleAffinity.objects
+        .filter(term=term)
+        .filter(role__system_key__in=["teacher", "principal"])
+        .exclude(staff=requesting_staff)
+        .exclude(staff__user__is_active=False)
+        .distinct('staff_id')
+        .values_list('staff_id', flat=True)
+    )
 
     staff_records = Staff.objects.filter(id__in=staff_for_term_and_site)
 

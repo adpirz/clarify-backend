@@ -386,11 +386,12 @@ class Staff(SourceObjectMixin, models.Model):
                 .order_by('-term__end_date', '-role__role_level')
                 )
 
-    def get_most_recent_site_ids(self):
+    def get_most_recent_primary_site_id(self):
         stra = self.get_most_recent_stafftermroleaffinity_rows()
-        if stra:
-            return stra.term.session.site_id
-        return None
+        return (stra
+                .order_by('-role__role_level')
+                .first()
+                .term.session.site_id)
 
     def get_max_role_level(self):
         """ Above 700 is a site admin """
