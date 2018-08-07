@@ -201,6 +201,9 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
     source_table = 'attendance_flag'
     source_id_field = 'attendance_flag_id'
 
+    PRESENT_FLAG_CODES = ['+', 'L', 'M', 'Y']
+    ABSENT_FLAG_CODES = ['A', 'E', 'U']
+
     character_code = models.CharField(max_length=30, blank=True)
     flag_text = models.CharField(max_length=255, blank=True, null=True)
 
@@ -216,6 +219,12 @@ class AttendanceFlag(SourceObjectMixin, models.Model):
     def get_exclude_columns(cls):
         return [f.id for f in cls.objects.all()
                  if f.character_code in ['I', '-', '_', 'D', 'N', 'X', 'A']]
+
+    @classmethod
+    def get_primary_attendance_flag_ids(cls):
+        return (cls.objects
+                .filter(character_code__in=cls.PRESENT_FLAG_CODES)
+                .values_list('id', flat=True))
 
 
 class AttendanceDailyRecord(SourceObjectMixin, models.Model):
@@ -262,40 +271,55 @@ class AttendanceDailyRecord(SourceObjectMixin, models.Model):
         return attendance_records_by_student
 
     @staticmethod
-    def calculate_summaries_for_student_records(student_records, student_id):
+    def calculate_summaries_for_student_records(single_student_adrs, student_id):
         """
         Returns a summary dict with a tuple (val, percentage) for each
         flag_id
-        :param QuerySet<AttendanceDailyRecord>
+        :param single_student_adrs: QuerySet<AttendanceDailyRecord>
         :return: {student_id: int, flag_id: (value, percentage) ... }
         """
+        DATE_FORMAT = "%Y-%m-%d"
 
-        flag_dict = {f: 0 for f in \
-                     AttendanceFlag.objects.values_list('id',
-                                                        flat=True)}
+        # Store in memory to prevent multiple lookups to AttendanceFlag table,
+        # Django may already optimize for this but I dunno
+        flag_ref = { f.id: f.flag_text for f in AttendanceFlag.objects.all()}
+        present_ids = AttendanceFlag.get_primary_attendance_flag_ids()
 
-        def _row_shape(flag_id, value, total):
-            percentage = 0 if value == 0 else value / total
-            return {'column_code': flag_id,
-                    'count': value,
-                    'percentage': percentage}
+        summary_dict = {
+            "student_id": student_id,
+            "present_percentage": 0,
+            "total_days": 0,
+            "present_days": 0,
+            "not_present_records": [],
+        }
 
-        summary_dict = {"attendance_data": [], "student_id": student_id}
+        total = 0
+        present = 0
+        start_date = None
+        end_date = None
 
-        for record in student_records:
+        for record in single_student_adrs:
             if record.student_id != summary_dict["student_id"]:
                 raise AttributeError("Student records must all be same student.")
-            flag_id = record.attendance_flag_id
-            if flag_id not in flag_dict:
-                flag_dict[flag_id] = 1
+            if record.attendance_flag_id in present_ids:
+                present += 1
             else:
-                flag_dict[flag_id] += 1
+                summary_dict["not_present_records"].append({
+                    "date": record.date.strftime(DATE_FORMAT),
+                    "code": flag_ref[record.attendance_flag_id]
+                })
+            if not start_date or record.date < start_date:
+                start_date = record.date
+            if not end_date or record.date > end_date:
+                end_date = record.date
 
-        for flag_id, value in flag_dict.items():
-            total = len(student_records)
-            summary_dict["attendance_data"].append(
-                _row_shape(flag_id, value, total)
-            )
+            total += 1
+
+        summary_dict["present_percentage"] = float(present/total)
+        summary_dict["total_days"] = total
+        summary_dict["present_days"] = present
+        summary_dict["start_date"] = start_date.strftime(DATE_FORMAT)
+        summary_dict["end_date"] = end_date.strftime(DATE_FORMAT)
 
         return summary_dict
 
