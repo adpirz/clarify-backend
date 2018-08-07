@@ -1,4 +1,5 @@
 import pytz
+import uuid
 from collections import OrderedDict
 
 from django.db import IntegrityError
@@ -175,6 +176,9 @@ def build_staff_from_sis_users():
     users = Users.objects.all()
     user_fields = ['username', 'first_name', 'last_name']
 
+    # KEY - sis_mirror field, VALUE - sis_pull field
+    user_mapped_fields = { "active": "is_active" }
+
     users_created = 0
     staff_created = 0
 
@@ -186,8 +190,11 @@ def build_staff_from_sis_users():
         model_args = {field: user.__getattribute__(field)
                       for field in user_fields}
 
+        for mirror_field, pull_field in user_mapped_fields.items():
+            model_args[pull_field] = user.__getattribute__(mirror_field)
+
         # create a password
-        model_args["password"] = make_password(model_args["username"])
+        model_args["password"] = make_password(uuid.uuid4().hex[:10])
         model, created = User.objects.get_or_create(**model_args)
 
         if created:
