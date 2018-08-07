@@ -374,7 +374,7 @@ class Staff(SourceObjectMixin, models.Model):
         return "{} {}".format(self.user.first_name,
                                  self.user.last_name)
 
-    def get_most_recent_stafftermroleaffinity_rows(self):
+    def get_most_recent_stafftermroleaffinity_row(self):
         """
         Returns most recent StaffTermRoleAffinity row;
         If not current,
@@ -382,27 +382,22 @@ class Staff(SourceObjectMixin, models.Model):
         return (StaffTermRoleAffinity.objects
                 .filter(staff_id=self.id)
                 .filter(term__start_date__lte=timezone.now())
+                .filter(term__session__academic_year__gte=get_academic_year())
                 .filter(term__session__site__has_students=True)
                 .order_by('-term__end_date', '-role__role_level')
+                .first()
                 )
 
     def get_most_recent_primary_site_id(self):
-        stra = self.get_most_recent_stafftermroleaffinity_rows()
-        return (stra
-                .first()
-                .term.session.site_id)
+        stra = self.get_most_recent_stafftermroleaffinity_row()
+        if not stra:
+            return None
+
+        return stra.term.session.site_id
 
     def get_max_role_level(self):
         """ Above 700 is a site admin """
-        stras = self.get_most_recent_stafftermroleaffinity_rows()
-        most_recent_term_stras = stras.filter(term=stras.first().term)
-
-        max_role_level = 0
-        for stra in most_recent_term_stras:
-            if stra.role.role_level > max_role_level:
-                max_role_level = stra.role.role_level
-
-        return max_role_level
+        return self.get_most_recent_stafftermroleaffinity_row().role.role_level
 
     class Meta:
         verbose_name = 'staff'
