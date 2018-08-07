@@ -397,6 +397,10 @@ class Staff(SourceObjectMixin, models.Model):
 
     def get_max_role_level(self):
         """ Above 700 is a site admin """
+        stra = self.get_most_recent_stafftermroleaffinity_row()
+        if not stra:
+            return 0
+
         return self.get_most_recent_stafftermroleaffinity_row().role.role_level
 
     class Meta:
