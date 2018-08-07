@@ -507,23 +507,29 @@ def StaffView(request):
     # most recent active term for a user
     term = (StaffTermRoleAffinity.objects
             .filter(term__session__site_id=requesting_user_site_id)
-            .filter(term__end_date__lte=timezone.now())
-            .order_by('-term__end_date')
-            .first().term_id)
+            .filter(term__start_date__lte=timezone.now())
+            .order_by('-term__end_date', '-role__role_level')
+            .first()
+            )
 
-    # get all staff for current term who are "teacher" or "principal" roles
-    staff_for_term_and_site = (
-        StaffTermRoleAffinity.objects
-        .filter(term=term)
-        .filter(role__system_key__in=["teacher", "principal"])
-        .exclude(staff=requesting_staff)
-        .exclude(staff__user__is_active=False)
-        .distinct('staff_id')
-        .values_list('staff_id', flat=True)
-    )
+    if term:
+        # get all staff for current term who are "teacher" or "principal" roles
+        staff_for_term_and_site = (
+            StaffTermRoleAffinity.objects
+            .filter(term=term.term_id)
+            # Filter for teacher, site admin, learning coach
+            .filter(role_id__in=(4, 5, 8))
+            .exclude(staff=requesting_staff)
+            .exclude(staff__user__is_active=False)
+            .distinct('staff_id')
+            .values_list('staff_id', flat=True)
+        )
 
-    staff_records = Staff.objects.filter(id__in=staff_for_term_and_site)
+        staff_records = Staff.objects.filter(id__in=staff_for_term_and_site)
+        data = [_shape(staff) for staff in staff_records]
+    else:
+        data = []
 
     return JsonResponse({
-        'data': [_shape(staff) for staff in staff_records],
+        'data': data,
     }, status=200)
