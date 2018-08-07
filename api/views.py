@@ -296,7 +296,7 @@ def SessionView(request):
                 if not user.is_active:
                     return JsonResponse({
                         'error': 'user-inactive'
-                    }, status=400)
+                    }, status=403)
 
                 login(request, user)
                 return JsonResponse({
