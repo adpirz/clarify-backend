@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
 
 from django.core.management.base import BaseCommand
-from django.db.models import Max, Min
+from django.db.models import Max, Min, Q, Sum
 
+from experiment.models import StudentWeekCategoryScore
 from sis_mirror.models import Categories, Scores, GradingPeriods, \
     SectionTeacherAff, SectionGradingPeriodAff, GradebookSectionCourseAff, \
-    SectionStudentAff
+    SectionStudentAff, Assignments
 
 DATE_FORMAT = '%Y-%m-%d'
 
@@ -33,8 +34,8 @@ class Command(BaseCommand):
 
         # ...get all grading periods within a timeframe...
         grading_periods = GradingPeriods.objects.filter(
-            grading_period_start_date__lte=start_date,
-            grading_period_end_date__gte=end_date
+            grading_period_start_date__gte=start_date,
+            grading_period_end_date__lte=end_date
         ).values_list('grading_period_id', flat=True)
 
         # for each gradebook associated within a grading period...
@@ -59,30 +60,81 @@ class Command(BaseCommand):
         # ...build out end dates for each week from grading_periods...
         week_dates = self.get_end_dates_from_grading_period_ids(grading_periods)
 
-        # ...for each week, calculate scores, and put into table
         for week_end_date in week_dates:
             students = SectionStudentAff.objects.filter(
-                section_id__in=sections_in_grading_period
-
+                section_id__in=sections_in_grading_period,
+                entry_date__lte=week_end_date,
+            ).filter(
+                Q(leave_date__gte=week_end_date) | Q(leave_date__isnull=True)
             )
-
-
-
+            # import pdb; pdb.set_trace()
+            for student in students:
+                print(self.calculate_student_scores_for_week(
+                    student.student_id, gbs_from_sections, week_end_date
+                ))
 
     @staticmethod
     def calculate_student_scores_for_week(student_id,
+        # ...for each week, calculate scores, and put into table
                                           gradebook_id,
                                           week_end_date):
-        pass
+
         # Get all associated categories for gradebook
-        categories = Categories.objects.filter(gradebook_id=gradebook_id)
+        categories = Categories.objects.filter(gradebook_id=gradebook_id).all()
 
         # Get all assignments from grading period start up until end of week
-        category_assignment_scores = Scores.objects.filter(
-
+        assignment_scores = Scores.objects.filter(
+            created__lte=week_end_date,
+            student_id=student_id,
+            gradebook_id=gradebook_id
         )
 
-        # Calculate
+        # Calculate category scores
+        def _calculate_category_score(category_id):
+            """Returns ( total, possible )"""
+            possible_points = 0
+            total_points = 0
+            category_scores = assignment_scores.filter(
+                category_id=category_id
+            ).all()
+
+            for score in category_scores:
+                total_points += score.value
+                possible_points += score.assignment.possible_points
+
+            return total_points, possible_points
+
+        def _get_missing_count_for_category(category_id):
+            assignments_turned_in = assignment_scores.values_list(
+                'assignment_id', flat=True
+            )
+
+            assignments_due = Assignments.objects.filter(
+                category_id=category_id,
+                due_date__lte=week_end_date
+            ).distinct('assignment_id').values_list('assignment_id', flat=True)
+
+            return len([i for i in assignments_due
+                        if i not in assignments_turned_in])
+
+        def _calculate_total_gradebook_score():
+            score_dict = {}
+            for category in categories:
+                score_dict[category.id] = _calculate_category_score(category.id)
+
+            total = 0
+            possible_points = 0
+            total_weights = categories.aggregate(Sum('weight'))["weight__sum"]
+
+            for cat_id, score_tuple in score_dict.items():
+                weight = Categories.objects.get(pk=cat_id).weight / total_weights
+                total += score_tuple[0] * weight
+                possible_points += score_tuple[1] * weight
+
+            return total, possible_points
+
+        return _calculate_total_gradebook_score()
+
 
     @staticmethod
     def get_end_dates_from_grading_period_ids(grading_period_ids):

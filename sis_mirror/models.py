@@ -682,16 +682,16 @@ class AssignmentGscaAff(models.Model):
 class Scores(models.Model):
     score_id = models.IntegerField(primary_key=True)
     field_ssa_id = models.IntegerField(db_column='_ssa_id', blank=True, null=True)  # Field renamed because it started with '_'.
-    assignment_id = models.IntegerField()
+    assignment = models.ForeignKey(Assignments)
     value = models.FloatField(blank=True, null=True)
-    gradebook_id = models.IntegerField()
+    gradebook = models.ForeignKey(Gradebooks)
     is_excused = models.BooleanField()
     notes = models.TextField(blank=True, null=True)
     entry = models.CharField(max_length=255, blank=True, null=True)
     is_valid = models.BooleanField()
     created = models.DateTimeField(blank=True, null=True)
     modified = models.DateTimeField(blank=True, null=True)
-    student_id = models.IntegerField()
+    student = models.ForeignKey(Students)
 
     class Meta:
         managed = False
