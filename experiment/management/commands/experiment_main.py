@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from django.core.management.base import BaseCommand
 from django.db.models import Max, Min, Q, Sum
+from tqdm import tqdm
 
 from experiment.models import StudentWeekCategoryScore
 from sis_mirror.models import Categories, Scores, GradingPeriods, \
@@ -21,21 +22,15 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        start_date_string = options.get('start_date', '2017-09-01')
-        end_date_string = options.get('end_date', '2017-12-01')
-
-        start_date, end_date = map(
-            lambda d: datetime.strptime(d, DATE_FORMAT),
-            (start_date_string, end_date_string)
-        )
+        between_date = options.get('start_date', '2017-09-01')
 
         # get a user_id
         user_id = int(options["user_id"])
 
         # ...get all grading periods within a timeframe...
         grading_periods = GradingPeriods.objects.filter(
-            grading_period_start_date__gte=start_date,
-            grading_period_end_date__lte=end_date
+            grading_period_start_date__lte=between_date,
+            grading_period_end_date__gte=between_date
         ).values_list('grading_period_id', flat=True)
 
         # for each gradebook associated within a grading period...
@@ -60,15 +55,14 @@ class Command(BaseCommand):
         # ...build out end dates for each week from grading_periods...
         week_dates = self.get_end_dates_from_grading_period_ids(grading_periods)
 
-        for week_end_date in week_dates:
+        for week_end_date in tqdm(week_dates, desc="Week Dates"):
             students = SectionStudentAff.objects.filter(
                 section_id__in=sections_in_grading_period,
                 entry_date__lte=week_end_date,
             ).filter(
                 Q(leave_date__gte=week_end_date) | Q(leave_date__isnull=True)
             )
-            # import pdb; pdb.set_trace()
-            for student in students:
+            for student in tqdm(students, desc="Students"):
                 print(self.calculate_student_scores_for_week(
                     student.student_id, gbs_from_sections, week_end_date
                 ))
@@ -76,17 +70,19 @@ class Command(BaseCommand):
     @staticmethod
     def calculate_student_scores_for_week(student_id,
         # ...for each week, calculate scores, and put into table
-                                          gradebook_id,
+                                          gradebook_ids,
                                           week_end_date):
 
         # Get all associated categories for gradebook
-        categories = Categories.objects.filter(gradebook_id=gradebook_id).all()
+        categories = (Categories.objects
+                      .filter(gradebook_id__in=gradebook_ids)
+                      .all())
 
         # Get all assignments from grading period start up until end of week
         assignment_scores = Scores.objects.filter(
             created__lte=week_end_date,
             student_id=student_id,
-            gradebook_id=gradebook_id
+            gradebook_id__in=gradebook_ids
         )
 
         # Calculate category scores
@@ -95,10 +91,11 @@ class Command(BaseCommand):
             possible_points = 0
             total_points = 0
             category_scores = assignment_scores.filter(
-                category_id=category_id
+                assignment__category_id=category_id
             ).all()
 
-            for score in category_scores:
+            for score in tqdm(category_scores, desc="{}: {} scores"\
+                    .format(student_id, 'category ' + str(category_id))):
                 total_points += score.value
                 possible_points += score.assignment.possible_points
 
@@ -120,7 +117,7 @@ class Command(BaseCommand):
         def _calculate_total_gradebook_score():
             score_dict = {}
             for category in categories:
-                score_dict[category.id] = _calculate_category_score(category.id)
+                score_dict[category.pk] = _calculate_category_score(category.pk)
 
             total = 0
             possible_points = 0

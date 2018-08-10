@@ -24,10 +24,16 @@ class StudentWeekCategoryScore(AbstractScoreModel):
     category_weight = models.FloatField()
     
     class Meta:
-        unique_together = ('student_id', 'category_id', 'start_date', 'end_date')
+        unique_together = ('student_id',
+                           'category_id',
+                           'start_date',
+                           'end_date')
 
 
 class StudentWeekGradebookScore(AbstractScoreModel):
     
     class Meta:
-        unique_together = ('student_id', 'gradebook_id', 'start_date', 'end_date')
+        unique_together = ('student_id',
+                           'gradebook_id',
+                           'start_date',
+                           'end_date')
