@@ -53,19 +53,28 @@ class Command(BaseCommand):
         )
 
         # ...build out end dates for each week from grading_periods...
-        week_dates = self.get_end_dates_from_grading_period_ids(grading_periods)
+        start_date, week_dates = self\
+            .get_end_dates_from_grading_period_ids(grading_periods)
 
-        for week_end_date in tqdm(week_dates, desc="Week Dates"):
-            students = SectionStudentAff.objects.filter(
-                section_id__in=sections_in_grading_period,
-                entry_date__lte=week_end_date,
-            ).filter(
-                Q(leave_date__gte=week_end_date) | Q(leave_date__isnull=True)
-            )
-            for student in tqdm(students, desc="Students"):
-                print(self.calculate_student_scores_for_week(
-                    student.student_id, gbs_from_sections, week_end_date
-                ))
+        # get all scores from gradebooks
+        gb_scores = (
+                Scores.objects
+                .filter(gradebook_id__in=gbs_from_sections)
+                .order_by('gradebook_id', 'student_id', 'created')
+                .all()
+        )
+
+        # keep running tally of student scores per gradebook
+        """
+        Final format here: 
+        {{}}
+        """
+        summary_dict = {}
+        for score in gb_scores:
+            gb_id = score.gradebook_id
+            s_id = score.student_id
+            if s_id not in summary_dict:
+                summary_dict[s_id] = {}
 
     @staticmethod
     def calculate_student_scores_for_week(student_id,
@@ -159,4 +168,4 @@ class Command(BaseCommand):
             if date_record.weekday() == 6:
                 date_list.append(date_record)
 
-        return date_list
+        return start, date_list
