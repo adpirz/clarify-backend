@@ -7,7 +7,7 @@ from tqdm import tqdm
 from experiment.models import StudentWeekCategoryScore
 from sis_mirror.models import Categories, Scores, GradingPeriods, \
     SectionTeacherAff, SectionGradingPeriodAff, GradebookSectionCourseAff, \
-    SectionStudentAff, Assignments
+    SectionStudentAff, Assignments, Gradebooks
 
 DATE_FORMAT = '%Y-%m-%d'
 
@@ -22,59 +22,49 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        between_date = options.get('start_date', '2017-09-01')
-
         # get a user_id
         user_id = int(options["user_id"])
 
-        # ...get all grading periods within a timeframe...
-        grading_periods = GradingPeriods.objects.filter(
-            grading_period_start_date__lte=between_date,
-            grading_period_end_date__gte=between_date
-        ).values_list('grading_period_id', flat=True)
-
-        # for each gradebook associated within a grading period...
-        teacher_sections = (SectionTeacherAff
-                            .objects
-                            .filter(user_id=user_id)
-                            .values_list('section_id', flat=True))
-
-        sections_in_grading_period = (
-            SectionGradingPeriodAff.objects
-                .filter(grading_period_id__in=grading_periods)
-                .filter(section_id__in=teacher_sections)
-                .values_list('section_id', flat=True)
+        grading_periods = (
+            GradingPeriods.objects
+                .filter(grading_period_start_date__gte='2017-07-31',
+                        grading_period_start_date__lte='2017-09-01')
+                .values_list('grading_period_id', flat=True)
         )
 
-        gbs_from_sections = (
-                GradebookSectionCourseAff.objects
-                .filter(section_id__in=sections_in_grading_period)
-                .values_list('gradebook_id', flat=True)
-        )
-
-        # ...build out end dates for each week from grading_periods...
-        start_date, week_dates = self\
+        # import pdb;pdb.set_trace()
+        start_date, week_end_dates = self\
             .get_end_dates_from_grading_period_ids(grading_periods)
 
-        # get all scores from gradebooks
-        gb_scores = (
-                Scores.objects
-                .filter(gradebook_id__in=gbs_from_sections)
-                .order_by('gradebook_id', 'student_id', 'created')
-                .all()
+        timespans = [(start_date, w) for w in week_end_dates]
+        through_string = "__".join([
+            "gradebooksectioncourseaff",
+            "section",
+            "sectiongradingperiodaff",
+            "grading_period_id",
+            "in"
+        ])
+
+        gb_filters = {
+            through_string: grading_periods,
+            "created_by": user_id
+        }
+
+        gbs = Gradebooks.objects.filter(**gb_filters).values_list(
+            'gradebook_id', flat=True
         )
 
-        # keep running tally of student scores per gradebook
-        """
-        Final format here: 
-        {{}}
-        """
-        summary_dict = {}
-        for score in gb_scores:
-            gb_id = score.gradebook_id
-            s_id = score.student_id
-            if s_id not in summary_dict:
-                summary_dict[s_id] = {}
+        for span in timespans:
+            start, end = span
+            s = (Scores.objects.filter(
+                gradebook_id__in=gbs,
+                created__gte=start,
+                created__lte=end)
+                .values('student_id', 'assignment__category_id')
+                .annotate(
+                poss_points=Sum('assignment__possible_points'),
+                total_points=Sum('value')
+            ))
 
     @staticmethod
     def calculate_student_scores_for_week(student_id,
