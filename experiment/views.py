@@ -35,11 +35,6 @@ class UserGradebookSelect(ListView):
 
 
 def gradebook_view(request, gradebook_id):
-    data = StudentWeekCategoryScore.objects.filter(gradebook_id=gradebook_id)
-
-    context = {
-        "data": data
-    }
     return render(
         request, context=data, template_name="gradebook_view.html"
     )
