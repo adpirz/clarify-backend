@@ -7,6 +7,7 @@ class AbstractScoreModel(models.Model):
     mark = models.CharField(max_length=3, blank=True)
     percentage = models.FloatField(null=True)
     possible_points = models.FloatField(null=True)
+    total_points = models.FloatField(null=True)
     number_of_assignments = models.IntegerField(default=0)
     number_of_missing_assignments = models.IntegerField(default=0)
     gradebook_id = models.IntegerField()

@@ -22,4 +22,5 @@ urlpatterns = [
     url(r'^report/', ReportView),
     url(r'^report-share/', ReportShareView),
     url(r'^staff/', StaffView),
+    url(r'^experiemnt/', include('experiment.urls', namespace='experiment'))
 ]

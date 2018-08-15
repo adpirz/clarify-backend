@@ -25,6 +25,10 @@ DEBUG_TOOLBAR_CONFIG = {
     ],
 }
 
+SHELL_PLUS_PRE_IMPORTS = [
+    ('experiment.management.commands._experiment', '*')
+]
+
 if DEBUG and not DISABLE_LOGGING:
     LOGGING = {
         'version': 1,
