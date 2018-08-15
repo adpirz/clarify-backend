@@ -54,7 +54,8 @@ def single_user(user_id, *args, **options):
                     'gradebook__gradebook_name',
                     'gradebook__created_by_id',
                     'assignment__category__category_name',
-                    'assignment__category__weight')
+                    'assignment__category__weight',
+                    'assignment__category_id')
             .annotate(
             num_assignments=Count('assignment_id', distinct=True),
             poss_points=Sum('assignment__possible_points'),
@@ -75,7 +76,7 @@ def single_user(user_id, *args, **options):
                     number_of_assignments=i['num_assignments'],
                     gradebook_id=i['gradebook_id'],
                     gradebook_name=i['gradebook__gradebook_name'],
-                    user_id=i['created_by_id'],
+                    user_id=i['gradebook__created_by_id'],
                     start_date=start,
                     end_date=end,
                     category_id=i['assignment__category_id'],
