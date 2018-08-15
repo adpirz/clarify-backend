@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block content %}
+    {% for user in users %}
+        <div><a href={% url "experiment:user_gb_select" user.user_id %}>{{ user.user_id }}: {{ user.username }}</a></div>
+    {% endfor %}
+{% endblock %}
+

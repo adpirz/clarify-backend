@@ -4,6 +4,7 @@ from tqdm import tqdm
 from django.db import IntegrityError
 from django.db.models import Min, Max, Sum, Count
 
+from experiment.experiment_utils import get_all_users_for_set_dates
 from experiment.models import StudentWeekCategoryScore
 from sis_mirror.models import GradingPeriods, Gradebooks, Scores, Users
 
@@ -51,7 +52,7 @@ def single_user(user_id, *args, **options):
             .values('student_id',
                     'gradebook_id',
                     'gradebook__gradebook_name',
-                    'assignment__category_id',
+                    'gradebook__created_by_id',
                     'assignment__category__category_name',
                     'assignment__category__weight')
             .annotate(
@@ -74,6 +75,7 @@ def single_user(user_id, *args, **options):
                     number_of_assignments=i['num_assignments'],
                     gradebook_id=i['gradebook_id'],
                     gradebook_name=i['gradebook__gradebook_name'],
+                    user_id=i['created_by_id'],
                     start_date=start,
                     end_date=end,
                     category_id=i['assignment__category_id'],
@@ -105,20 +107,7 @@ def single_user(user_id, *args, **options):
 
 
 def handle_all_users(*args, **options):
-    base_through_string = "__".join([
-        "gradebooksectioncourseaff",
-        "section",
-        "sectiongradingperiodaff",
-        "grading_period",
-        "grading_period_start_date"
-    ])
-
-    filters = {f"{base_through_string}__gte": "2017-07-31",
-               f"{base_through_string}__lte": "2017-09-01"}
-
-    all_user_ids = Gradebooks.objects.filter(
-        **filters
-    ).distinct('created_by_id').values_list('created_by_id', flat=True)
+    all_user_ids = get_all_users_for_set_dates()
 
     for u in tqdm(all_user_ids, desc="All users"):
         single_user(u, *args, **options)

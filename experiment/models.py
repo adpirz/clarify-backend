@@ -12,6 +12,7 @@ class AbstractScoreModel(models.Model):
     number_of_missing_assignments = models.IntegerField(default=0)
     gradebook_id = models.IntegerField()
     gradebook_name = models.CharField(max_length=200)
+    user_id = models.IntegerField()
     start_date = models.DateField()
     end_date = models.DateField()
 

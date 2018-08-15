@@ -23,6 +23,7 @@ urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^api/', include(api_urls)),
     url(r'^report/', ReportView),
+    url(r'^experiment/', include('experiment.urls', namespace='experiment'))
 ]
 
 

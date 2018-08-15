@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+    {% for gradebook in gradebooks %}
+        <div>{{ gradebook.gradebook_id }}: {{ gradebook.gradebook_name }}</div>
+    {% endfor %}
+{% endblock %}
