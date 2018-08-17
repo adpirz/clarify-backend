@@ -71,15 +71,13 @@ class StudentWeekCategoryScore(AbstractScoreModel):
 
     @classmethod
     def get_all_scores_for_all_timespans(cls, gradebook_id):
-        enddates = (cls.objects
-                    .distinct('end_date')
-                    .values_list('end_date', flat=True))
-
-        startdate = cls.objects.first().start_date
+        spans = cls.objects.distinct('start_date', 'end_date').values_list(
+            'start_date', 'end_date'
+        )
 
         return [cls.get_all_scores_for_gradebook_in_timespan(
-            gradebook_id, startdate, enddate,
-        ) for enddate in enddates]
+            gradebook_id, span[0], span[1],
+        ) for span in spans]
 
     class Meta:
         unique_together = ('student_id',
