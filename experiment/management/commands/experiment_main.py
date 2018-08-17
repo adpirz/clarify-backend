@@ -23,6 +23,14 @@ class Command(BaseCommand):
                             action='store_true',
                             dest='no_bulk',
                             )
+
+        parser.add_argument('--clean',
+                            action='store_true',
+                            dest='clean')
         
     def handle(self, *args, **options):
+        if options["clean"]:
+            print("Deleting all StudentWeekCategoryScore instances...")
+            print(StudentWeekCategoryScore.objects.all().delete())
+
         main(self, *args, **options)

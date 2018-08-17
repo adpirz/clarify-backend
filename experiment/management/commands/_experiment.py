@@ -22,10 +22,8 @@ def single_user(user_id, *args, **options):
             .values_list('grading_period_id', flat=True)
     )
 
-    start_date, week_end_dates = get_end_dates_from_grading_period_ids(
-        grading_periods)
+    spans = get_end_dates_from_grading_period_ids(grading_periods)
 
-    timespans = [(start_date, w) for w in week_end_dates]
     through_string = "__".join([
         "gradebooksectioncourseaff",
         "section",
@@ -43,7 +41,7 @@ def single_user(user_id, *args, **options):
         'gradebook_id', flat=True
     )
     scores = []
-    for span in timespans:
+    for span in spans:
         start, end = map(lambda t: t.strftime('%Y-%m-%d'), span)
         s = (Scores.objects.filter(
             gradebook_id__in=gbs,
@@ -139,4 +137,6 @@ def get_end_dates_from_grading_period_ids(grading_period_ids):
         if date_record.weekday() == 6:
             date_list.append(date_record)
 
-    return start, date_list
+    out_list = [(start, date_list[0])] + \
+               [(x, date_list[i-1]) for i, x in enumerate(date_list) if i > 0]
+    return out_list

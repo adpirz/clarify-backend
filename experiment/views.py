@@ -35,10 +35,17 @@ class UserGradebookSelect(ListView):
 
 
 def gradebook_view(request, gradebook_id):
-    data = StudentWeekCategoryScore\
+
+    context_dict = {
+        "gradebook_name": Gradebooks.objects
+            .get(gradebook_id=gradebook_id).gradebook_name
+    }
+
+    context_dict["data"] = StudentWeekCategoryScore\
         .get_all_scores_for_all_timespans(gradebook_id)
+
     return render(
-        request, context={"data": data}, template_name="gradebook_view.html"
+        request, context=context_dict, template_name="gradebook_view.html"
     )
 
 
