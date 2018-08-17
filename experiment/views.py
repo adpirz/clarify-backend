@@ -31,10 +31,12 @@ class UserGradebookSelect(ListView):
         filters["created_by_id"] = self.kwargs["user_id"]
         return Gradebooks.objects.filter(
             **filters
-        ).all()
+        ).distinct('gradebook_id').all()
 
 
 def gradebook_view(request, gradebook_id):
+    data = StudentWeekCategoryScore\
+        .get_all_scores_for_all_timespans(gradebook_id)
     return render(
-        request, context=data, template_name="gradebook_view.html"
+        request, context={"data": data}, template_name="gradebook_view.html"
     )

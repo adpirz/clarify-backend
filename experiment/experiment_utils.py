@@ -11,10 +11,13 @@ def get_date_filter_for_gradebooks():
     ])
 
     return {f"{base_through_string}__gte": "2017-07-31",
-               f"{base_through_string}__lte": "2017-09-01"}
+            f"{base_through_string}__lte": "2017-09-01"}
 
 
 def get_all_users_for_set_dates():
-    return Gradebooks.objects.filter(
-        **get_date_filter_for_gradebooks()
-    ).distinct('created_by_id').values_list('created_by_id', flat=True)
+    return (
+        Gradebooks.objects
+            .filter(**get_date_filter_for_gradebooks())
+            .distinct('created_by_id')
+            .values_list('created_by_id', flat=True)
+            )

@@ -89,7 +89,6 @@ class StudentWeekCategoryScore(AbstractScoreModel):
 
 
 class StudentWeekGradebookScore(AbstractScoreModel):
-    
     class Meta:
         unique_together = ('student_id',
                            'gradebook_id',

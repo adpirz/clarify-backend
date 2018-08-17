@@ -1,4 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
+    <table id="datatable">
+    <thead>
+    <tr>
+        <th>Student ID</th>
+        <th>Category Name</th>
+        <th>Percentage</th>
+        <th>Total Earned Points</th>
+        <th>Points Possible</th>
+        <th>Number of assignments</th>
+    </tr>
+    </thead>
 
+    <tbody>
+    {% for grade_set in data %}
+        {% for cat_grade in grade_set.category_grades %}
+            <tr>
+                <td>{{ cat_grade.student_id }}</td>
+                <td>{{ cat_grade.category_name }}</td>
+                <td>{{ cat_grade.percentage }}</td>
+                <td>{{ cat_grade.total_points }}</td>
+                <td>{{ cat_grade.possible_points }}</td>
+                <td>{{ cat_grade.number_of_assignments }}</td>
+            </tr>
+        {% endfor %}
+    {% endfor %}
+    </tbody>
+
+    </table>
+{% endblock %}
+{% block js %}
+<script>
+$(document).ready(()=>{
+    $('#datatable').DataTable();
+})
+</script>
 {% endblock %}

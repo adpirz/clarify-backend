@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
     {% for gradebook in gradebooks %}
-        <div>{{ gradebook.gradebook_id }}: {{ gradebook.gradebook_name }}</div>
+        <div><a href={% url "experiment:gradebook_detail" gradebook.gradebook_id %}>
+            {{ gradebook.gradebook_id }}: {{ gradebook.gradebook_name }}
+        </a></div>
     {% endfor %}
 {% endblock %}
