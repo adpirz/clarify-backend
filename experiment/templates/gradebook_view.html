@@ -4,6 +4,8 @@
     <thead>
     <tr>
         <th>Student ID</th>
+        <th>Start date</th>
+        <th>End date</th>
         <th>Category Name</th>
         <th>Percentage</th>
         <th>Total Earned Points</th>
@@ -17,6 +19,8 @@
         {% for cat_grade in grade_set.category_grades %}
             <tr>
                 <td>{{ cat_grade.student_id }}</td>
+                <td>{{ grade_set.start_date }}</td>
+                <td>{{ grade_set.end_date }}</td>
                 <td>{{ cat_grade.category_name }}</td>
                 <td>{{ cat_grade.percentage }}</td>
                 <td>{{ cat_grade.total_points }}</td>
