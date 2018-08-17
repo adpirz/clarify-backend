@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load percentages %}
 {% block content %}
-    <table id="datatable">
+    <table id="datatable" class="table table-striped table-bordered">
     <thead>
     <tr>
         <th>Student ID</th>
@@ -19,13 +20,17 @@
         {% for cat_grade in grade_set.category_grades %}
             <tr>
                 <td>{{ cat_grade.student_id }}</td>
-                <td>{{ grade_set.start_date }}</td>
-                <td>{{ grade_set.end_date }}</td>
+                <td>{{ grade_set.start_date | date:'Y-m-d' }}</td>
+                <td>{{ grade_set.end_date | date:'Y-m-d' }}</td>
                 <td>{{ cat_grade.category_name }}</td>
-                <td>{{ cat_grade.percentage }}</td>
+                <td>{{ cat_grade.percentage | percentage }}</td>
                 <td>{{ cat_grade.total_points }}</td>
                 <td>{{ cat_grade.possible_points }}</td>
-                <td>{{ cat_grade.number_of_assignments }}</td>
+                <td>
+                    <a href={% url "experiment:assignments_detail" cat_grade.student_id cat_grade.gradebook_id grade_set.start_date grade_set.end_date cat_grade.category_id%}>
+                    {{ cat_grade.number_of_assignments }}
+                    </a>
+                </td>
             </tr>
         {% endfor %}
     {% endfor %}
@@ -36,7 +41,13 @@
 {% block js %}
 <script>
 $(document).ready(()=>{
-    $('#datatable').DataTable();
+    $('#datatable').DataTable({
+        paging: false,
+        buttons: ['csv', 'copy', 'colvis'],
+        colReorder: true,
+        keys: true,
+        fixedHeader: true
+    });
 })
 </script>
 {% endblock %}

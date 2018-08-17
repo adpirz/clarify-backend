@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load percentages %}
+{% block content %}
+    <h2>Assignments for student {{ student_id }}</h2>
+    <h4>Gradebook {{ gradebook_id }}, {{ category_name }}</h4>
+    <p>From {{ start_date }} to {{ end_date }}</p>
+    <table id="datatable" class="table table-striped table-bordered">
+    <thead>
+    <tr>
+        <th>Student ID</th>
+        <th>Assignment</th>
+        <th>Date</th>
+        <th>Points Earned</th>
+        <th>Points Possible</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    {% for score in data %}
+        <tr>
+            <td>{{ score.student_id }}</td>
+            <td>{{ score.assignment__short_name }}</td>
+            <td>{{ score.created | date:'Y-m-d'}}</td>
+            <td>{{ score.value }}</td>
+            <td>{{ score.assignment__possible_points }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+
+    </table>
+{% endblock %}
+{% block js %}
+<script>
+$(document).ready(()=>{
+    $('#datatable').DataTable({
+        paging: false,
+        buttons: ['csv', 'copy', 'colvis'],
+        colReorder: true,
+        keys: true,
+        fixedHeader: true
+    });
+})
+</script>
+{% endblock %}
