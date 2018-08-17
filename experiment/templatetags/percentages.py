@@ -4,6 +4,8 @@ register = template.Library()
 
 
 def percentage(value):
+    if not value:
+        return ''
     return '{0:.2%}'.format(value)
 
 
