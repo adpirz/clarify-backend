@@ -138,5 +138,5 @@ def get_end_dates_from_grading_period_ids(grading_period_ids):
             date_list.append(date_record)
 
     out_list = [(start, date_list[0])] + \
-               [(x, date_list[i-1]) for i, x in enumerate(date_list) if i > 0]
+               [(date_list[i-1], x) for i, x in enumerate(date_list) if i > 0]
     return out_list
