@@ -17,23 +17,21 @@
         </thead>
 
         <tbody>
-        {% for grade_set in data %}
-            {% for cat_grade in grade_set.category_grades %}
+        {% for category_grade in data.category_grades %}
                 <tr>
-                    <td>{{ cat_grade.student_id }}</td>
-                    <td>{{ grade_set.start_date | date:'Y-m-d' }}</td>
-                    <td>{{ grade_set.end_date | date:'Y-m-d' }}</td>
-                    <td>{{ cat_grade.category_name }}</td>
-                    <td>{{ cat_grade.percentage | percentage }}</td>
-                    <td>{{ cat_grade.total_points }}</td>
-                    <td>{{ cat_grade.possible_points }}</td>
+                    <td>{{ category_grade.student_id }}</td>
+                    <td>{{ category_grade.start_date | date:'Y-m-d' }}</td>
+                    <td>{{ category_grade.end_date | date:'Y-m-d' }}</td>
+                    <td>{{ category_grade.category_name }}</td>
+                    <td>{{ category_grade.percentage | percentage }}</td>
+                    <td>{{ category_grade.total_points }}</td>
+                    <td>{{ category_grade.possible_points }}</td>
                     <td>
-                        <a href={% url "experiment:assignments_detail" cat_grade.student_id cat_grade.gradebook_id grade_set.start_date grade_set.end_date cat_grade.category_id %}>
-                            {{ cat_grade.number_of_assignments }}
+                        <a href={% url "experiment:assignments_detail" category_grade.student_id category_grade.gradebook_id category_grade.start_date category_grade.end_date category_grade.category_id %}>
+                            {{ category_grade.number_of_assignments }}
                         </a>
                     </td>
                 </tr>
-            {% endfor %}
         {% endfor %}
         </tbody>
 

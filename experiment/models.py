@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Sum
+from django.db.models import Sum, Max, Min
 from django.utils import timezone
 
 
@@ -27,6 +27,29 @@ class StudentWeekCategoryScore(AbstractScoreModel):
     category_name = models.CharField(max_length=200)
     category_weight = models.FloatField()
 
+    @staticmethod
+    def _shape_category_grade_set(category_grades, start_date, end_date):
+        out =  {
+            'start_date': start_date,
+            'end_date': end_date,
+            'category_grades': category_grades.values(
+                'student_id', 'percentage', 'possible_points', 'total_points',
+                'number_of_assignments', 'gradebook_id', 'gradebook_name',
+                'user_id', 'category_id', 'category_name', 'category_weight',
+                'start_date', 'end_date'
+            ),
+            'gradebook_grades': category_grades.values(
+                'student_id', 'gradebook_id', 'gradebook_name'
+            ).annotate(
+                total_possible_points=Sum('possible_points'),
+                total_points_earned=Sum('total_points'),
+                total_number_of_assignments=Sum('number_of_assignments'),
+            )
+
+        }
+
+        return out
+
 
     @classmethod
     def get_all_scores_for_gradebook_in_timespan(
@@ -51,33 +74,29 @@ class StudentWeekCategoryScore(AbstractScoreModel):
         if not category_grades.exists():
             return None
 
-        return {
-            'start_date': start_date,
-            'end_date': end_date,
-            'category_grades': category_grades.values(
-                'student_id', 'percentage', 'possible_points', 'total_points',
-                'number_of_assignments', 'gradebook_id', 'gradebook_name',
-                'user_id', 'category_id', 'category_name', 'category_weight'
-            ),
-            'gradebook_grades': category_grades.values(
-                'student_id', 'gradebook_id', 'gradebook_name'
-            ).annotate(
-                total_possible_points=Sum('possible_points'),
-                total_points_earned=Sum('total_points'),
-                total_number_of_assignments=Sum('number_of_assignments'),
-            )
-
-        }
+        return cls._shape_category_grade_set(
+            category_grades, start_date, end_date
+        )
 
     @classmethod
     def get_all_scores_for_all_timespans(cls, gradebook_id):
-        spans = cls.objects.distinct('start_date', 'end_date').values_list(
-            'start_date', 'end_date'
+        bookend_dates = (cls.objects
+                         .filter(gradebook_id=gradebook_id)
+                         .aggregate(Min('start_date'), Max('end_date'))
+                         )
+
+        start_date = bookend_dates.get('start_date__min')
+        end_date = bookend_dates.get('end_date__max')
+
+        category_grades = cls.objects.filter(
+            gradebook_id=gradebook_id,
+            start_date__gte=start_date,
+            end_date__lte=end_date
         )
 
-        return [cls.get_all_scores_for_gradebook_in_timespan(
-            gradebook_id, span[0], span[1],
-        ) for span in spans]
+        return cls._shape_category_grade_set(
+            category_grades, start_date, end_date
+        )
 
     class Meta:
         unique_together = ('student_id',
