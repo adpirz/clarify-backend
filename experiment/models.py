@@ -2,6 +2,8 @@ from django.db import models
 from django.db.models import Sum, Max, Min
 from django.utils import timezone
 
+from sis_mirror.models import Scores
+
 
 class AbstractScoreModel(models.Model):
     student_id = models.IntegerField()
@@ -98,11 +100,44 @@ class StudentWeekCategoryScore(AbstractScoreModel):
             category_grades, start_date, end_date
         )
 
+    def next_score(self):
+        return StudentWeekCategoryScore.objects.filter(
+            gradebook_id=self.gradebook_id,
+            student_id=self.student_id,
+            start_date__gte=self.end_date
+        ).order_by('start_date').first()
+
+    def previous_score(self):
+        return StudentWeekCategoryScore.objects.filter(
+            gradebook_id=self.gradebook_id,
+            student_id=self.student_id,
+            end_date__lte=self.start_date
+        ).order_by('-end_date').first()
+
+    def d_previous(self):
+        previous_score = self.previous_score()
+        if not previous_score:
+            return None
+        return self.percentage - previous_score.percentage
+
+    def get_all_assignments_for_score(self):
+        return Scores.objects.filter(
+            gradebook_id=self.gradebook_id,
+            student_id=self.student_id,
+            created__gte=self.start_date,
+            created__lte=self.end_date,
+        ).all()
+
     class Meta:
         unique_together = ('student_id',
                            'category_id',
                            'start_date',
                            'end_date')
+
+    def __str__(self):
+        return f"Student: {self.student_id}, " + \
+               f"Gradebook: {self.gradebook_id}, " + \
+               f"{self.start_date} to {self.end_date}"
 
 
 class StudentWeekGradebookScore(AbstractScoreModel):

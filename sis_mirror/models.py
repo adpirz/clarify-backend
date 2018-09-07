@@ -693,6 +693,11 @@ class Scores(models.Model):
     modified = models.DateTimeField(blank=True, null=True)
     student = models.ForeignKey(Students)
 
+    def __str__(self):
+        return f"Student: {self.student_id}, " +\
+               f"Gradebook: {self.gradebook_id}, " +\
+               f"Assignment: {self.assignment_id}"
+
     class Meta:
         managed = False
         db_table = 'scores'
