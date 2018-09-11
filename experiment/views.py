@@ -1,9 +1,11 @@
-from django.shortcuts import render
+from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404
 from django.views.generic import ListView, DetailView
 
 from experiment.experiment_utils import get_all_users_for_set_dates, \
     get_date_filter_for_gradebooks
-from sis_mirror.models import Users, Gradebooks, Assignments, Scores, Categories
+from sis_mirror.models import Users, Gradebooks, Assignments, Scores, \
+    Categories, Students
 
 from .models import StudentWeekCategoryScore
 
@@ -46,6 +48,30 @@ def gradebook_view(request, gradebook_id):
 
     return render(
         request, context=context_dict, template_name="gradebook_view.html"
+    )
+
+
+def create_standout(request):
+    if not request.POST:
+        return JsonResponse({}, status=200)
+
+    user_id = request.POST.get('user_id')
+    student_id = request.POST.get('student_id')
+    date = request.POST.get('date')
+
+
+def student_view(request):
+    if not request.POST:
+        return JsonResponse({}, status=200)
+
+    student_id = request.POST.get('student_id')
+    student = get_object_or_404(Students, pk=student_id)
+
+    return JsonResponse(
+        {'student_id': student_id,
+         'first_name': student.first_name,
+         'last_name': student.last_name,
+         }
     )
 
 

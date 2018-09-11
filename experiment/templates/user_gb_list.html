@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
+    <ul class="list-group">
     {% for gradebook in gradebooks %}
-        <div><a href={% url "experiment:gradebook_detail" gradebook.gradebook_id %}>
+        <li class="list-group-item"><a href={% url "experiment:gradebook_detail" gradebook.gradebook_id %}>
             {{ gradebook.gradebook_id }}: {{ gradebook.gradebook_name }}
-        </a></div>
+        </a></li>
     {% endfor %}
+    </ul>
+
 {% endblock %}

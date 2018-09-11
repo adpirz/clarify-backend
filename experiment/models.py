@@ -1,8 +1,9 @@
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Sum, Max, Min
 from django.utils import timezone
 
-from sis_mirror.models import Scores
+from sis_mirror.models import Scores, Assignments, Users, Students
 
 
 class AbstractScoreModel(models.Model):
@@ -21,7 +22,10 @@ class AbstractScoreModel(models.Model):
     end_date = models.DateField()
     d_previous = models.FloatField(null=True)
     d_three_previous = models.FloatField(null=True)
-
+    
+    def primary_metric(self):
+        raise NotImplementedError('Need a primary metric.')
+    
     class Meta:
         abstract = True
 
@@ -30,9 +34,14 @@ class StudentWeekCategoryScore(AbstractScoreModel):
     category_id = models.IntegerField()
     category_name = models.CharField(max_length=200)
     category_weight = models.FloatField()
-    next_score = models.ForeignKey('StudentWeekCategoryScore', null=True)
-    previous_score = models.ForeignKey('StudentWeekCategoryScore', null=True)
+    next_score = models.ForeignKey('StudentWeekCategoryScore', null=True,
+                                   related_name='nextscore')
+    previous_score = models.ForeignKey('StudentWeekCategoryScore', null=True,
+                                       related_name='previousscore')
 
+    @property
+    def primary_metric(self):
+        return self.percentage or 0
 
     @staticmethod
     def _shape_category_grade_set(category_grades, start_date, end_date):
@@ -43,7 +52,7 @@ class StudentWeekCategoryScore(AbstractScoreModel):
                 'student_id', 'percentage', 'possible_points', 'total_points',
                 'number_of_assignments', 'gradebook_id', 'gradebook_name',
                 'user_id', 'category_id', 'category_name', 'category_weight',
-                'start_date', 'end_date'
+                'start_date', 'end_date', 'd_previous', 'd_three_previous'
             ),
             'gradebook_grades': category_grades.values(
                 'student_id', 'gradebook_id', 'gradebook_name'
@@ -119,7 +128,7 @@ class StudentWeekCategoryScore(AbstractScoreModel):
             end_date__lte=self.start_date
         ).order_by('-end_date').first()
 
-    def d_previous(self):
+    def get_d_previous(self):
         previous_score = self.get_previous_score()
         if not previous_score:
             return None
@@ -146,11 +155,24 @@ class StudentWeekCategoryScore(AbstractScoreModel):
 
 
 class StudentWeekGradebookScore(AbstractScoreModel):
-    next_score = models.ForeignKey('StudentWeekGradebookScore', null=True)
-    previous_score = models.ForeignKey('StudentWeekGradebookScore', null=True)
+    next_score = models.ForeignKey('StudentWeekGradebookScore', null=True,
+                                   related_name='nextscore')
+    previous_score = models.ForeignKey('StudentWeekGradebookScore', null=True,
+                                       related_name='previousscore')\
 
     class Meta:
         unique_together = ('student_id',
                            'gradebook_id',
                            'start_date',
                            'end_date')
+
+
+class Standout(models.Model):
+    user_id = models.IntegerField()
+    student_id = models.IntegerField()
+    date = models.DateField()
+    text = models.TextField()
+    
+    @property
+    def student(self):
+        return Students.objects.get(pk=self.student_id)
