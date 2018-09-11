@@ -30,7 +30,7 @@ class UserDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         context["standouts"] = Standout.objects.filter(
             user_id=self.get_object().pk
-        ).all()
+        ).order_by('-date','student_id').all()
         return context
 
 

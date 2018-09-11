@@ -22,14 +22,15 @@ class Command(BaseCommand):
             if i > 2:
                 previous_3 = all_scores[i-3]
 
-            if previous:
+            if previous and previous.category_id == score.category_id:
                 previous.next_score = score
                 score.previous_score = previous
                 score.d_previous = score.primary_metric - previous.primary_metric
                 previous.save()
 
-            if previous_3:
+            if previous_3 and previous_3.category_id == score.category_id:
                 score.d_three_previous = score.primary_metric - previous_3.primary_metric
 
-            if previous or previous_3:
+            if (previous and previous.category_id == score.category_id) or\
+                    (previous_3 and previous_3.category_id == score.category_id):
                 score.save()

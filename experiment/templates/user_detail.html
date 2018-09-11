@@ -7,7 +7,8 @@
     </div>
         {% for standout in standouts %}
             <div class="well well-lg">
-                {{ standout.text }}
+                <h3>{{ standout.text }}</h3>
+                <p>{{ standout.date }}</p>
             </div>
 
         {% endfor %}

@@ -8,6 +8,7 @@
         </button>
     </div>
     <h2>Gradebook Data for "{{ gradebook_name }}"</h2>
+    <h4>Created by <a href="{% url 'experiment:user_detail' user.user_id %}">{{ user.username }}</a></h4>
     <!-- Modal -->
     <div class="modal fade" id="mainModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
         <div class="modal-dialog" role="document">
@@ -117,10 +118,8 @@
                     type
                 } = e.relatedTarget.dataset;
 
-
-
                 const data = {
-                    studentId ,date, category, percentageChange, percentageNow
+                    studentId ,date, category, percentageChange, percentageNow, type
                 };
 
                 getStudent(studentId)
@@ -159,10 +158,14 @@
             }
 
             function textHandler(student_data, data) {
-                const student_name = student_data.first_name
+                debugger;
+                const student_name = student_data.first_name;
                 const change_text = data.percentageChange.charAt(0) === '-' ? 'down' : 'up';
                 const since_text = data.type === 'previous' ? 'from last week' : 'from three weeks ago';
-                return `${student_name}'s ${data.category} grade went ${change_text} by ${data.percentageChange} to ${data.percentageNow} ${since_text}`
+
+                return `${student_name}'s ${data.category} ` +
+                    `grade went ${change_text} by ${data.percentageChange} ` +
+                    `to ${data.percentageNow} ${since_text}`
             }
 
             function handleCreateStandout(data) {
