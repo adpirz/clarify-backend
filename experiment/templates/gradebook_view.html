@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% load percentages %}
 {% block content %}
+    <div id="alertbox" class="alert alert-warning alert-dismissible" style="display:none" role="alert">
+        <span id="alerttext">This is the text</span>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
     <h2>Gradebook Data for "{{ gradebook_name }}"</h2>
-
     <!-- Modal -->
     <div class="modal fade" id="mainModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
         <div class="modal-dialog" role="document">
@@ -11,7 +16,7 @@
                     <h4 class="modal-title" id="myModalLabel">Loading...</h4>
                 </div>
                 <div class="modal-body">
-                    ...
+                   <p id="proofread"></p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -50,26 +55,26 @@
                 <td>{{ category_grade.d_previous | percentage }}
                     <!-- Button trigger modal -->
                     <button type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#mainModal"
-                    data-type="previous"
-                    data-student-id="{{ category_grade.student_id }}"
-                    data-start-date="{{ category_grade.start_date }}"
-                    data-end-date="{{ category_grade.end_date }}"
-                    data-category="{{ category_grade.category_name }}"
-                    data-percentage-now="{{ category_grade.percentage | percentage}}"
-                    data-percentage-change="{{ category_grade.d_three_previous | percentage}}"
+                            data-type="previous"
+                            data-student-id="{{ category_grade.student_id }}"
+                            data-start-date="{{ category_grade.start_date }}"
+                            data-date="{{ category_grade.end_date | date:'Y-m-d'}}"
+                            data-category="{{ category_grade.category_name }}"
+                            data-percentage-now="{{ category_grade.percentage | percentage }}"
+                            data-percentage-change="{{ category_grade.d_three_previous | percentage }}"
                     >
                         S
                     </button>
                 </td>
                 <td>{{ category_grade.d_three_previous | percentage }}
                     <button type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#mainModal"
-                    data-type="three-previous"
-                    data-student-id="{{ category_grade.student_id }}"
-                    data-start-date="{{ category_grade.start_date }}"
-                    data-end-date="{{ category_grade.end_date }}"
-                    data-category="{{ category_grade.category_name }}"
-                    data-percentage-now="{{ category_grade.percentage | percentage}}"
-                    data-percentage-change="{{ category_grade.d_three_previous | percentage}}"
+                            data-type="three-previous"
+                            data-student-id="{{ category_grade.student_id }}"
+                            data-start-date="{{ category_grade.start_date }}"
+                            data-end-date="{{ category_grade.end_date }}"
+                            data-category="{{ category_grade.category_name }}"
+                            data-percentage-now="{{ category_grade.percentage | percentage }}"
+                            data-percentage-change="{{ category_grade.d_three_previous | percentage }}"
                     >
                         S
                     </button>
@@ -97,11 +102,87 @@
                 fixedHeader: true,
                 order: [[0, 'asc'], [3, 'desc'], [2, 'asc'], [7, 'desc']]
             });
-            const mainModal = $('#mainModal')
+            const mainModal = $('#mainModal');
+
+            const alertBox = $('#alertbox');
+            const alertText = $('#alerttext');
 
             mainModal.on('show.bs.modal', e => {
-                console.log(e.relatedTarget.dataset);
-            })
-        })
+                const {
+                    studentId,
+                    date,
+                    category,
+                    percentageNow,
+                    percentageChange,
+                    type
+                } = e.relatedTarget.dataset;
+
+
+
+                const data = {
+                    studentId ,date, category, percentageChange, percentageNow
+                };
+
+                getStudent(studentId)
+                    .done(d => {
+                        const student = d;
+                        updateModalHeader(`Standout for ${d.first_name + ' ' + d.last_name}`);
+                        const out_data = {
+                            studentId,
+                            user_id: {{ user.user_id }},
+                            type: 'C',
+                            date,
+                            text: textHandler(student, data)
+                        };
+                        updateModalBody(out_data);
+
+                        return handleCreateStandout(out_data)
+                    })
+                    .fail(e => {
+                        alerting(`Couldn't find student with that id.}`)
+                    })
+
+            });
+
+            function updateModalHeader(text) {
+                const header = $('#myModalLabel')
+                header.text(text)
+            }
+
+            function updateModalBody(obj){
+                $('#proofread').text(JSON.stringify(obj))
+            }
+
+            function alerting(text) {
+                alertText.text(text);
+                alertBox.show()
+            }
+
+            function textHandler(student_data, data) {
+                const student_name = student_data.first_name
+                const change_text = data.percentageChange.charAt(0) === '-' ? 'down' : 'up';
+                const since_text = data.type === 'previous' ? 'from last week' : 'from three weeks ago';
+                return `${student_name}'s ${data.category} grade went ${change_text} by ${data.percentageChange} to ${data.percentageNow} ${since_text}`
+            }
+
+            function handleCreateStandout(data) {
+                $.post('/experiment/standout/', data)
+                    .done(d => {
+                        alerting('Success creating standout')
+                    })
+                    .fail(e => {
+                        alerting('Error creating standout')
+                    })
+            }
+
+            function getStudent(id) {
+                return $.get(`/experiment/student/${id}`)
+            }
+
+            window.getStudent = getStudent;
+            window.alerting = alerting;
+        });
+
+
     </script>
 {% endblock %}

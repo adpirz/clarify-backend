@@ -168,11 +168,20 @@ class StudentWeekGradebookScore(AbstractScoreModel):
 
 
 class Standout(models.Model):
+    STANDOUT_TYPE_CHOICES = (
+        ('C', 'Category Grades'),
+    )
     user_id = models.IntegerField()
     student_id = models.IntegerField()
+    standout_type = models.CharField(choices=STANDOUT_TYPE_CHOICES,
+                                     max_length=1)
+    gradebook_id = models.IntegerField(null=True)
     date = models.DateField()
     text = models.TextField()
     
     @property
     def student(self):
         return Students.objects.get(pk=self.student_id)
+
+    class Meta:
+        unique_together = ('user_id', 'student_id', 'date', 'standout_type')

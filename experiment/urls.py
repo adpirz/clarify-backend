@@ -2,7 +2,7 @@ from django.conf.urls import url
 
 from .views import UserSelectionView, \
     UserDetailView, UserGradebookSelect, gradebook_view, \
-    assignments_view, student_view
+    assignments_view, student_view, create_standout
 
 DATE_RE = '\d{4}\-\d{2}\-\d{2}'
 gross_url_re = 'assignments/(?P<student_id>\d+)/(?P<gradebook_id>\d+)/' + \
@@ -11,8 +11,8 @@ gross_url_re = 'assignments/(?P<student_id>\d+)/(?P<gradebook_id>\d+)/' + \
 
 urlpatterns = [
     url('^$', UserSelectionView.as_view(), name="user_select"),
-
-    url('student/$', student_view, name="student_view"),
+    url('standout/$', create_standout, name="create_standout"),
+    url('student/(?P<student_id>\d+)/$', student_view, name="student_view"),
     url('user/(?P<pk>\d+)/$', UserDetailView.as_view(), name="user_detail"),
     url('user/(?P<user_id>\d+)/gradebooks/$',
         UserGradebookSelect.as_view(),

@@ -1,5 +1,8 @@
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, DetailView
 
 from experiment.experiment_utils import get_all_users_for_set_dates, \
@@ -7,7 +10,7 @@ from experiment.experiment_utils import get_all_users_for_set_dates, \
 from sis_mirror.models import Users, Gradebooks, Assignments, Scores, \
     Categories, Students
 
-from .models import StudentWeekCategoryScore
+from .models import StudentWeekCategoryScore, Standout
 
 
 class UserSelectionView(ListView):
@@ -23,6 +26,13 @@ class UserDetailView(DetailView):
     model = Users
     template_name = "user_detail.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["standouts"] = Standout.objects.filter(
+            user_id=self.get_object().pk
+        ).all()
+        return context
+
 
 class UserGradebookSelect(ListView):
     context_object_name = "gradebooks"
@@ -37,10 +47,10 @@ class UserGradebookSelect(ListView):
 
 
 def gradebook_view(request, gradebook_id):
-
+    gb = Gradebooks.objects.get(gradebook_id=gradebook_id)
     context_dict = {
-        "gradebook_name": Gradebooks.objects
-            .get(gradebook_id=gradebook_id).gradebook_name
+        "gradebook_name": gb.gradebook_name,
+        "user": gb.created_by
     }
 
     context_dict["data"] = StudentWeekCategoryScore\
@@ -50,28 +60,39 @@ def gradebook_view(request, gradebook_id):
         request, context=context_dict, template_name="gradebook_view.html"
     )
 
-
+@csrf_exempt
 def create_standout(request):
     if not request.POST:
         return JsonResponse({}, status=200)
 
     user_id = request.POST.get('user_id')
-    student_id = request.POST.get('student_id')
+    student_id = request.POST.get('studentId')
     date = request.POST.get('date')
+    text = request.POST.get('text')
+    standout_type = request.POST.get('type')
+
+    try:
+        s = Standout.objects.create(
+            user_id=user_id, student_id=student_id,
+            date=date, text=text, standout_type=standout_type
+        )
+        return JsonResponse({
+            "standout_id": s.pk
+        }, status=201, safe=False)
+
+    except IntegrityError as e:
+        print(e)
+        return JsonResponse({}, status=201)
 
 
-def student_view(request):
-    if not request.POST:
-        return JsonResponse({}, status=200)
-
-    student_id = request.POST.get('student_id')
+def student_view(request, student_id):
     student = get_object_or_404(Students, pk=student_id)
 
     return JsonResponse(
         {'student_id': student_id,
          'first_name': student.first_name,
          'last_name': student.last_name,
-         }
+         }, status=200
     )
 
 
