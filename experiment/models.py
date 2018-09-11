@@ -19,6 +19,8 @@ class AbstractScoreModel(models.Model):
     user_id = models.IntegerField()
     start_date = models.DateField()
     end_date = models.DateField()
+    d_previous = models.FloatField(null=True)
+    d_three_previous = models.FloatField(null=True)
 
     class Meta:
         abstract = True
@@ -28,6 +30,9 @@ class StudentWeekCategoryScore(AbstractScoreModel):
     category_id = models.IntegerField()
     category_name = models.CharField(max_length=200)
     category_weight = models.FloatField()
+    next_score = models.ForeignKey('StudentWeekCategoryScore', null=True)
+    previous_score = models.ForeignKey('StudentWeekCategoryScore', null=True)
+
 
     @staticmethod
     def _shape_category_grade_set(category_grades, start_date, end_date):
@@ -100,14 +105,14 @@ class StudentWeekCategoryScore(AbstractScoreModel):
             category_grades, start_date, end_date
         )
 
-    def next_score(self):
+    def get_next_score(self):
         return StudentWeekCategoryScore.objects.filter(
             gradebook_id=self.gradebook_id,
             student_id=self.student_id,
             start_date__gte=self.end_date
         ).order_by('start_date').first()
 
-    def previous_score(self):
+    def get_previous_score(self):
         return StudentWeekCategoryScore.objects.filter(
             gradebook_id=self.gradebook_id,
             student_id=self.student_id,
@@ -115,7 +120,7 @@ class StudentWeekCategoryScore(AbstractScoreModel):
         ).order_by('-end_date').first()
 
     def d_previous(self):
-        previous_score = self.previous_score()
+        previous_score = self.get_previous_score()
         if not previous_score:
             return None
         return self.percentage - previous_score.percentage
@@ -141,6 +146,9 @@ class StudentWeekCategoryScore(AbstractScoreModel):
 
 
 class StudentWeekGradebookScore(AbstractScoreModel):
+    next_score = models.ForeignKey('StudentWeekGradebookScore', null=True)
+    previous_score = models.ForeignKey('StudentWeekGradebookScore', null=True)
+
     class Meta:
         unique_together = ('student_id',
                            'gradebook_id',
