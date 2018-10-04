@@ -38,13 +38,14 @@ def UserView(request):
 
 @login_required
 def StudentView(request):
-    def _shape(student):
+    def _shape(student, student_section_pairs):
         return {
             'id': student.id,
             'first_name': student.first_name,
             'last_name': student.last_name,
             'is_enrolled': student.is_enrolled,
             'is_searchable': student.is_searchable,
+            'enrolled_section_ids': list(set([s[1] for s in student_section_pairs]))
         }
 
     try:
@@ -70,11 +71,11 @@ def StudentView(request):
             status=400
         )
 
-    site_student_ids = (SectionLevelRosterPerYear.objects
+    student_section_pairs = (SectionLevelRosterPerYear.objects
         .filter(site_id=staff_site_id)
         .filter(staff=request_staff)
         .filter(academic_year=get_academic_year())
-        .values_list('student_id')
+        .values_list('student_id', 'section_id').distinct()
     )
 
     if staff_level < 700:
@@ -89,6 +90,8 @@ def StudentView(request):
         # Staff is an admin, which means they can see all students at their site
         staff_student_ids = site_student_ids
 
+    site_student_ids = [s[0] for s in student_section_pairs]
+
     staff_students = (Student.objects.filter(id__in=site_student_ids)
                       .annotate(is_searchable=Case(
                         When(id__in=staff_student_ids, then=Value(True)),
@@ -102,7 +105,7 @@ def StudentView(request):
                       )))
 
     return JsonResponse({
-        'data': [_shape(s) for s in staff_students]
+        'data': [_shape(s, student_section_pairs) for s in staff_students]
     })
 
 
