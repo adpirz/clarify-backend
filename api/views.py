@@ -1,6 +1,6 @@
 from django.utils import timezone
 from json import loads
-
+from datetime import timedelta
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
@@ -15,7 +15,8 @@ from django.conf import settings
 from sis_pull.models import (
     Student, Section, GradeLevel, Site, Staff,
     SectionLevelRosterPerYear,
-    StaffTermRoleAffinity)
+    StaffTermRoleAffinity, Assignment, GradebookSectionCourseAffinity,
+    Gradebook, Scores,)
 from reports.models import Report, ReportShare
 from mimesis import Person
 from utils import get_academic_year
@@ -49,15 +50,15 @@ def StudentView(request):
         }
 
     try:
-        request_staff = request.user.staff
+        requesting_staff = request.user.staff
     except:
         return JsonResponse(
             {'error': 'No staff for that user'},
             status=401
         )
 
-    staff_level = request_staff.get_max_role_level()
-    staff_site_id = request_staff.get_most_recent_primary_site_id()
+    staff_level = requesting_staff.get_max_role_level()
+    staff_site_id = requesting_staff.get_most_recent_primary_site_id()
 
     if not staff_level:
         return JsonResponse(
@@ -73,16 +74,16 @@ def StudentView(request):
 
     student_section_pairs = (SectionLevelRosterPerYear.objects
         .filter(site_id=staff_site_id)
-        .filter(staff=request_staff)
         .filter(academic_year=get_academic_year())
         .values_list('student_id', 'section_id').distinct()
     )
+    site_student_ids = [s[0] for s in student_section_pairs]
 
     if staff_level < 700:
         # Staff member isn't an admin. The client should only allow them to
         # search for students that they teach. Indicate which students those are.
         staff_student_ids = (SectionLevelRosterPerYear.objects
-            .filter(staff=request_staff)
+            .filter(staff=requesting_staff)
             .filter(academic_year=get_academic_year())
             .values_list('student_id')
         )
@@ -90,7 +91,6 @@ def StudentView(request):
         # Staff is an admin, which means they can see all students at their site
         staff_student_ids = site_student_ids
 
-    site_student_ids = [s[0] for s in student_section_pairs]
 
     staff_students = (Student.objects.filter(id__in=site_student_ids)
                       .annotate(is_searchable=Case(
@@ -115,6 +115,7 @@ def SectionView(request):
     def _shape(section):
         tags = [str(section.get_timeblock())]
         course = section.get_course()
+
         if course:
             tags.append(str(course))
         return {
@@ -133,8 +134,6 @@ def SectionView(request):
         teacher_section_ids = (SectionLevelRosterPerYear.objects
             .filter(staff=request_teacher.first())
             .filter(academic_year=get_academic_year())
-            .filter(section__section_name__isnull=False)
-            # .exclude(section__section_name__exact="")
             .values_list('section_id')
         )
         staff_sections = Section.objects.filter(id__in=teacher_section_ids)
@@ -162,15 +161,15 @@ def CourseView(request):
         }
 
     user = request.user
-    request_staff = Staff.objects.get(user=user)
+    requesting_staff = Staff.objects.get(user=user)
     filter_kwargs = {}
 
-    if request_staff.get_max_role_level() < 700:
-        grade_levels = GradeLevel.get_users_current_grade_levels(request_staff)
+    if requesting_staff.get_max_role_level() < 700:
+        grade_levels = GradeLevel.get_users_current_grade_levels(requesting_staff)
         filter_kwargs["grade_level_id__in"] = grade_levels
-        filter_kwargs["staff"] = request_staff
+        filter_kwargs["staff"] = requesting_staff
     else:
-        filter_kwargs["site_id"] = request_staff.get_most_recent_primary_site_id()
+        filter_kwargs["site_id"] = requesting_staff.get_most_recent_primary_site_id()
 
     return JsonResponse({
         'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
@@ -268,3 +267,71 @@ def SessionView(request):
         {'error': 'Response not handled'},
         status=400
     )
+
+
+@login_required
+def MissingAssignmentDeltaView(request):
+    if request.method not in ['GET']:
+        return JsonResponse({
+            'error': 'Method not allowed.'
+        }, status_code=405)
+
+    try:
+        requesting_staff = request.user.staff
+    except:
+        return JsonResponse(
+            {'error': 'No staff for that user'},
+            status=401
+        )
+
+    def get_missing_assignments_for_student(student_id, sections, section_gradebook_pairs):
+        student_deltas = []
+        scores = list(Scores.objects.filter(student_id=student_id))
+        for section_id in sections:
+            section_deltas = []
+            section_gradebooks = list(set([pair[1] for pair in section_gradebook_pairs if pair[0] == section_id]))
+            section_assignments = (Assignment.objects
+                                  .filter(gradebook__in=section_gradebooks)
+                                  .order_by('due_date'))
+            missing_assignments = []
+            for assignment in section_assignments:
+                import pdb; pdb.set_trace()
+                ontime_scores = [score for score in scores if score.assignment_id == assignment.id and score.created.date() < assignment.due_date]
+                for missing_assignment in missing_assignments:
+                    ontime_scores = [score for score in scores if score.assignment_id == assignment.id and score.created.date() < assignment.due_date]
+                if len(ontime_scores) < 1:
+                    # No Score node was created prior to the assignment due_date, it was missing
+                    section_deltas.append({
+                        'timestamp': assignment.due_date,
+                        'assignment': {'name': assignment, 'due_date': assignment.due_date, 'new': True},
+                    })
+                    missing_assignments.append(assignment)
+            student_deltas.append({'section_id': section_id, 'deltas': section_deltas})
+
+        return student_deltas
+
+    student_section_pairs = (SectionLevelRosterPerYear.objects
+                            .filter(staff=requesting_staff)
+                            .filter(academic_year=get_academic_year())
+                            .values_list('student_id', 'section_id')
+                            .distinct())
+
+    staff_student_set = list(set([s[0] for s in student_section_pairs]))
+    staff_section_set = list(set([s[1] for s in student_section_pairs]))
+    section_gradebook_pairs = (GradebookSectionCourseAffinity.objects
+                               .filter(staff=requesting_staff)
+                               .filter(gradebook__active=True)
+                               .filter(gradebook__is_deleted=False)
+                               .values_list('section_id', 'gradebook_id'))
+    delta_data = []
+
+    for student_id in staff_student_set:
+        student_sections = list(set([pair[1] for pair in student_section_pairs if pair[0] == student_id]))
+        deltas = get_missing_assignments_for_student(student_id, student_sections, section_gradebook_pairs)
+
+        delta_data.append({
+            'student_id': student_id,
+            'missing_assignments': deltas
+        })
+
+    return JsonResponse({"data": delta_data})

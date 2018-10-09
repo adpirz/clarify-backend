@@ -25,7 +25,7 @@ class ReportShareAdmin(admin.ModelAdmin):
     list_display = ('parent', 'child')
 
 class UserAdmin(admin.ModelAdmin):
-    search_fields = ['first_name', 'last_name', 'username']
+    search_fields = ['first_name', 'last_name', 'username', 'email']
 
     def sign_in_as_user(modeladmin, request, queryset):
         if len(queryset) > 1:
