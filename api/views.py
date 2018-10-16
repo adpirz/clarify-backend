@@ -16,7 +16,7 @@ from sis_pull.models import (
     Student, Section, GradeLevel, Site, Staff,
     SectionLevelRosterPerYear,
     StaffTermRoleAffinity, Assignment, GradebookSectionCourseAffinity,
-    Gradebook, Scores,)
+    Gradebook, Score,)
 from reports.models import Report, ReportShare
 from mimesis import Person
 from utils import get_academic_year
@@ -335,3 +335,43 @@ def MissingAssignmentDeltaView(request):
         })
 
     return JsonResponse({"data": delta_data})
+
+
+@login_required
+def ActionView(request):
+    def _shape(action):
+        return {
+            'completed_on': action.completed_on,
+            'due_on': action.due_on,
+            'action_type': action.action_type,
+            'student_id': action.student,
+            'delta': action.delta,
+            'created_on': action.created_on,
+            'updated_on': action.updated_on,
+            'settled': action.settled,
+            'note': action.note,
+        }
+
+    if request.method not in ['GET']:
+        return JsonResponse({
+            'error': 'Method not allowed.'
+        }, status_code=405)
+
+    try:
+        requesting_staff = request.user.staff
+    except:
+        return JsonResponse(
+            {'error': 'No staff for that user'},
+            status=401
+        )
+
+    if request.method == 'GET':
+        staff_students = (SectionLevelRosterPerYear.objects
+                         .filter(staff=requesting_staff)
+                         .filter(academic_year=get_academic_year())
+                         .values_list('student_id')
+                         .distinct())
+
+        student_actions = Action.objects.filter(student__in=staff_students)
+
+        return JsonResponse({'data': [_shape(action) for action in student_actions]})

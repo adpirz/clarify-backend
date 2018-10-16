@@ -7,7 +7,7 @@ from django.conf.urls import include, url
 from django.contrib import admin
 from .views import (
     StudentView, SectionView, SessionView, UserView, CourseView,
-    MissingAssignmentDeltaView,)
+    MissingAssignmentDeltaView, ActionView)
 
 urlpatterns = [
     url(r'^user/me/', UserView),
@@ -16,4 +16,5 @@ urlpatterns = [
     url(r'^section/', SectionView),
     url(r'^session/', SessionView),
     url(r'^missing-assignments/', MissingAssignmentDeltaView),
+    url(r'^action/', ActionView),
 ]
