@@ -682,16 +682,21 @@ class AssignmentGscaAff(models.Model):
 class Scores(models.Model):
     score_id = models.IntegerField(primary_key=True)
     field_ssa_id = models.IntegerField(db_column='_ssa_id', blank=True, null=True)  # Field renamed because it started with '_'.
-    assignment_id = models.IntegerField()
+    assignment = models.ForeignKey(Assignments)
     value = models.FloatField(blank=True, null=True)
-    gradebook_id = models.IntegerField()
+    gradebook = models.ForeignKey(Gradebooks)
     is_excused = models.BooleanField()
     notes = models.TextField(blank=True, null=True)
     entry = models.CharField(max_length=255, blank=True, null=True)
     is_valid = models.BooleanField()
     created = models.DateTimeField(blank=True, null=True)
     modified = models.DateTimeField(blank=True, null=True)
-    student_id = models.IntegerField()
+    student = models.ForeignKey(Students)
+
+    def __str__(self):
+        return f"Student: {self.student_id}, " +\
+               f"Gradebook: {self.gradebook_id}, " +\
+               f"Assignment: {self.assignment_id}"
 
     class Meta:
         managed = False
@@ -955,3 +960,38 @@ class Subjects(models.Model):
     class Meta:
         managed = False
         db_table = 'subjects'
+
+
+class GradingPeriods(models.Model):
+    grading_period_id = models.IntegerField(primary_key=True)
+    grading_period_name = models.CharField(max_length=200)
+    term = models.ForeignKey(Terms)
+    grading_window_start_date = models.DateField(blank=True, null=True)
+    grading_window_end_date = models.DateField(blank=True, null=True)
+    grading_period_start_date = models.DateField(blank=True, null=True)
+    grading_period_end_date = models.DateField(blank=True, null=True)
+    grading_window_start_date_overwrite = models.DateField(blank=True, null=True)
+    grading_window_end_date_overwrite = models.DateField(blank=True, null=True)
+    is_end_of_term = models.BooleanField()
+    is_k6_report_card = models.NullBooleanField()
+    disable_gpa = models.BooleanField()
+    grading_period_num = models.IntegerField(blank=True, null=True)
+    term_type = models.IntegerField(blank=True, null=True)
+    track_id = models.IntegerField(blank=True, null=True)
+    report_card_snapshot_date = models.DateField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'grading_periods'
+
+
+class SectionGradingPeriodAff(models.Model):
+    sgpa_id = models.IntegerField(primary_key=True)
+    section = models.ForeignKey(Sections)
+    course = models.ForeignKey(Courses)
+    grading_period = models.ForeignKey(GradingPeriods)
+    is_published = models.BooleanField()
+
+    class Meta:
+        managed = False
+        db_table = 'section_grading_period_aff'

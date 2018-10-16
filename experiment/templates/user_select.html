@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+    <ul class="list-group">
+    {% for user in users %}
+        <li class="list-group-item"><a href={% url "experiment:user_detail" user.user_id %}>{{ user.user_id }}: {{ user.first_name }} {{ user.last_name }}</a> | <a href={% url 'experiment:user_gb_select' user.user_id %}>Gradebooks</a></li>
+    {% endfor %}
+    </ul>
+
+{% endblock %}
+

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="jumbotron">
+        <div>{{ object.user_id }}</div>
+        <div>{{ object.username }}</div>
+        <div><h2>{{ object.first_name }} {{ object.last_name }}</h2></div>
+    </div>
+        {% for standout in standouts %}
+            <div class="well well-lg">
+                <h3>{{ standout.text }}</h3>
+                <p>{{ standout.date }}</p>
+            </div>
+
+        {% endfor %}
+
+{% endblock %}

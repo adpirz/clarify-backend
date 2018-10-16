@@ -15,7 +15,7 @@ CORS_ALLOW_CREDENTIALS = True
 # ------------------------------------------------------------------------------
 
 MIDDLEWARE_CLASSES += ['debug_toolbar.middleware.DebugToolbarMiddleware', ]
-INSTALLED_APPS += ['debug_toolbar', ]
+INSTALLED_APPS += ['debug_toolbar', 'experiment.apps.ExperimentConfig']
 
 INTERNAL_IPS = ['127.0.0.1', '10.0.2.2', ]
 
@@ -24,6 +24,10 @@ DEBUG_TOOLBAR_CONFIG = {
         'debug_toolbar.panels.redirects.RedirectsPanel',
     ],
 }
+
+SHELL_PLUS_PRE_IMPORTS = [
+    ('experiment.management.commands._experiment', '*')
+]
 
 if DEBUG and not DISABLE_LOGGING:
     LOGGING = {
