@@ -20,15 +20,17 @@ class Delta(models.Model):
 
     updated_on = models.DateTimeField(auto_now=True)
     student = models.ForeignKey(Student)
-    completed_on = models.DateTimeField(default=timezone.now)
     missing_assignments = models.ManyToManyField(Assignment, through='MissingAssignmentRecord')
     score = models.ForeignKey(Score)
     category_average_before = models.FloatField()
     category_average_after = models.FloatField()
-    attendance_dates = JSONField()
-    type = models.CharField(choices=DELTA_TYPE_CHOICES, max_length=255)
+    attendance_dates = JSONField(null=True)
+    type = models.CharField(choices=DELTA_TYPE_CHOICES, max_length=255, blank=False)
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.student.id}: {self.type}"
 
 class MissingAssignmentRecord(models.Model):
     delta = models.ForeignKey(Delta)
@@ -37,15 +39,18 @@ class MissingAssignmentRecord(models.Model):
 
 
 class Action(models.Model):
-    ACTION_TYPE_CHOICES = (
+    TYPE_CHOICES = (
         ('note', 'Note'),
     )
-    completed_on = models.DateTimeField()
-    due_on = models.DateTimeField()
-    action_type = models.CharField(choices=ACTION_TYPE_CHOICES, max_length=255)
+    completed_on = models.DateTimeField(null=True)
+    due_on = models.DateTimeField(null=True)
+    type = models.CharField(choices=TYPE_CHOICES, max_length=255, default=TYPE_CHOICES[0][0])
     student = models.ForeignKey(Student)
     deltas = models.ManyToManyField(Delta)
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
-    settled = models.BooleanField()
+    settled = models.BooleanField(default=False)
     note = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.student.id}: {self.type}"
