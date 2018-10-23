@@ -26,6 +26,7 @@ class Delta(models.Model):
     category_average_after = models.FloatField()
     attendance_dates = JSONField(null=True)
     type = models.CharField(choices=DELTA_TYPE_CHOICES, max_length=255, blank=False)
+    settled = models.BooleanField(default=False)
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -42,14 +43,13 @@ class Action(models.Model):
     TYPE_CHOICES = (
         ('note', 'Note'),
     )
-    completed_on = models.DateTimeField(null=True)
-    due_on = models.DateTimeField(null=True)
     type = models.CharField(choices=TYPE_CHOICES, max_length=255, default=TYPE_CHOICES[0][0])
     student = models.ForeignKey(Student)
+    completed_on = models.DateTimeField(null=True)
+    due_on = models.DateTimeField(null=True)
     deltas = models.ManyToManyField(Delta)
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
-    settled = models.BooleanField(default=False)
     note = models.TextField(blank=True)
 
     def __str__(self):
