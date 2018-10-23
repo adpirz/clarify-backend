@@ -31,7 +31,7 @@ from sis_pull.models import (
     CurrentRoster,
     Assignment,
     ScoreCache as SC,
-    Scores as Pull_scores,
+    Score as Pull_scores,
     SessionType,
     Session,
     Role,

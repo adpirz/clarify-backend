@@ -1,6 +1,6 @@
 from django.utils import timezone
 from json import loads
-from datetime import timedelta
+from datetime import timedelta, datetime
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
@@ -17,7 +17,7 @@ from sis_pull.models import (
     SectionLevelRosterPerYear,
     StaffTermRoleAffinity, Assignment, GradebookSectionCourseAffinity,
     Gradebook, Score,)
-from reports.models import Report, ReportShare
+from deltas.models import Action
 from mimesis import Person
 from utils import get_academic_year
 
@@ -295,7 +295,6 @@ def MissingAssignmentDeltaView(request):
                                   .order_by('due_date'))
             missing_assignments = []
             for assignment in section_assignments:
-                import pdb; pdb.set_trace()
                 ontime_scores = [score for score in scores if score.assignment_id == assignment.id and score.created.date() < assignment.due_date]
                 for missing_assignment in missing_assignments:
                     ontime_scores = [score for score in scores if score.assignment_id == assignment.id and score.created.date() < assignment.due_date]
@@ -343,19 +342,19 @@ def ActionView(request):
         return {
             'completed_on': action.completed_on,
             'due_on': action.due_on,
-            'action_type': action.action_type,
-            'student_id': action.student,
-            'delta': action.delta,
+            'type': action.type,
+            'student_id': action.student.id,
+            'delta_ids': [d.id for d in action.deltas.all()],
             'created_on': action.created_on,
             'updated_on': action.updated_on,
             'settled': action.settled,
             'note': action.note,
         }
 
-    if request.method not in ['GET']:
+    if request.method not in ['GET', 'POST']:
         return JsonResponse({
             'error': 'Method not allowed.'
-        }, status_code=405)
+        }, status=405)
 
     try:
         requesting_staff = request.user.staff
@@ -375,3 +374,71 @@ def ActionView(request):
         student_actions = Action.objects.filter(student__in=staff_students)
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
+
+    if request.method == 'POST':
+        parseable_post = request.body.decode('utf8')
+        if not parseable_post:
+            return JsonResponse(
+                {'error': 'Request body must be present'},
+                status=400)
+
+        parsed_post = loads(parseable_post)
+        target_student_id = parsed_post.get('target_student_id')
+
+        if not target_student_id:
+            return JsonResponse(
+                {'error': 'Target student is required parameter'},
+                status=400)
+
+        try:
+            target_student = Student.objects.get(id=target_student_id)
+        except Student.DoesNotExist:
+            return JsonResponse(
+                {'error': 'Target student could not be found'},
+                status=404)
+
+        new_action = (Action.objects.create(
+                        student=target_student,
+                        note=parsed_post.get('note')))
+
+        due_on = parsed_post.get('due_on')
+        completed_on = parsed_post.get('completed_on')
+
+        if due_on:
+            try:
+                due_on = datetime.strptime(due_on, '%m/%d/%Y')
+                new_action.due_on = due_on
+            except:
+                return JsonResponse(
+                    {'error': 'Due date must be in the format mm/dd/yyyy'},
+                    status=404)
+
+        if completed_on:
+            try:
+                completed_on = datetime.strptime(completed_on, '%m/%d/%Y')
+                new_action.completed_on = completed_on
+            except:
+                return JsonResponse(
+                    {'error': 'Completed date must be in the format mm/dd/yyyy'},
+                    status=404)
+
+        if parsed_post.get('type'):
+            new_action.type = parsed_post.get('type')
+
+
+        new_action.save()
+
+        deltas = parsed_post.get('deltas')
+        if deltas:
+            if isinstance(deltas, list):
+                new_action.deltas = deltas
+                new_action.save()
+            else:
+                new_action.delete()
+                return JsonResponse(
+                    {'error': 'Deltas must be a list. Action was not created.'},
+                    status=404)
+
+        return JsonResponse(
+            {'data': _shape(new_action)},
+            status=404)
