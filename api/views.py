@@ -46,7 +46,7 @@ def StudentView(request):
             'last_name': student.last_name,
             'is_enrolled': student.is_enrolled,
             'is_searchable': student.is_searchable,
-            'enrolled_section_ids': list(set([s[1] for s in student_section_pairs]))
+            'enrolled_section_ids': list(set([s[1] for s in student_section_pairs if s[0] == student.id]))
         }
 
     try:
@@ -75,6 +75,7 @@ def StudentView(request):
     student_section_pairs = (SectionLevelRosterPerYear.objects
         .filter(site_id=staff_site_id)
         .filter(academic_year=get_academic_year())
+        .filter(staff=requesting_staff)
         .values_list('student_id', 'section_id').distinct()
     )
     site_student_ids = [s[0] for s in student_section_pairs]
@@ -85,14 +86,14 @@ def StudentView(request):
         staff_student_ids = (SectionLevelRosterPerYear.objects
             .filter(staff=requesting_staff)
             .filter(academic_year=get_academic_year())
-            .values_list('student_id')
+            .values_list('student_id').distinct()
         )
     else:
         # Staff is an admin, which means they can see all students at their site
         staff_student_ids = site_student_ids
 
 
-    staff_students = (Student.objects.filter(id__in=site_student_ids)
+    staff_students = (Student.objects.filter(id__in=staff_student_ids)
                       .annotate(is_searchable=Case(
                         When(id__in=staff_student_ids, then=Value(True)),
                         default=Value(False),
