@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.postgres.fields import JSONField
 
-from sis_pull.models import Student, Assignment, Category, Score
+from sis_pull.models import Student, Assignment, Category, Score, Staff
 
 # Create your models here.
 
@@ -44,6 +44,7 @@ class Action(models.Model):
         ('note', 'Note'),
     )
     type = models.CharField(choices=TYPE_CHOICES, max_length=255, default=TYPE_CHOICES[0][0])
+    created_by = models.ForeignKey(Staff)
     student = models.ForeignKey(Student)
     completed_on = models.DateTimeField(null=True)
     due_on = models.DateTimeField(null=True)
