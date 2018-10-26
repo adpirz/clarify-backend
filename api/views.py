@@ -342,6 +342,7 @@ def ActionView(request):
     def _shape(action):
         return {
             'completed_on': action.completed_on,
+            'created_by': action.created_by.id,
             'due_on': action.due_on,
             'type': action.type,
             'student_id': action.student.id,
@@ -400,7 +401,8 @@ def ActionView(request):
 
         new_action = (Action.objects.create(
                         student=target_student,
-                        note=parsed_post.get('note')))
+                        note=parsed_post.get('note'),
+                        created_by=requesting_staff.id))
 
         due_on = parsed_post.get('due_on')
         completed_on = parsed_post.get('completed_on')
