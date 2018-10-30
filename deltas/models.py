@@ -33,6 +33,7 @@ class Delta(models.Model):
     def __str__(self):
         return f"{self.student.id}: {self.type}"
 
+
 class MissingAssignmentRecord(models.Model):
     delta = models.ForeignKey(Delta)
     assignment = models.ForeignKey(Assignment)

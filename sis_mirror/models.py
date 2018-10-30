@@ -934,6 +934,7 @@ class StandardsCache(models.Model):
 class States(models.Model):
     state_id = models.IntegerField(primary_key=True)
     code = models.CharField(max_length=6)
+
     name = models.CharField(max_length=255)
     sort_order = models.IntegerField(blank=True, null=True)
     country_code = models.CharField(max_length=6, blank=True, null=True)
