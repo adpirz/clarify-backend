@@ -4,8 +4,9 @@ from .models import Action, Delta
 from sis_pull.models import Student
 
 @admin.register(Action)
-class ReportAdmin(admin.ModelAdmin):
+class ActionAdmin(admin.ModelAdmin):
     search_fields = ['student']
+    list_display = ('student', 'created_on', 'type')
 
 
 @admin.register(Delta)
@@ -16,4 +17,3 @@ class DeltaAdmin(admin.ModelAdmin):
         if db_field.name == "student":
             kwargs["queryset"] = Student.objects.order_by('first_name')
         return super(DeltaAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
-
