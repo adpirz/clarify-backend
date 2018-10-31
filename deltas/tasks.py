@@ -70,6 +70,6 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
 
     return missing
 
+
 def build_deltas_for_user(user_id, grading_period_id=None):
-    pass
 
