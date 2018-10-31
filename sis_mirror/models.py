@@ -458,6 +458,13 @@ class Gradebooks(models.Model):
     def __str__(self):
         return self.gradebook_name or str(self.gradebook_id)
 
+    @classmethod
+    def get_all_current_gradebooks_for_user_id(cls, user_id):
+        # TODO: What about gradebooks that have transferred owners?
+        return cls.objects.filter(
+            active=True, created_by=user_id
+        ).all()
+
     class Meta:
         managed = False
         db_table = 'gradebooks'
@@ -630,13 +637,13 @@ class SectionCourseAff(models.Model):
 
 class SectionStudentAff(models.Model):
     ssa_id = models.IntegerField(primary_key=True)
-    section_id = models.IntegerField(blank=True, null=True)
-    student_id = models.IntegerField(blank=True, null=True)
+    section = models.ForeignKey(Sections, blank=True, null=True)
+    student = models.ForeignKey(Students, blank=True, null=True)
     seat_row = models.IntegerField(blank=True, null=True)
     seat_col = models.IntegerField(blank=True, null=True)
     entry_date = models.DateField()
     leave_date = models.DateField(blank=True, null=True)
-    course_id = models.IntegerField()
+    course = models.ForeignKey(Courses)
     entry_code_id = models.IntegerField(blank=True, null=True)
     exit_code_id = models.IntegerField(blank=True, null=True)
 
@@ -980,6 +987,19 @@ class GradingPeriods(models.Model):
     term_type = models.IntegerField(blank=True, null=True)
     track_id = models.IntegerField(blank=True, null=True)
     report_card_snapshot_date = models.DateField(blank=True, null=True)
+
+    @classmethod
+    def get_all_current_grading_periods(cls, date=None, site_id=None):
+        if not date:
+            date = timezone.now().date()
+
+        grading_periods = (cls.objects
+                           .filter(grading_period_start_date__lte=date,
+                                   grading_period_end_date__gte=date))
+        if not site_id:
+            return grading_periods.all()
+
+        return grading_periods.filter(term__session__site_id=site_id).all()
 
     class Meta:
         managed = False

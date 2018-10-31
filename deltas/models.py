@@ -20,15 +20,16 @@ class Delta(models.Model):
 
     updated_on = models.DateTimeField(auto_now=True)
     student = models.ForeignKey(Student)
-    missing_assignments = models.ManyToManyField(Assignment, through='MissingAssignmentRecord')
-    score = models.ForeignKey(Score)
-    category_average_before = models.FloatField()
-    category_average_after = models.FloatField()
+    missing_assignments = models.ManyToManyField(
+        Assignment, through='MissingAssignmentRecord')
+    score = models.ForeignKey(Score, null=True)
+    category_average_before = models.FloatField(null=True)
+    category_average_after = models.FloatField(null=True)
     attendance_dates = JSONField(null=True)
-    type = models.CharField(choices=DELTA_TYPE_CHOICES, max_length=255, blank=False)
+    type = models.CharField(choices=DELTA_TYPE_CHOICES,
+                            max_length=255, blank=False)
     settled = models.BooleanField(default=False)
     created_on = models.DateTimeField(default=timezone.now)
-    updated_on = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.student.id}: {self.type}"
