@@ -2,7 +2,9 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.postgres.fields import JSONField
 
-from sis_pull.models import Student, Assignment, Category, Score, Staff
+from sis_pull.models import Student, Assignment, Category, Score, Staff, \
+    Gradebook
+
 
 # Create your models here.
 
@@ -18,18 +20,26 @@ class Delta(models.Model):
         (ATTENDANCE, 'Attendance delta'),
     ]
 
+    # meta fields
+    type = models.CharField(choices=DELTA_TYPE_CHOICES,
+                            max_length=255, blank=False)
+    created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
     student = models.ForeignKey(Student)
+
+    # missing assignment fields
     missing_assignments = models.ManyToManyField(
         Assignment, through='MissingAssignmentRecord')
+    gradebook = models.ForeignKey(Gradebook, null=True)
+
+    # category average fields
     score = models.ForeignKey(Score, null=True)
     category_average_before = models.FloatField(null=True)
     category_average_after = models.FloatField(null=True)
+
+    # attendance field
     attendance_dates = JSONField(null=True)
-    type = models.CharField(choices=DELTA_TYPE_CHOICES,
-                            max_length=255, blank=False)
     settled = models.BooleanField(default=False)
-    created_on = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.student.id}: {self.type}"
@@ -38,7 +48,7 @@ class Delta(models.Model):
 class MissingAssignmentRecord(models.Model):
     delta = models.ForeignKey(Delta)
     assignment = models.ForeignKey(Assignment)
-    new = models.BooleanField()
+    missing_on = models.DateField()
 
 
 class Action(models.Model):

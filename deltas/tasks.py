@@ -1,3 +1,5 @@
+from tqdm import tqdm
+
 from sis_mirror.models import (
     Gradebooks,
     GradingPeriods,
@@ -11,6 +13,7 @@ def get_missing_for_gradebook(gradebook_id):
     missing = (
         ScoreCache.objects
             .filter(gradebook_id=gradebook_id, is_missing=True)
+            .order_by('student_id')
             .values_list(
                 'assignment_id', 'assignment__short_name',
                 'student_id', 'student__first_name', 'student__last_name',
@@ -68,8 +71,24 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
     for gradebook_id in gradebook_ids:
         missing += get_missing_for_gradebook(gradebook_id)
 
-    return missing
+    student_dict = {}
+
+    for missing_assignment in missing:
+        student_id = missing_assignment[2]
+        if not student_id in student_dict:
+            student_dict[student_id] = []
+        student_dict[student_id].append(missing_assignment)
+
+    return student_dict
 
 
 def build_deltas_for_user(user_id, grading_period_id=None):
+
+    # get all missing assignments by student
+    all_missing = get_all_missing_for_user(user_id, grading_period_id)
+
+    for student_id, missing_assignments in tqdm(all_missing.items(),
+                                                desc="Students"):
+        # check if a record exists of all missing assignments
+        assignment_ids = [ma["assignment_id"] for ma in missing_assignments]
 
