@@ -325,7 +325,11 @@ def MissingAssignmentDeltaView(request):
     deltas = Delta.objects.filter(
         type="missing",
         gradebook_id__in=gradebook_ids
-    )
+    ).prefetch_related(
+        "missingassignmentrecord_set",
+        "missingassignmentrecord_set__assignment",
+        "gradebook"
+    ).all()
 
     """
     {
@@ -347,6 +351,7 @@ def MissingAssignmentDeltaView(request):
     return JsonResponse({"data": [
         d.response_shape() for d in deltas
     ]})
+
 
 
 @login_required
