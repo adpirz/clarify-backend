@@ -82,6 +82,17 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
     return student_dict
 
 
+"""
+
+    Missing Assignment Deltas:
+    
+    - Pull missing assignments for a gradebook from ScoreCache
+    - For each student with missing assignments, create a delta 
+    - C
+    
+"""
+
+
 def build_deltas_for_user(user_id, grading_period_id=None):
 
     # get all missing assignments by student
