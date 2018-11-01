@@ -44,11 +44,38 @@ class Delta(models.Model):
     def __str__(self):
         return f"{self.student.id}: {self.type}"
 
+    def response_shape(self):
+        response = {
+            "student_id": self.student.id,
+            "created_on": self.created_on,
+            "updated_on": self.updated_on,
+            "type": self.type
+        }
+
+        if self.type == "missing":
+            response["missing_assignments"] = [
+                a.response_shape() for a in
+                self.missingassignmentrecord_set.all()
+            ]
+            response["gradebook_id"] = self.gradebook_id
+            # This triggers a query; add gradebook_name as field on model?
+            response["gradebook_name"] = self.gradebook.gradebook_name
+
+        return response
+
 
 class MissingAssignmentRecord(models.Model):
     delta = models.ForeignKey(Delta)
     assignment = models.ForeignKey(Assignment)
     missing_on = models.DateField()
+
+    def response_shape(self):
+        return {
+            "assignment_name": self.assignment.short_name,
+            "assignment_id": self.assignment_id,
+            "due_date": self.assignment.due_date,
+            "missing_on": self.missing_on
+        }
 
 
 class Action(models.Model):

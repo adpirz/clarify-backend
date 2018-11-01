@@ -571,6 +571,19 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"
 
+    @classmethod
+    def get_users_current_gradebook_ids(cls, user_id):
+        section_filter = "__".join([
+            "section",
+            "sectionlevelrosterperyear",
+            "isnull"
+        ])
+
+        return cls.objects.filter(**{
+            section_filter: False,
+            "staff_id": user_id
+        }).distinct('gradebook_id').values_list('gradebook_id', flat=True)
+
 
 class OverallScoreCache(SourceObjectMixin, models.Model):
     """

@@ -17,7 +17,7 @@ from sis_pull.models import (
     SectionLevelRosterPerYear,
     StaffTermRoleAffinity, Assignment, GradebookSectionCourseAffinity,
     Gradebook, Score,)
-from deltas.models import Action
+from deltas.models import Action, Delta
 from mimesis import Person
 from utils import get_academic_year
 
@@ -186,6 +186,33 @@ def SessionView(request):
         return JsonResponse({
             'error': 'Method not allowed.'
         }, status_code=405)
+
+    if settings.DEBUG and request.method == 'POST':
+
+        if request.user and request.user.is_authenticated:
+            return JsonResponse({
+                'data': {
+                    'id': request.user.id,
+                    'username': request.user.username,
+                    'first_name': request.user.first_name,
+                    'last_name': request.user.last_name,
+                    'email': request.user.email,
+                    'logged_in_already': 'yeah'
+                }
+            })
+        user_id = request.POST.get('user_id')
+        user = get_object_or_404(User, id=user_id)
+        login(request, user)
+        return JsonResponse({
+            'data': {
+                'id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+            }
+        }, status=201)
+
     user = request.user
     if request.method == 'GET':
         if user.is_authenticated():
@@ -219,7 +246,7 @@ def SessionView(request):
             parsed_post = loads(parseable_post)
             request_google_token = parsed_post.get('google_token', '')
             try:
-                idinfo = id_token.verify_oauth2_token(
+                idinfo = id_token.verify_oauth2_itoken(
                     request_google_token,
                     requests.Request(),
                     settings.GOOGLE_CLIENT_ID
@@ -276,7 +303,6 @@ def MissingAssignmentDeltaView(request):
         return JsonResponse({
             'error': 'Method not allowed.'
         }, status_code=405)
-
     try:
         requesting_staff = request.user.staff
     except:
@@ -285,56 +311,42 @@ def MissingAssignmentDeltaView(request):
             status=401
         )
 
-    def get_missing_assignments_for_student(student_id, sections, section_gradebook_pairs):
-        student_deltas = []
-        scores = list(Scores.objects.filter(student_id=student_id))
-        for section_id in sections:
-            section_deltas = []
-            section_gradebooks = list(set([pair[1] for pair in section_gradebook_pairs if pair[0] == section_id]))
-            section_assignments = (Assignment.objects
-                                  .filter(gradebook__in=section_gradebooks)
-                                  .order_by('due_date'))
-            missing_assignments = []
-            for assignment in section_assignments:
-                ontime_scores = [score for score in scores if score.assignment_id == assignment.id and score.created.date() < assignment.due_date]
-                for missing_assignment in missing_assignments:
-                    ontime_scores = [score for score in scores if score.assignment_id == assignment.id and score.created.date() < assignment.due_date]
-                if len(ontime_scores) < 1:
-                    # No Score node was created prior to the assignment due_date, it was missing
-                    section_deltas.append({
-                        'timestamp': assignment.due_date,
-                        'assignment': {'name': assignment, 'due_date': assignment.due_date, 'new': True},
-                    })
-                    missing_assignments.append(assignment)
-            student_deltas.append({'section_id': section_id, 'deltas': section_deltas})
+    # get list of staff gradebooks
 
-        return student_deltas
+    # get all sections
 
-    student_section_pairs = (SectionLevelRosterPerYear.objects
-                            .filter(staff=requesting_staff)
-                            .filter(academic_year=get_academic_year())
-                            .values_list('student_id', 'section_id')
-                            .distinct())
+    # get all gradebooks associated with sections
 
-    staff_student_set = list(set([s[0] for s in student_section_pairs]))
-    staff_section_set = list(set([s[1] for s in student_section_pairs]))
-    section_gradebook_pairs = (GradebookSectionCourseAffinity.objects
-                               .filter(staff=requesting_staff)
-                               .filter(gradebook__active=True)
-                               .filter(gradebook__is_deleted=False)
-                               .values_list('section_id', 'gradebook_id'))
-    delta_data = []
+    gradebook_ids = (
+        GradebookSectionCourseAffinity
+            .get_users_current_gradebook_ids(requesting_staff.id)
+    )
 
-    for student_id in staff_student_set:
-        student_sections = list(set([pair[1] for pair in student_section_pairs if pair[0] == student_id]))
-        deltas = get_missing_assignments_for_student(student_id, student_sections, section_gradebook_pairs)
+    deltas = Delta.objects.filter(
+        type="missing",
+        gradebook_id__in=gradebook_ids
+    )
 
-        delta_data.append({
-            'student_id': student_id,
-            'missing_assignments': deltas
-        })
+    """
+    {
+        data: [
+            { student_id, 
+              missing_assignments: [{
+                timestamp,
+                assignment: {
+                    name: string,
+                    due_date: time,
+                    missing_on: time,
+                }
+                
+              }]}
+        ]
+    }
+    """
 
-    return JsonResponse({"data": delta_data})
+    return JsonResponse({"data": [
+        d.response_shape() for d in deltas
+    ]})
 
 
 @login_required

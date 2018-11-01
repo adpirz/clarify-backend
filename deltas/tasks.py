@@ -147,7 +147,7 @@ def build_deltas_for_user(user_id, grading_period_id=None):
                 MissingAssignmentRecord.objects.create(
                     delta=new_delta,
                     assignment_id=assignment["assignment_id"],
-                    missing_on=timezone.now()
+                    missing_on=timezone.now().date()
                 )
             except IntegrityError:
                 print(f"Error adding to delta: {e}")
@@ -162,7 +162,6 @@ def build_deltas_for_all_current_academic_teachers():
     teacher_ids = (
         SsCube.objects
             .distinct('user_id')
-            .order_by('-user_id')
             .values_list('user_id', flat=True)
     )
 
@@ -170,6 +169,7 @@ def build_deltas_for_all_current_academic_teachers():
 
     total_new_deltas = 0
     total_errors = 0
+
     for teacher_id in tqdm(teacher_ids, desc="Staff"):
         new_deltas, errors = build_deltas_for_user(teacher_id)
         total_new_deltas += new_deltas
