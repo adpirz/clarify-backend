@@ -311,12 +311,6 @@ def MissingAssignmentDeltaView(request):
             status=401
         )
 
-    # get list of staff gradebooks
-
-    # get all sections
-
-    # get all gradebooks associated with sections
-
     gradebook_ids = (
         GradebookSectionCourseAffinity
             .get_users_current_gradebook_ids(requesting_staff.id)
@@ -351,7 +345,6 @@ def MissingAssignmentDeltaView(request):
     return JsonResponse({"data": [
         d.response_shape() for d in deltas
     ]})
-
 
 
 @login_required
