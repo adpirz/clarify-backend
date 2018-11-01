@@ -54,13 +54,15 @@ class MissingAssignmentRecord(models.Model):
 class Action(models.Model):
     TYPE_CHOICES = (
         ('note', 'Note'),
+        ('call', 'Call'),
+        ('message', 'Message'),
     )
     type = models.CharField(choices=TYPE_CHOICES, max_length=255, default=TYPE_CHOICES[0][0])
     created_by = models.ForeignKey(Staff)
     student = models.ForeignKey(Student)
-    completed_on = models.DateTimeField(null=True)
-    due_on = models.DateTimeField(null=True)
-    deltas = models.ManyToManyField(Delta)
+    completed_on = models.DateTimeField(null=True, blank=True)
+    due_on = models.DateTimeField(null=True, blank=True)
+    deltas = models.ManyToManyField(Delta, blank=True)
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
     note = models.TextField(blank=True)

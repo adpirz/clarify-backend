@@ -349,7 +349,6 @@ def ActionView(request):
             'delta_ids': [d.id for d in action.deltas.all()],
             'created_on': action.created_on,
             'updated_on': action.updated_on,
-            'settled': action.settled,
             'note': action.note,
         }
 
@@ -385,15 +384,15 @@ def ActionView(request):
                 status=400)
 
         parsed_post = loads(parseable_post)
-        target_student_id = parsed_post.get('target_student_id')
+        student_id = parsed_post.get('student_id')
 
-        if not target_student_id:
+        if not student_id:
             return JsonResponse(
                 {'error': 'Target student is required parameter'},
                 status=400)
 
         try:
-            target_student = Student.objects.get(id=target_student_id)
+            target_student = Student.objects.get(id=student_id)
         except Student.DoesNotExist:
             return JsonResponse(
                 {'error': 'Target student could not be found'},
@@ -402,7 +401,7 @@ def ActionView(request):
         new_action = (Action.objects.create(
                         student=target_student,
                         note=parsed_post.get('note'),
-                        created_by=requesting_staff.id))
+                        created_by=requesting_staff))
 
         due_on = parsed_post.get('due_on')
         completed_on = parsed_post.get('completed_on')
@@ -414,7 +413,7 @@ def ActionView(request):
             except:
                 return JsonResponse(
                     {'error': 'Due date must be in the format mm/dd/yyyy'},
-                    status=404)
+                    status=400)
 
         if completed_on:
             try:
@@ -423,7 +422,7 @@ def ActionView(request):
             except:
                 return JsonResponse(
                     {'error': 'Completed date must be in the format mm/dd/yyyy'},
-                    status=404)
+                    status=400)
 
         if parsed_post.get('type'):
             new_action.type = parsed_post.get('type')
@@ -440,8 +439,8 @@ def ActionView(request):
                 new_action.delete()
                 return JsonResponse(
                     {'error': 'Deltas must be a list. Action was not created.'},
-                    status=404)
+                    status=400)
 
         return JsonResponse(
             {'data': _shape(new_action)},
-            status=404)
+            status=201)
