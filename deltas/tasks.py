@@ -1,10 +1,14 @@
+from django.db import IntegrityError
+from django.utils import timezone
 from tqdm import tqdm
 
 from sis_mirror.models import (
     Gradebooks,
     GradingPeriods,
-    ScoreCache
-)
+    ScoreCache,
+    SsCube)
+
+from .models import Delta, MissingAssignmentRecord
 
 
 def get_missing_for_gradebook(gradebook_id):
@@ -74,7 +78,7 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
     student_dict = {}
 
     for missing_assignment in missing:
-        student_id = missing_assignment[2]
+        student_id = missing_assignment['student_id']
         if not student_id in student_dict:
             student_dict[student_id] = []
         student_dict[student_id].append(missing_assignment)
@@ -86,9 +90,9 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
 
     Missing Assignment Deltas:
     
-    - Pull missing assignments for a gradebook from ScoreCache
-    - For each student with missing assignments, create a delta 
-    - C
+    1. Pull missing assignments for a gradebook from ScoreCache
+    2. For each student with missing assignments, create a delta 
+    3. Check if delta is duplicate; if not, save
     
 """
 
@@ -98,8 +102,77 @@ def build_deltas_for_user(user_id, grading_period_id=None):
     # get all missing assignments by student
     all_missing = get_all_missing_for_user(user_id, grading_period_id)
 
-    for student_id, missing_assignments in tqdm(all_missing.items(),
-                                                desc="Students"):
-        # check if a record exists of all missing assignments
-        assignment_ids = [ma["assignment_id"] for ma in missing_assignments]
+    new_deltas_created = 0
+    errors = 0
 
+    for student_id, missing_assignments in tqdm(all_missing.items(),
+                                                desc="Students",
+                                                leave=False):
+        last_missing_delta_for_student = (
+            Delta.objects
+                .filter(student_id=student_id, type="missing")
+                .order_by('-updated_on')
+                .first()
+        )
+
+        # Check if a delta exists for this set
+        if last_missing_delta_for_student:
+            old_set = set(
+                last_missing_delta_for_student
+                    .missingassignmentrecord_set
+                    .values_list('assignment_id', flat=True)
+            )
+            new_set = set([ma["assignment_id"] for ma in missing_assignments])
+
+            if old_set == new_set:
+                continue
+
+        try:
+            new_delta = Delta.objects.create(
+                type="missing",
+                student_id=student_id,
+                gradebook_id=missing_assignments[0]['gradebook_id'],
+            )
+        except IntegrityError as e:
+            print(f"Error creating delta: {e}")
+            errors += 1
+
+        for assignment in missing_assignments:
+            try:
+                MissingAssignmentRecord.objects.create(
+                    delta=new_delta,
+                    assignment_id=assignment["assignment_id"],
+                    missing_on=timezone.now()
+                )
+            except IntegrityError:
+                print(f"Error adding to delta: {e}")
+                errors += 1
+
+        new_deltas_created += 1
+
+    return new_deltas_created, errors
+
+
+def build_deltas_for_all_current_academic_teachers():
+    teacher_ids = (
+        SsCube.objects
+            .distinct('user_id')
+            .values_list('user_id', flat=True)
+    )
+
+    start = timezone.now()
+
+    total_new_deltas = 0
+    total_errors = 0
+    for teacher_id in tqdm(teacher_ids, desc="Staff"):
+        new_deltas, errors = build_deltas_for_user(teacher_id)
+        total_new_deltas += new_deltas
+        total_errors += errors
+
+    end = timezone.now()
+
+    return "Completed all missing assignment deltas for current teachers." + \
+           f"\n\tTeachers: {len(teacher_ids)}" + \
+           f"\n\tTotal new deltas: {total_new_deltas}" + \
+           f"\n\tTotal errors: {total_errors}" + \
+           f"\n\tTotal time elapsed (seconds): {(end - start).total_seconds()}"
