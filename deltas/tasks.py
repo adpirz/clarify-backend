@@ -17,7 +17,8 @@ def get_missing_for_gradebook(gradebook_id):
     missing = (
         ScoreCache.objects
             .filter(gradebook_id=gradebook_id, is_missing=True)
-            .order_by('student_id')
+            .order_by('student_id', '-calculated_at')
+            .distinct('student_id', 'assignment_id', 'calculated_at')
             .values_list(
                 'assignment_id', 'assignment__short_name',
                 'student_id', 'student__first_name', 'student__last_name',
@@ -72,7 +73,9 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
 
     missing = []
 
-    for gradebook_id in gradebook_ids:
+    for gradebook_id in tqdm(gradebook_ids,
+                             desc="Gradebooks",
+                             leave=False):
         missing += get_missing_for_gradebook(gradebook_id)
 
     student_dict = {}
@@ -110,7 +113,9 @@ def build_deltas_for_user(user_id, grading_period_id=None):
                                                 leave=False):
         last_missing_delta_for_student = (
             Delta.objects
-                .filter(student_id=student_id, type="missing")
+                .filter(student_id=student_id,
+                        type="missing",
+                        gradebook_id=missing_assignments[0]["gradebook_id"])
                 .order_by('-updated_on')
                 .first()
         )
@@ -157,6 +162,7 @@ def build_deltas_for_all_current_academic_teachers():
     teacher_ids = (
         SsCube.objects
             .distinct('user_id')
+            .order_by('-user_id')
             .values_list('user_id', flat=True)
     )
 
