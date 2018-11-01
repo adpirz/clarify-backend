@@ -2,3 +2,6 @@
 
 # Debug toolbar
 django-debug-toolbar==1.9.1
+
+# Django Silk for REST debugging
+django-silk==3.0.1
