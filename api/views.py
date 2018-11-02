@@ -358,6 +358,7 @@ def MissingAssignmentDeltaView(request):
 def ActionView(request):
     def _shape(action):
         return {
+            'id': action.id,
             'completed_on': action.completed_on,
             'created_by': action.created_by.id,
             'due_on': action.due_on,

@@ -14,14 +14,15 @@ CORS_ALLOW_CREDENTIALS = True
 # django-debug-toolbar
 # ------------------------------------------------------------------------------
 
-MIDDLEWARE_CLASSES = ['silk.middleware.SilkyMiddleware'] + MIDDLEWARE_CLASSES
 
-MIDDLEWARE_CLASSES += ['debug_toolbar.middleware.DebugToolbarMiddleware', ]
+MIDDLEWARE += [
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'clarify_backend.middleware.middleware.NonHtmlDebugToolbarMiddleware',
+]
 
 INSTALLED_APPS += [
     'debug_toolbar',
     'experiment.apps.ExperimentConfig',
-    'silk'
 ]
 
 INTERNAL_IPS = ['127.0.0.1', '10.0.2.2', ]
