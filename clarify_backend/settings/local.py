@@ -2,6 +2,7 @@ from .base import * # noqua
 
 
 DEBUG = env.bool('DJANGO_DEBUG', default=True)
+IMPERSONATION = False
 DISABLE_LOGGING = env.bool('DISABLE_LOGGING', default=False)
 CORS_ORIGIN_WHITELIST = (
     'localhost:3000',

@@ -187,8 +187,7 @@ def SessionView(request):
             'error': 'Method not allowed.'
         }, status_code=405)
 
-    if settings.DEBUG and request.method == 'POST':
-
+    if settings.IMPERSONATION and request.method == 'POST':
         if request.user and request.user.is_authenticated:
             return JsonResponse({
                 'data': {
@@ -246,7 +245,7 @@ def SessionView(request):
             parsed_post = loads(parseable_post)
             request_google_token = parsed_post.get('google_token', '')
             try:
-                idinfo = id_token.verify_oauth2_itoken(
+                idinfo = id_token.verify_oauth2_token(
                     request_google_token,
                     requests.Request(),
                     settings.GOOGLE_CLIENT_ID
@@ -328,7 +327,7 @@ def MissingAssignmentDeltaView(request):
     """
     {
         data: [
-            { student_id, 
+            { student_id,
               missing_assignments: [{
                 timestamp,
                 assignment: {
@@ -336,7 +335,7 @@ def MissingAssignmentDeltaView(request):
                     due_date: time,
                     missing_on: time,
                 }
-                
+
               }]}
         ]
     }
