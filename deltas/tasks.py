@@ -141,6 +141,7 @@ def build_deltas_for_user(user_id, grading_period_id=None):
         except IntegrityError as e:
             print(f"Error creating delta: {e}")
             errors += 1
+            continue
 
         for assignment in missing_assignments:
             try:
