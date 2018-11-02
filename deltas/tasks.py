@@ -1,4 +1,5 @@
 from django.db import IntegrityError
+from django.db.models import Sum, F
 from django.utils import timezone
 from tqdm import tqdm
 
@@ -6,7 +7,7 @@ from sis_mirror.models import (
     Gradebooks,
     GradingPeriods,
     ScoreCache,
-    SsCube)
+    SsCube, CategoryScoreCache, Scores, Categories)
 
 from .models import Delta, MissingAssignmentRecord
 
@@ -23,7 +24,7 @@ def get_missing_for_gradebook(gradebook_id):
                 'assignment_id', 'assignment__short_name',
                 'student_id', 'student__first_name', 'student__last_name',
                 'gradebook_id', 'gradebook__gradebook_name'
-        )
+        ).prefetch_related('assignment', 'student', 'gradebook')
     )
 
     def _shape(missing_tuple):
@@ -40,6 +41,58 @@ def get_missing_for_gradebook(gradebook_id):
         }
 
     return [_shape(t) for t in missing]
+
+
+def get_latest_category_scores_for_gradebook(gradebook_id):
+    gradebook = Gradebooks.objects.get(pk=gradebook_id)
+
+    category_scores = (
+        CategoryScoreCache.objects
+            .filter(gradebook_id=gradebook_id)
+            .order_by('student_id', '-calculated_at')
+            .distinct('student_id', 'category_id')
+            .all()
+    )
+
+
+def calculate_category_scores_until_date_for_student(
+        student_id, gradebook_id, date):
+    """Returns the category scores for each """
+
+    return (
+        Scores.objects
+            .filter(student_id=student_id, gradebook_id=gradebook_id)
+            .filter(assignment__due_date__lte=date, created__lte=date)
+            .prefetch_related('assignment', 'assignment__category')
+            .values('student_id',
+                    'gradebook_id',
+                    category_id=F('assignment__category_id'),
+                    category_name=F('assignment__category__category_name'))
+            .annotate(total_earned=Sum('value'))
+            .annotate(total_possible=Sum('assignment__possible_points'))
+            .all()
+    )
+
+
+def get_scores_until_date_for_student(student_id, gradebook_id, date):
+
+    return (
+        Scores.objects
+            .filter(student_id=student_id, gradebook_id=gradebook_id)
+            .filter(assignment__due_date__lte=date, created__lte=date)
+            .prefetch_related(
+                'assignment', 'assignment__category', 'gradebook')
+            .values('student_id',
+                    'value',
+                    'gradebook_id',
+                    'assignment_id',
+                    gradebook_name=F('gradebook_name'),
+                    due_date=F('assignment__due_date'),
+                    assign_date=F('assignment__assign_date'),
+                    assignment_name=F('assignment__short_name'),
+                    possible_points=F('assignment__possible_points'))
+            .all()
+    )
 
 
 def get_all_missing_for_user(user_id, grading_period_id=None):
@@ -89,6 +142,7 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
     return student_dict
 
 
+
 """
 
     Missing Assignment Deltas:
@@ -100,7 +154,7 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
 """
 
 
-def build_deltas_for_user(user_id, grading_period_id=None):
+def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
 
     # get all missing assignments by student
     all_missing = get_all_missing_for_user(user_id, grading_period_id)
@@ -172,14 +226,15 @@ def build_deltas_for_all_current_academic_teachers():
     total_errors = 0
 
     for teacher_id in tqdm(teacher_ids, desc="Staff"):
-        new_deltas, errors = build_deltas_for_user(teacher_id)
+        new_deltas, errors = build_missing_assignment_deltas_for_user(teacher_id)
         total_new_deltas += new_deltas
         total_errors += errors
 
     end = timezone.now()
+    elapsed = round((end - start).total_seconds())
 
     return "Completed all missing assignment deltas for current teachers." + \
            f"\n\tTeachers: {len(teacher_ids)}" + \
            f"\n\tTotal new deltas: {total_new_deltas}" + \
            f"\n\tTotal errors: {total_errors}" + \
-           f"\n\tTotal time elapsed (seconds): {(end - start).total_seconds()}"
+           f"\n\tTotal time elapsed (seconds): {elapsed}"
