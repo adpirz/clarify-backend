@@ -187,7 +187,8 @@ def SessionView(request):
             'error': 'Method not allowed.'
         }, status_code=405)
 
-    if settings.DEBUG and request.method == 'POST':
+    if settings.DEBUG and request.method == 'GET'\
+            and request.GET.get('user_id', None):
 
         if request.user and request.user.is_authenticated:
             return JsonResponse({
@@ -200,9 +201,10 @@ def SessionView(request):
                     'logged_in_already': 'yeah'
                 }
             })
-        user_id = request.POST.get('user_id')
+        user_id = request.GET.get('user_id')
         user = get_object_or_404(User, id=user_id)
         login(request, user)
+
         return JsonResponse({
             'data': {
                 'id': user.id,

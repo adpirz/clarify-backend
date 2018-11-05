@@ -1,5 +1,7 @@
+from datetime import datetime
+
 from django.db import IntegrityError
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Avg
 from django.utils import timezone
 from tqdm import tqdm
 
@@ -55,14 +57,50 @@ def get_latest_category_scores_for_gradebook(gradebook_id):
     )
 
 
-def calculate_category_scores_until_date_for_student(
-        student_id, gradebook_id, date):
+def calculate_class_average_for_category(
+        category_id, score: Scores=None, date: datetime=None):
+    """Calculate class average, optionally up until a certain date or score"""
+
+    end_date = None
+
+    if date:
+        end_date = date
+    elif score:
+        end_date = score.created
+
+    filters = {
+        "assignment__category_id": category_id,
+    }
+    if end_date:
+        filters["created"] = end_date
+        filters["assignment__due_date"] = end_date
+
+    return (
+        Scores.objects
+            .filter(**filters)
+            .exclude(is_excused=True)
+            .values('student_id')
+            .annotate(total_points=Sum('value'))
+            .annotate(total_possible=Sum('assignment__possible_points'))
+            .aggregate(
+                average_percentage=F('total_points')/F('total_possible'),
+            )
+    )
+
+
+def calculate_category_scores_until_date_or_score_for_student(
+        student_id, gradebook_id, date: datetime=None, score: Scores=None):
     """Returns the category scores for each """
+
+    if not date and not score:
+        raise ValueError("Must have a date or score.")
+
+    end_date = date if date else score.created
 
     return (
         Scores.objects
             .filter(student_id=student_id, gradebook_id=gradebook_id)
-            .filter(assignment__due_date__lte=date, created__lte=date)
+            .filter(assignment__due_date__lte=end_date, created__lte=end_date)
             .prefetch_related('assignment', 'assignment__category')
             .values('student_id',
                     'gradebook_id',

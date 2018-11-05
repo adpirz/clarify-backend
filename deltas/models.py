@@ -6,7 +6,13 @@ from sis_pull.models import Student, Assignment, Category, Score, Staff, \
     Gradebook
 
 
-# Create your models here.
+class CategoryGradeContextRecord(models.Model):
+    gradebook = models.ForeignKey(Gradebook)
+    category = models.ForeignKey(Category)
+    latest_score = models.ForeignKey(Score)
+
+    total_points_possible = models.FloatField()
+    average_points_earned = models.FloatField()
 
 
 class Delta(models.Model):
@@ -34,6 +40,7 @@ class Delta(models.Model):
 
     # category average fields
     score = models.ForeignKey(Score, null=True)
+    context_record = models.ForeignKey(CategoryGradeContextRecord, null=True)
     category_average_before = models.FloatField(null=True)
     category_average_after = models.FloatField(null=True)
 
