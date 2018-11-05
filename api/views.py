@@ -187,7 +187,7 @@ def SessionView(request):
             'error': 'Method not allowed.'
         }, status_code=405)
 
-    if settings.DEBUG and request.method == 'GET'\
+    if settings.IMPERSONATION and request.method == 'GET'\
             and request.GET.get('user_id', None):
 
         if request.user and request.user.is_authenticated:
@@ -248,7 +248,7 @@ def SessionView(request):
             parsed_post = loads(parseable_post)
             request_google_token = parsed_post.get('google_token', '')
             try:
-                idinfo = id_token.verify_oauth2_itoken(
+                idinfo = id_token.verify_oauth2_token(
                     request_google_token,
                     requests.Request(),
                     settings.GOOGLE_CLIENT_ID
@@ -330,7 +330,7 @@ def MissingAssignmentDeltaView(request):
     """
     {
         data: [
-            { student_id, 
+            { student_id,
               missing_assignments: [{
                 timestamp,
                 assignment: {
@@ -338,7 +338,7 @@ def MissingAssignmentDeltaView(request):
                     due_date: time,
                     missing_on: time,
                 }
-                
+
               }]}
         ]
     }
@@ -421,20 +421,20 @@ def ActionView(request):
 
         if due_on:
             try:
-                due_on = datetime.strptime(due_on, '%m/%d/%Y')
+                due_on = datetime.strptime(due_on, '%m/%d/%Y %H:%M')
                 new_action.due_on = due_on
             except:
                 return JsonResponse(
-                    {'error': 'Due date must be in the format mm/dd/yyyy'},
+                    {'error': 'Due date must be in the format mm/dd/yyyy HH:MM'},
                     status=400)
 
         if completed_on:
             try:
-                completed_on = datetime.strptime(completed_on, '%m/%d/%Y')
+                completed_on = datetime.strptime(completed_on, '%m/%d/%Y %H:%M')
                 new_action.completed_on = completed_on
             except:
                 return JsonResponse(
-                    {'error': 'Completed date must be in the format mm/dd/yyyy'},
+                    {'error': 'Completed date must be in the format mm/dd/yyyy HH:MM'},
                     status=400)
 
         if parsed_post.get('type'):
