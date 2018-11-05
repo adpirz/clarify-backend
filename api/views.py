@@ -418,20 +418,20 @@ def ActionView(request):
 
         if due_on:
             try:
-                due_on = datetime.strptime(due_on, '%m/%d/%Y')
+                due_on = datetime.strptime(due_on, '%m/%d/%Y %H:%M')
                 new_action.due_on = due_on
             except:
                 return JsonResponse(
-                    {'error': 'Due date must be in the format mm/dd/yyyy'},
+                    {'error': 'Due date must be in the format mm/dd/yyyy HH:MM'},
                     status=400)
 
         if completed_on:
             try:
-                completed_on = datetime.strptime(completed_on, '%m/%d/%Y')
+                completed_on = datetime.strptime(completed_on, '%m/%d/%Y %H:%M')
                 new_action.completed_on = completed_on
             except:
                 return JsonResponse(
-                    {'error': 'Completed date must be in the format mm/dd/yyyy'},
+                    {'error': 'Completed date must be in the format mm/dd/yyyy HH:MM'},
                     status=400)
 
         if parsed_post.get('type'):
