@@ -45,12 +45,13 @@ THIRD_PARTY_APPS = [
 CLARIFY_APPS = [
     'sis_pull.apps.SisPullConfig',
     'sis_mirror.apps.SisMirrorConfig',
-    'reports.apps.ReportsConfig'
+    'reports.apps.ReportsConfig',
+    'deltas'
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + CLARIFY_APPS
 
-MIDDLEWARE_CLASSES = [
+MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

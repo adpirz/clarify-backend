@@ -2,6 +2,7 @@ from .base import * # noqua
 
 
 DEBUG = env.bool('DJANGO_DEBUG', default=True)
+IMPERSONATION = False
 DISABLE_LOGGING = env.bool('DISABLE_LOGGING', default=False)
 CORS_ORIGIN_WHITELIST = (
     'localhost:3000',
@@ -14,8 +15,16 @@ CORS_ALLOW_CREDENTIALS = True
 # django-debug-toolbar
 # ------------------------------------------------------------------------------
 
-MIDDLEWARE_CLASSES += ['debug_toolbar.middleware.DebugToolbarMiddleware', ]
-INSTALLED_APPS += ['debug_toolbar', 'experiment.apps.ExperimentConfig']
+
+MIDDLEWARE += [
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'clarify_backend.middleware.middleware.NonHtmlDebugToolbarMiddleware',
+]
+
+INSTALLED_APPS += [
+    'debug_toolbar',
+    'experiment.apps.ExperimentConfig',
+]
 
 INTERNAL_IPS = ['127.0.0.1', '10.0.2.2', ]
 
@@ -26,7 +35,9 @@ DEBUG_TOOLBAR_CONFIG = {
 }
 
 SHELL_PLUS_PRE_IMPORTS = [
-    ('experiment.management.commands._experiment', '*')
+    ('pprint', 'pprint'),
+    ('experiment.management.commands._experiment', '*'),
+    ('deltas.tasks', '*')
 ]
 
 if DEBUG and not DISABLE_LOGGING:

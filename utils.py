@@ -3,6 +3,8 @@ from django.utils import timezone
 
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
+
 
 
 def camel_to_underscore(name):
@@ -31,7 +33,7 @@ def camel_to_underscore(name):
 
 
 def get_academic_year(date=None):
-    return 2017
+    return 2019
     # today = date or timezone.now().date()
     # return today.year if today.month < 8 else today.year + 1
 

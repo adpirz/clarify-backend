@@ -571,6 +571,19 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"
 
+    @classmethod
+    def get_users_current_gradebook_ids(cls, user_id):
+        section_filter = "__".join([
+            "section",
+            "sectionlevelrosterperyear",
+            "isnull"
+        ])
+
+        return cls.objects.filter(**{
+            section_filter: False,
+            "staff_id": user_id
+        }).distinct('gradebook_id').values_list('gradebook_id', flat=True)
+
 
 class OverallScoreCache(SourceObjectMixin, models.Model):
     """
@@ -683,6 +696,23 @@ class ScoreCache(SourceObjectMixin, models.Model):
     use_category_weights = models.NullBooleanField()
     last_updated = models.DateTimeField(blank=True, null=True)
     calculated_at = models.DateTimeField()
+
+
+class Score(SourceObjectMixin, models.Model):
+    source_table = 'scores'
+    source_schema = 'gradebook'
+    is_view = True
+
+    assignment = models.ForeignKey(Assignment)
+    value = models.FloatField(blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebook)
+    student = models.ForeignKey(Student)
+    is_excused = models.BooleanField()
+    notes = models.TextField(blank=True, null=True)
+    entry = models.CharField(max_length=255, blank=True, null=True)
+    is_valid = models.BooleanField()
+    created = models.DateTimeField(blank=True, null=True)
+    modified = models.DateTimeField(blank=True, null=True)
 
 
 class Timeblock(SourceObjectMixin, models.Model):
