@@ -1,43 +1,61 @@
-from django.utils import timezone
 from json import loads
-from datetime import timedelta, datetime
+from datetime import datetime
+from functools import wraps
+
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
 from django.shortcuts import get_object_or_404
-from django.http import JsonResponse, HttpResponse
-from django.db.models import Q, Case, When, Value, BooleanField
+from django.http import JsonResponse
+from django.db.models import Case, When, Value, BooleanField
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from sis_pull.models import (
-    Student, Section, GradeLevel, Site, Staff,
+    Student, Section, GradeLevel, Staff,
     SectionLevelRosterPerYear,
-    StaffTermRoleAffinity, Assignment, GradebookSectionCourseAffinity,
-    Gradebook, Score,)
+    GradebookSectionCourseAffinity,
+)
 from deltas.models import Action, Delta
-from mimesis import Person
 from utils import get_academic_year
 
 
+def require_methods(*method_list):
+    # JsonResponse version of
+    # https://docs.djangoproject.com/en/1.11/_modules
+    # /django/views/decorators/http/#require_http_methods
+
+    def decorator(func):
+        @wraps(func)
+        def inner(request, *args, **kwargs):
+            if request.method not in method_list:
+                return JsonResponse({
+                    "error": f"Method {request.method} not allowed."
+                }, status=405)
+            return func(request, *args, **kwargs)
+        return inner
+    return decorator
+
+
 @login_required
+@require_methods("GET")
 def UserView(request):
-    if request.method == 'GET':
-        user = request.user
-        return JsonResponse({
-            'data': {
-                'id': user.id,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
-            }
-        })
+    user = request.user
+    return JsonResponse({
+        'data': {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+        }
+    })
 
 
 @login_required
+@require_methods("GET")
 def StudentView(request):
     def _shape(student, student_section_pairs):
         return {
@@ -111,6 +129,7 @@ def StudentView(request):
 
 
 @login_required
+@require_methods("GET")
 def SectionView(request):
     # TODO
     def _shape(section):
@@ -153,6 +172,7 @@ def SectionView(request):
 
 
 @login_required
+@require_methods("GET")
 def CourseView(request):
     def _shape(row):
         return {
@@ -181,12 +201,8 @@ def CourseView(request):
 
 
 @csrf_exempt
+@require_methods("GET", "POST", "DELETE")
 def SessionView(request):
-    if request.method not in ['GET', 'POST', 'DELETE']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status_code=405)
-
     if settings.IMPERSONATION and request.method == 'GET'\
             and request.GET.get('user_id', None):
 
@@ -300,11 +316,8 @@ def SessionView(request):
 
 
 @login_required
+@require_methods("GET")
 def MissingAssignmentDeltaView(request):
-    if request.method not in ['GET']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status_code=405)
     try:
         requesting_staff = request.user.staff
     except:
@@ -327,29 +340,13 @@ def MissingAssignmentDeltaView(request):
         "gradebook"
     ).all()
 
-    """
-    {
-        data: [
-            { student_id,
-              missing_assignments: [{
-                timestamp,
-                assignment: {
-                    name: string,
-                    due_date: time,
-                    missing_on: time,
-                }
-
-              }]}
-        ]
-    }
-    """
-
     return JsonResponse({"data": [
         d.response_shape() for d in deltas
     ]})
 
 
 @login_required
+@require_methods("GET", "POST")
 def ActionView(request):
     def _shape(action):
         return {
@@ -364,11 +361,6 @@ def ActionView(request):
             'updated_on': action.updated_on,
             'note': action.note,
         }
-
-    if request.method not in ['GET', 'POST']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status=405)
 
     try:
         requesting_staff = request.user.staff
