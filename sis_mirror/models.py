@@ -744,8 +744,8 @@ class ScoreCache(models.Model):
 
 class SectionTeacherAff(models.Model):
     sta_id = models.IntegerField(primary_key=True)
-    section_id = models.IntegerField()
-    user_id = models.IntegerField()
+    section = models.ForeignKey(Sections)
+    user = models.ForeignKey(Users)
     primary_teacher = models.NullBooleanField()
     start_date = models.DateField()
     end_date = models.DateField(blank=True, null=True)

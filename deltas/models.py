@@ -3,16 +3,30 @@ from django.utils import timezone
 from django.contrib.postgres.fields import JSONField
 
 from sis_pull.models import Student, Assignment, Category, Score, Staff, \
-    Gradebook
+    Gradebook, ScoreCache
+
+"""
+Allows for easy lookup of scores by date
+"""
+
+
+class Date(models.Transform):
+    lookup_name = 'date'
+    function = 'DATE'
+
+
+models.DateTimeField.register_lookup(Date)
 
 
 class CategoryGradeContextRecord(models.Model):
-    gradebook = models.ForeignKey(Gradebook)
     category = models.ForeignKey(Category)
-    latest_score = models.ForeignKey(Score)
+    date = models.DateField()
 
     total_points_possible = models.FloatField()
     average_points_earned = models.FloatField()
+
+    class Meta:
+        unique_together = ('category', 'date')
 
 
 class Delta(models.Model):
@@ -39,7 +53,7 @@ class Delta(models.Model):
     gradebook = models.ForeignKey(Gradebook, null=True)
 
     # category average fields
-    score = models.ForeignKey(Score, null=True)
+    score = models.ForeignKey(ScoreCache, null=True)
     context_record = models.ForeignKey(CategoryGradeContextRecord, null=True)
     category_average_before = models.FloatField(null=True)
     category_average_after = models.FloatField(null=True)
