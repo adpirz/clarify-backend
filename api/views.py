@@ -1,6 +1,5 @@
 from json import loads
 from datetime import datetime
-from functools import wraps
 
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -16,7 +15,6 @@ from django.conf import settings
 from sis_pull.models import (
     Student, Section, GradeLevel, Staff,
     SectionLevelRosterPerYear,
-    GradebookSectionCourseAffinity,
 )
 
 

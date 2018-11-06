@@ -92,7 +92,11 @@ class Delta(models.Model):
         if student_id:
             filters = {'student_id': student_id}
 
-        queryset = cls.objects.filter(**filters)
+        queryset = (
+            cls.objects
+                .filter(**filters)
+                .order_by('student_id', '-id')
+        )
 
         prefetch_list = ['gradebook']
 
