@@ -18,25 +18,12 @@ from sis_pull.models import (
     SectionLevelRosterPerYear,
     GradebookSectionCourseAffinity,
 )
+
+
 from deltas.models import Action, Delta
 from utils import get_academic_year
 
-
-def require_methods(*method_list):
-    # JsonResponse version of
-    # https://docs.djangoproject.com/en/1.11/_modules
-    # /django/views/decorators/http/#require_http_methods
-
-    def decorator(func):
-        @wraps(func)
-        def inner(request, *args, **kwargs):
-            if request.method not in method_list:
-                return JsonResponse({
-                    "error": f"Method {request.method} not allowed."
-                }, status=405)
-            return func(request, *args, **kwargs)
-        return inner
-    return decorator
+from .decorators import requires_staff, require_methods
 
 
 @login_required
@@ -56,7 +43,8 @@ def UserView(request):
 
 @login_required
 @require_methods("GET")
-def StudentView(request):
+@requires_staff
+def StudentView(request, requesting_staff):
     def _shape(student, student_section_pairs):
         return {
             'id': student.id,
@@ -66,14 +54,6 @@ def StudentView(request):
             'is_searchable': student.is_searchable,
             'enrolled_section_ids': list(set([s[1] for s in student_section_pairs if s[0] == student.id]))
         }
-
-    try:
-        requesting_staff = request.user.staff
-    except:
-        return JsonResponse(
-            {'error': 'No staff for that user'},
-            status=401
-        )
 
     staff_level = requesting_staff.get_max_role_level()
     staff_site_id = requesting_staff.get_most_recent_primary_site_id()
@@ -173,7 +153,8 @@ def SectionView(request):
 
 @login_required
 @require_methods("GET")
-def CourseView(request):
+@requires_staff
+def CourseView(request, requesting_staff):
     def _shape(row):
         return {
             'id': row.course.id,
@@ -317,28 +298,16 @@ def SessionView(request):
 
 @login_required
 @require_methods("GET")
-def MissingAssignmentDeltaView(request):
-    try:
-        requesting_staff = request.user.staff
-    except:
-        return JsonResponse(
-            {'error': 'No staff for that user'},
-            status=401
+@requires_staff
+def MissingAssignmentDeltaView(request, requesting_staff):
+
+    deltas = (
+        Delta
+            .return_response_query(
+                requesting_staff.id,
+                delta_type='missing'
         )
-
-    gradebook_ids = (
-        GradebookSectionCourseAffinity
-            .get_users_current_gradebook_ids(requesting_staff.id)
     )
-
-    deltas = Delta.objects.filter(
-        type="missing",
-        gradebook_id__in=gradebook_ids
-    ).prefetch_related(
-        "missingassignmentrecord_set",
-        "missingassignmentrecord_set__assignment",
-        "gradebook"
-    ).all()
 
     return JsonResponse({"data": [
         d.response_shape() for d in deltas
@@ -346,8 +315,25 @@ def MissingAssignmentDeltaView(request):
 
 
 @login_required
+@require_methods("GET")
+@requires_staff
+def DeltasView(request, requesting_staff, student_id=None):
+
+    deltas = Delta.return_response_query(
+        requesting_staff.id,
+        student_id
+    )
+
+    return JsonResponse({
+        'data': [d.response_shape() for d in deltas]
+    })
+
+
+
+@login_required
 @require_methods("GET", "POST")
-def ActionView(request):
+@requires_staff
+def ActionView(request, requesting_staff):
     def _shape(action):
         return {
             'id': action.id,
@@ -361,14 +347,6 @@ def ActionView(request):
             'updated_on': action.updated_on,
             'note': action.note,
         }
-
-    try:
-        requesting_staff = request.user.staff
-    except:
-        return JsonResponse(
-            {'error': 'No staff for that user'},
-            status=401
-        )
 
     if request.method == 'GET':
         staff_students = (SectionLevelRosterPerYear.objects

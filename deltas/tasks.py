@@ -8,7 +8,8 @@ from tqdm import tqdm
 from sis_mirror.models import (
     Gradebooks,
     GradingPeriods,
-    SsCube, GradebookSectionCourseAff)
+    SsCube
+)
 
 from sis_pull.models import ScoreCache, Category
 
@@ -267,11 +268,8 @@ def build_deltas_for_student_and_category(student_id, category_id):
         if score.delta_set.exists():
             continue
 
-        try:
-            total_earned = running_total["total_earned"]
-            total_possible = running_total["total_possible"]
-        except TypeError:
-            import pdb; pdb.set_trace()
+        total_earned = running_total["total_earned"]
+        total_possible = running_total["total_possible"]
 
         clean_score = score.score or 0
 
@@ -351,46 +349,9 @@ def build_deltas_for_gradebook(gradebook_id):
 
     return new_deltas
 
+
 def build_deltas_for_staff_current_gradebooks(staff_id):
-    gradebook_date_filter_string = "__".join([
-        "section",
-        "sectiongradingperiodaff",
-        "grading_period"
-    ])
-
-    gp_start_date = "__".join([
-        gradebook_date_filter_string, "grading_period_start_date", "lte"])
-    gp_end_date = "__".join([
-        gradebook_date_filter_string, "grading_period_end_date", "gte"])
-
-    teacher_filter_string = "__".join([
-        "section",
-        "sectionteacheraff",
-    ])
-
-    sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
-    sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
-    sta_end_date_null = "__".join([teacher_filter_string, "end_date", "isnull"])
-    sta_user = "__".join([teacher_filter_string, "user_id"])
-
-    now = timezone.now()
-
-    gsca_filter = {
-        gp_start_date: now,
-        gp_end_date: now,
-        sta_start_date: now,
-        sta_user: staff_id
-    }
-
-    gradebook_ids = (
-        GradebookSectionCourseAff.objects
-            .filter(**gsca_filter)
-            .filter(
-                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
-            )
-            .distinct('gradebook_id')
-            .values_list('gradebook_id', flat=True)
-    )
+    gradebook_ids = Gradebooks.get_all_current_gradebook_ids_for_user_id(staff_id)
 
     new_deltas = 0
 
@@ -503,14 +464,14 @@ def build_deltas_for_all_current_academic_teachers(clean=False):
     end = timezone.now()
     minutes, seconds = divmod(round((end - start).total_seconds()), 60)
 
-    success_string =  "Completed all missing assignment and category " + \
-           "deltas for current teachers." + \
-           f"\n\tTeachers: {len(teacher_ids)}" + \
-           f"\n\tTotal new deltas: {total_new_deltas} | " + \
-           f"Missing: {missing_deltas} | " + \
-           f"Category: {category_deltas}" + \
-           f"\n\tTotal errors: {total_errors}" + \
-           f"\n\tTotal time elapsed: {minutes} min {seconds} sec"
+    success_string = "Completed all missing assignment and category " + \
+        "deltas for current teachers." + \
+        f"\n\tTeachers: {len(teacher_ids)}" + \
+        f"\n\tTotal new deltas: {total_new_deltas} | " + \
+        f"Missing: {missing_deltas} | " + \
+        f"Category: {category_deltas}" + \
+        f"\n\tTotal errors: {total_errors}" + \
+        f"\n\tTotal time elapsed: {minutes} min {seconds} sec"
 
     if clean:
         success_string = "[ Cleaned: all prior deltas deleted ]\n" + \

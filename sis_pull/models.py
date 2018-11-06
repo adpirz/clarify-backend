@@ -1,4 +1,5 @@
 from django.apps import apps
+from django.db.models import Q
 from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import User
@@ -535,6 +536,13 @@ class Gradebook(SourceObjectMixin, models.Model):
     def __str__(self):
         return self.gradebook_name
 
+    @staticmethod
+    def get_all_current_gradebook_ids_for_staff_id(staff_id):
+        return (
+            GradebookSectionCourseAffinity
+                .get_users_current_gradebook_ids(staff_id)
+        )
+
 
 class Category(SourceObjectMixin, models.Model):
     """
@@ -572,17 +580,47 @@ class GradebookSectionCourseAffinity(SourceObjectMixin, models.Model):
         return f"{self.gradebook} - {self.section} - {self.course}"
 
     @classmethod
-    def get_users_current_gradebook_ids(cls, user_id):
-        section_filter = "__".join([
+    def get_users_current_gradebook_ids(cls, staff_id):
+        gradebook_date_filter_string = "__".join([
             "section",
-            "sectionlevelrosterperyear",
-            "isnull"
+            "sectiongradingperiodaffinity",
+            "grading_period"
         ])
 
-        return cls.objects.filter(**{
-            section_filter: False,
-            "staff_id": user_id
-        }).distinct('gradebook_id').values_list('gradebook_id', flat=True)
+        gp_start_date = "__".join([
+            gradebook_date_filter_string, "grading_period_start_date", "lte"])
+        gp_end_date = "__".join([
+            gradebook_date_filter_string, "grading_period_end_date", "gte"])
+
+        teacher_filter_string = "__".join([
+            "section",
+            "sectionteacheraffinity",
+        ])
+
+        sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
+        sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
+        sta_end_date_null = "__".join(
+            [teacher_filter_string, "end_date", "isnull"])
+        sta_user = "__".join([teacher_filter_string, "staff_id"])
+
+        now = timezone.now()
+
+        gsca_filter = {
+            gp_start_date: now,
+            gp_end_date: now,
+            sta_start_date: now,
+            sta_user: staff_id
+        }
+
+        return (
+            cls.objects
+                .filter(**gsca_filter)
+                .filter(
+                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
+            )
+                .distinct('gradebook_id')
+                .values_list('gradebook_id', flat=True)
+        )
 
 
 class OverallScoreCache(SourceObjectMixin, models.Model):
@@ -740,6 +778,19 @@ class SectionTimeblockAffinity(SourceObjectMixin, models.Model):
     timeblock = models.ForeignKey(Timeblock)
 
 
+class SectionTeacherAffinity(models.Model):
+
+    source_table = 'section_teacher_aff'
+    source_id_field = 'sta_id'
+
+    section = models.ForeignKey(Section)
+    staff = models.ForeignKey(Staff)
+    primary_teacher = models.NullBooleanField()
+    start_date = models.DateField()
+    end_date = models.DateField(blank=True, null=True)
+    classroom_role_id = models.IntegerField(blank=True, null=True)
+
+
 class SessionType(SourceObjectMixin, models.Model):
 
     source_table = 'session_types'
@@ -808,6 +859,54 @@ class Term(SourceObjectMixin, models.Model):
 
     def __str__(self):
         return self.term_name
+
+
+class GradingPeriod(models.Model):
+
+    source_table = 'grading_periods'
+    source_id_field = 'grading_period_id'
+
+    grading_period_name = models.CharField(max_length=200)
+    term = models.ForeignKey(Term)
+
+    grading_window_start_date = models.DateField(blank=True, null=True)
+    grading_window_end_date = models.DateField(blank=True, null=True)
+    grading_period_start_date = models.DateField(blank=True, null=True)
+    grading_period_end_date = models.DateField(blank=True, null=True)
+    grading_window_start_date_overwrite = models.DateField(blank=True, null=True)
+    grading_window_end_date_overwrite = models.DateField(blank=True, null=True)
+
+    is_end_of_term = models.BooleanField()
+    is_k6_report_card = models.NullBooleanField()
+    disable_gpa = models.BooleanField()
+    grading_period_num = models.IntegerField(blank=True, null=True)
+    term_type = models.IntegerField(blank=True, null=True)
+    track_id = models.IntegerField(blank=True, null=True)
+    report_card_snapshot_date = models.DateField(blank=True, null=True)
+
+    @classmethod
+    def get_all_current_grading_periods(cls, date=None, site_id=None):
+        if not date:
+            date = timezone.now().date()
+
+        grading_periods = (cls.objects
+                           .filter(grading_period_start_date__lte=date,
+                                   grading_period_end_date__gte=date))
+        if not site_id:
+            return grading_periods.all()
+
+        return grading_periods.filter(term__session__site_id=site_id).all()
+
+
+class SectionGradingPeriodAffinity(models.Model):
+
+    source_table = 'section_grading_period_aff'
+    source_id_field = 'sgpa_id'
+
+    section = models.ForeignKey(Section)
+    course = models.ForeignKey(Course)
+    grading_period = models.ForeignKey(GradingPeriod)
+    is_published = models.BooleanField()
 
 
 class StaffTermRoleAffinity(SourceObjectMixin, models.Model):

@@ -3,11 +3,10 @@
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/1.8/topics/http/urls/
 """
-from django.conf.urls import include, url
-from django.contrib import admin
+from django.conf.urls import url
 from .views import (
     StudentView, SectionView, SessionView, UserView, CourseView,
-    MissingAssignmentDeltaView, ActionView)
+    MissingAssignmentDeltaView, ActionView, DeltasView)
 
 urlpatterns = [
     url(r'^user/me/', UserView),
@@ -16,5 +15,7 @@ urlpatterns = [
     url(r'^section/', SectionView),
     url(r'^session/', SessionView),
     url(r'^missing-assignments/', MissingAssignmentDeltaView),
+    url(r'^deltas/$', DeltasView),
+    url(r'^deltas/student/([0-9]+)/$', DeltasView),
     url(r'^action/', ActionView),
 ]
