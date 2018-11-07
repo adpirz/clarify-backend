@@ -78,7 +78,8 @@ def StudentView(request, requesting_staff):
 
     if staff_level < 700:
         # Staff member isn't an admin. The client should only allow them to
-        # search for students that they teach. Indicate which students those are.
+        # search for students that they teach.
+        # Indicate which students those are.
         staff_student_ids = (SectionLevelRosterPerYear.objects
             .filter(staff=requesting_staff)
             .filter(academic_year=get_academic_year())
@@ -87,7 +88,6 @@ def StudentView(request, requesting_staff):
     else:
         # Staff is an admin, which means they can see all students at their site
         staff_student_ids = site_student_ids
-
 
     staff_students = (Student.objects.filter(id__in=staff_student_ids)
                       .annotate(is_searchable=Case(
@@ -122,9 +122,9 @@ def SectionView(request):
             'tags': tags
         }
     # Decided somewhat arbitrarily to return all sections associated with a
-    # staff member. We'll want to come up with more specific rules for that soon,
-    # aka all sections at a staff member's site, that accounts for multi-site
-    # staff, etc.
+    # staff member. We'll want to come up with more specific
+    # rules for that soon, aka all sections at a staff member's site, that
+    # accounts for multi-site staff, etc.
     user = request.user
     staff_level = user.staff.get_max_role_level()
     if staff_level < 700:
@@ -213,15 +213,18 @@ def SessionView(request):
     user = request.user
     if request.method == 'GET':
         if user.is_authenticated():
-            return JsonResponse({
+            response = {
                 'data': {
                     'id': user.id,
                     'username': user.username,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
-                    'email': user.email,
+                    'email': user.email
                 }
-            }, status=200)
+            }
+            if user.staff:
+                response["data"]["prefix"] = user.staff.get_prefix_display()
+            return JsonResponse(response, status=200)
         else:
             return JsonResponse(
                 {'error': 'No session for user'},
