@@ -23,7 +23,7 @@ def require_methods(*method_list):
 
 
 def requires_staff(func):
-    """Passes requires_staff as second argument or sends error"""
+    """Passes requesting_staff as second argument or sends error"""
 
     @wraps(func)
     def inner(request, *args, **kwargs):
