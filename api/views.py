@@ -28,7 +28,7 @@ from .decorators import requires_staff, require_methods
 @require_methods("GET")
 def UserView(request):
     user = request.user
-    return JsonResponse({
+    response = {
         'data': {
             'id': user.id,
             'username': user.username,
@@ -36,7 +36,10 @@ def UserView(request):
             'last_name': user.last_name,
             'email': user.email,
         }
-    })
+    }
+    if user.staff:
+        response["data"]["prefix"] = user.staff.get_prefix_display()
+    return JsonResponse(response)
 
 
 @login_required
@@ -182,49 +185,38 @@ def CourseView(request, requesting_staff):
 @csrf_exempt
 @require_methods("GET", "POST", "DELETE")
 def SessionView(request):
-    if settings.IMPERSONATION and request.method == 'GET'\
-            and request.GET.get('user_id', None):
 
-        if request.user and request.user.is_authenticated:
-            return JsonResponse({
-                'data': {
-                    'id': request.user.id,
-                    'username': request.user.username,
-                    'first_name': request.user.first_name,
-                    'last_name': request.user.last_name,
-                    'email': request.user.email,
-                    'logged_in_already': 'yeah'
-                }
-            })
-        user_id = request.GET.get('user_id')
-        user = get_object_or_404(User, id=user_id)
-        login(request, user)
-
-        return JsonResponse({
+    def _user_response_shape(user):
+        response = {
             'data': {
                 'id': user.id,
                 'username': user.username,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'email': user.email,
+                'email': user.email
             }
-        }, status=201)
+        }
+        if user.staff:
+            response["data"]["prefix"] = user.staff.get_prefix_display()
+
+        return response
+
+    if settings.IMPERSONATION and request.method == 'GET'\
+            and request.GET.get('user_id', None):
+
+        if request.user and request.user.is_authenticated:
+            return JsonResponse(_user_response_shape(request.user), status=200)
+
+        user_id = request.GET.get('user_id')
+        user = get_object_or_404(User, id=user_id)
+        login(request, user)
+
+        return JsonResponse(_user_response_shape(user), status=201)
 
     user = request.user
     if request.method == 'GET':
         if user.is_authenticated():
-            response = {
-                'data': {
-                    'id': user.id,
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email
-                }
-            }
-            if user.staff:
-                response["data"]["prefix"] = user.staff.get_prefix_display()
-            return JsonResponse(response, status=200)
+            return JsonResponse(_user_response_shape(user), status=200)
         else:
             return JsonResponse(
                 {'error': 'No session for user'},
@@ -232,15 +224,7 @@ def SessionView(request):
             )
     elif request.method == 'POST':
         if user.is_authenticated():
-            return JsonResponse({
-                'data': {
-                    'id': user.id,
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                }
-            }, status=200)
+            return JsonResponse(_user_response_shape(user), status=200)
         else:
             parseable_post = request.body.decode('utf8').replace("'", '"')
             parsed_post = loads(parseable_post)
@@ -271,15 +255,7 @@ def SessionView(request):
                     }, status=403)
 
                 login(request, user)
-                return JsonResponse({
-                    'data': {
-                        'id': user.id,
-                        'username': user.username,
-                        'first_name': user.first_name,
-                        'last_name': user.last_name,
-                        'email': user.email,
-                    }
-                }, status=201)
+                return JsonResponse(_user_response_shape(user), status=201)
     elif request.method == 'DELETE':
         if not user.is_authenticated():
             return JsonResponse(
