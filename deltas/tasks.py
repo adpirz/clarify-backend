@@ -104,7 +104,6 @@ def calculate_category_score_until_date_or_score_for_student(
             .filter(assignment__due_date__lte=end_date,
                     last_updated__lte=end_date)
             .exclude(points__isnull=True)
-            .exclude(points=0.0)
             .prefetch_related('category')
             .values('student_id',
                     'gradebook_id',
@@ -271,6 +270,11 @@ def build_deltas_for_student_and_category(student_id, category_id):
         total_earned = running_total["total_earned"]
         total_possible = running_total["total_possible"]
 
+        if not (isinstance(score.score, int) or isinstance(score.score, float))\
+                and not (isinstance(score.assignment.possible_points, int) or
+                         isinstance(score.assignment.possible_points, float)):
+            continue
+
         clean_score = score.score or 0
 
         if running_total["total_possible"] == 0 or \
@@ -295,10 +299,8 @@ def build_deltas_for_student_and_category(student_id, category_id):
                 else total_earned / total_possible
 
             after_earned = total_earned + clean_score
-            after_possible = total_possible + score.points
-            if after_possible == 0:
-                import pdb
-                pdb.set_trace()
+            after_possible = total_possible + score.assignment.possible_points
+
             category_average_after = after_earned / after_possible
 
             Delta.objects.create(
@@ -306,6 +308,7 @@ def build_deltas_for_student_and_category(student_id, category_id):
                 student_id=student_id,
                 context_record=category_context,
                 score=score,
+                gradebook_id=score.gradebook_id,
                 category_average_before=category_average_before,
                 category_average_after=category_average_after
             )
