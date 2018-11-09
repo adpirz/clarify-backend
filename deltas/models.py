@@ -123,7 +123,6 @@ class Delta(models.Model):
             "type": self.type
         }
 
-
         if self.type == "missing":
             response["missing_assignments"] = [
                 a.response_shape() for a in
