@@ -77,7 +77,7 @@ def calculate_class_average_for_category(
             .values('student_id')
             .annotate(
                 total_points=Sum('score'),
-                total_possible_points=Sum('score'),
+                total_possible_points=Sum('assignment__possible_points'),
                 latest=Max(F('last_updated'))
             )
             .aggregate(
@@ -244,8 +244,8 @@ def build_deltas_for_student_and_category(student_id, category_id):
         ScoreCache.objects
             .filter(**scores_filter)
             .exclude(is_excused=True)
-            .exclude(points__isnull=True)
-            .exclude(points=0.0)
+            .exclude(score__isnull=True,
+                     assignment__possible_points__isnull=True)
             .order_by('assignment__due_date')
             .prefetch_related('assignment', 'delta_set')
             .all()

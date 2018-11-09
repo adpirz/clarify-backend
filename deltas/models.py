@@ -94,7 +94,7 @@ class Delta(models.Model):
 
         queryset = (
             cls.objects
-                .filter(**filters)
+                .filter(student__sectionlevelrosterperyear__staff_id=staff_id)
                 .order_by('student_id', '-id')
         )
 

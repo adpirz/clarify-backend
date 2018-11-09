@@ -27,10 +27,10 @@ class Command(BaseCommand):
         else:
             Delta.objects.filter(type__in=selected_types).all().delete()
 
-        if all_types or (not all_types and 'category' in selected_types):
+        if all_types or 'category' in selected_types:
             CategoryGradeContextRecord.objects.all().delete()
 
-        if all_types or (not all_types and 'missing' in selected_types):
+        if all_types or 'missing' in selected_types:
             MissingAssignmentRecord.objects.all().delete()
 
         selected_string = "" if len(selected_types) == 0\
