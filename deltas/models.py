@@ -117,10 +117,13 @@ class Delta(models.Model):
     def response_shape(self):
 
         response = {
+            "delta_id": self.id,
             "student_id": self.student_id,
             "created_on": self.created_on,
             "updated_on": self.updated_on,
-            "type": self.type
+            "type": self.type,
+            "gradebook_name": self.gradebook.gradebook_name,
+            "gradebook_id": self.gradebook_id
         }
 
         if self.type == "missing":
@@ -128,14 +131,12 @@ class Delta(models.Model):
                 a.response_shape() for a in
                 self.missingassignmentrecord_set.all()
             ]
-            response["gradebook_id"] = self.gradebook_id
-            response["gradebook_name"] = self.gradebook.gradebook_name
             response["sort_date"] = self.created_on
 
         if self.type == "category":
             response["last_assignment"] = self.score.assignment.short_name
             response["last_assignment_score"] = self.score.score
-            response["last_assignment_points"] = self.score.points
+            response["last_assignment_points"] = self.score.assignment.possible_points
             response["last_assignment_due_date"] = self.score.assignment.due_date
             response["score_last_updated"] = self.score.last_updated
             response["context_record"] = self.context_record.response_shape()

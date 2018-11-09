@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
 
-from deltas.models import Delta, CategoryGradeContextRecord
+from deltas.models import (
+    Delta, CategoryGradeContextRecord, MissingAssignmentRecord
+)
 
 
 class Command(BaseCommand):
@@ -28,8 +30,11 @@ class Command(BaseCommand):
         if all_types or (not all_types and 'category' in selected_types):
             CategoryGradeContextRecord.objects.all().delete()
 
+        if all_types or (not all_types and 'missing' in selected_types):
+            MissingAssignmentRecord.objects.all().delete()
+
         selected_string = "" if len(selected_types) == 0\
-            else f"{''.join(selected_types)} "
+            else f"{', '.join(selected_types)} "
 
         self.stdout.write(
             self.style.SUCCESS(f"Deleted all {selected_string}deltas.")

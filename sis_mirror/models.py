@@ -775,6 +775,8 @@ class ScoreCache(models.Model):
     def pull_query(cls):
         return (cls.objects
                 .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
+                .filter(assignment__assign_date__gte=timezone.datetime(2018,6,1))
+                .exclude(score__isnull=True)
                 .order_by('student_id', 'assignment_id', '-calculated_at')
                 .distinct('student_id', 'assignment_id')
                 .all())
