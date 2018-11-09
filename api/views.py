@@ -5,7 +5,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 
 from django.shortcuts import get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Case, When, Value, BooleanField
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout
@@ -308,9 +308,9 @@ def DeltasView(request, requesting_staff, student_id=None):
 
 
 @login_required
-@require_methods("GET", "POST")
+@require_methods("GET", "PUT", "POST", "DELETE")
 @requires_staff
-def ActionView(request, requesting_staff):
+def ActionView(request, requesting_staff, action_id=None):
     def _shape(action):
         return {
             'id': action.id,
@@ -324,7 +324,6 @@ def ActionView(request, requesting_staff):
             'updated_on': action.updated_on,
             'note': action.note,
         }
-
     if request.method == 'GET':
         staff_students = (SectionLevelRosterPerYear.objects
                          .filter(staff=requesting_staff)
@@ -336,14 +335,25 @@ def ActionView(request, requesting_staff):
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
 
-    if request.method == 'POST':
-        parseable_post = request.body.decode('utf8')
-        if not parseable_post:
+    elif request.method == 'DELETE':
+        action = get_object_or_404(Action, id=action_id)
+        if requesting_staff != action.created_by:
             return JsonResponse(
-                {'error': 'Request body must be present'},
-                status=400)
+                {'error': 'You cannot delete an action you do not own.'},
+                status=401)
+        else:
+            action.delete()
+            return HttpResponse(status=204)
 
-        parsed_post = loads(parseable_post)
+    parseable_post = request.body.decode('utf8')
+    if not parseable_post:
+        return JsonResponse(
+            {'error': 'Request body must be present'},
+            status=400)
+
+    parsed_post = loads(parseable_post)
+
+    if request.method == 'POST':
         student_id = parsed_post.get('student_id')
 
         if not student_id:
@@ -358,7 +368,7 @@ def ActionView(request, requesting_staff):
                 {'error': 'Target student could not be found'},
                 status=404)
 
-        new_action = (Action.objects.create(
+        new_action = (Action(
                         student=target_student,
                         note=parsed_post.get('note'),
                         created_by=requesting_staff))
@@ -404,3 +414,68 @@ def ActionView(request, requesting_staff):
         return JsonResponse(
             {'data': _shape(new_action)},
             status=201)
+    else:
+        # Method is PUT
+        action_id = parsed_post.get('action_id')
+        action = get_object_or_404(Action, id=action_id)
+
+        if requesting_staff != action.created_by:
+            return JsonResponse(
+                {'error': 'You cannot update an action you do not own.'},
+                status=401)
+
+        student_id = parsed_post.get('student_id')
+
+        if student_id:
+            try:
+                target_student = Student.objects.get(id=student_id)
+                action.student=target_student
+            except Student.DoesNotExist:
+                return JsonResponse(
+                    {'error': 'Target student could not be found'},
+                    status=404)
+
+
+        action.note=parsed_post.get('note')
+        action.created_by=requesting_staff
+
+        due_on = parsed_post.get('due_on')
+        completed_on = parsed_post.get('completed_on')
+
+        if due_on:
+            try:
+                due_on = datetime.strptime(due_on, '%m/%d/%Y %H:%M')
+                action.due_on = due_on
+            except:
+                return JsonResponse(
+                    {'error': 'Due date must be in the format mm/dd/yyyy HH:MM'},
+                    status=400)
+
+        if completed_on:
+            try:
+                completed_on = datetime.strptime(completed_on, '%m/%d/%Y %H:%M')
+                action.completed_on = completed_on
+            except:
+                return JsonResponse(
+                    {'error': 'Completed date must be in the format mm/dd/yyyy HH:MM'},
+                    status=400)
+
+        if parsed_post.get('type'):
+            action.type = parsed_post.get('type')
+
+
+        action.save()
+
+        deltas = parsed_post.get('deltas')
+        if deltas:
+            if isinstance(deltas, list):
+                action.deltas = deltas
+                action.save()
+            else:
+                return JsonResponse(
+                    {'error': 'Deltas must be a list. Action was not updated.'},
+                    status=400)
+
+        return JsonResponse(
+            {'data': _shape(action)},
+            status=200)
