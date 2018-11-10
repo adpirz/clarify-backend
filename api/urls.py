@@ -14,9 +14,9 @@ urlpatterns = [
     url(r'^course/$', CourseView),
     url(r'^section/$', SectionView),
     url(r'^session/$', SessionView),
-    url(r'^missing-assignments/$', MissingAssignmentDeltaView),
-    url(r'^deltas/$', DeltasView),
-    url(r'^deltas/student/([0-9]+)/$', DeltasView),
+    url(r'^missing-assignment/$', MissingAssignmentDeltaView),
+    url(r'^delta/$', DeltasView),
+    url(r'^delta/student/([0-9]+)/$', DeltasView),
     url(r'^action/$', ActionView),
     url(r'^action/([0-9]+)/$', ActionView),
 ]

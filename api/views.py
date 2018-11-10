@@ -340,7 +340,7 @@ def ActionView(request, requesting_staff, action_id=None):
         if requesting_staff != action.created_by:
             return JsonResponse(
                 {'error': 'You cannot delete an action you do not own.'},
-                status=401)
+                status=403)
         else:
             action.delete()
             return HttpResponse(status=204)
@@ -422,7 +422,7 @@ def ActionView(request, requesting_staff, action_id=None):
         if requesting_staff != action.created_by:
             return JsonResponse(
                 {'error': 'You cannot update an action you do not own.'},
-                status=401)
+                status=403)
 
         student_id = parsed_post.get('student_id')
 
@@ -436,8 +436,9 @@ def ActionView(request, requesting_staff, action_id=None):
                     status=404)
 
 
-        action.note=parsed_post.get('note')
-        action.created_by=requesting_staff
+        new_note = parsed_post.get('note')
+        if new_note:
+            action.note = new_note
 
         due_on = parsed_post.get('due_on')
         completed_on = parsed_post.get('completed_on')
@@ -473,7 +474,7 @@ def ActionView(request, requesting_staff, action_id=None):
                 action.save()
             else:
                 return JsonResponse(
-                    {'error': 'Deltas must be a list. Action was not updated.'},
+                    {'error': 'Deltas must be a list. This update to action deltas was ignored.'},
                     status=400)
 
         return JsonResponse(
