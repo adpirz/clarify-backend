@@ -53,7 +53,7 @@ class Delta(models.Model):
         Assignment, through='MissingAssignmentRecord')
 
     # category average fields
-    score = models.ForeignKey(ScoreCache, null=True)
+    score_cache = models.ForeignKey(ScoreCache, null=True)
     context_record = models.ForeignKey(CategoryGradeContextRecord, null=True)
     category_average_before = models.FloatField(null=True)
     category_average_after = models.FloatField(null=True)
