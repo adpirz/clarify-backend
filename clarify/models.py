@@ -144,7 +144,7 @@ class DailyAttendanceNode(models.Model):
         ('AU', 'Absent Unexcused'),
     )
 
-    date = models.DateField
+    date = models.DateField()
     student = models.ForeignKey(Student)
     flag = models.CharField(max_length=2, choices=FLAG_CHOICES)
 
