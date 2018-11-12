@@ -8,6 +8,8 @@ from django.db import models
 Abstract Base Models
 
 """
+
+
 class CleverIDModel (models.Model):
     clever_id = models.CharField(max_length=50, blank=True)
 
@@ -32,7 +34,6 @@ class NamedModel(CleverIDModel, SISIDModel):
 class PersonNameModel(SISIDModel, CleverIDModel):
     first_name = models.CharField(max_length=200, blank=True)
     last_name = models.CharField(max_length=200, blank=True)
-
 
     name = models.CharField(max_length=200, blank=True)
 
@@ -74,6 +75,7 @@ class UserModel(SISIDModel, CleverIDModel):
             return self.user.last_name
         if len(self.name):
             return self.name
+
 
 """
 
