@@ -29,15 +29,6 @@ class CategoryGradeContextRecord(models.Model):
     class Meta:
         unique_together = ('category', 'date')
 
-    def response_shape(self):
-        return {
-            "category_id": self.category_id,
-            "category_name": self.category.category_name,
-            "date": self.date,
-            "total_points_possible": self.total_points_possible,
-            "average_points_earned": self.average_points_earned
-        }
-
 
 class Delta(models.Model):
     MISSING = 'missing'
@@ -114,51 +105,11 @@ class Delta(models.Model):
 
         return queryset.prefetch_related(*prefetch_list).all()
 
-    def response_shape(self):
-
-        response = {
-            "delta_id": self.id,
-            "student_id": self.student_id,
-            "created_on": self.created_on,
-            "updated_on": self.updated_on,
-            "type": self.type,
-            "gradebook_name": self.gradebook.gradebook_name,
-            "gradebook_id": self.gradebook_id
-        }
-
-        if self.type == "missing":
-            response["missing_assignments"] = [
-                a.response_shape() for a in
-                self.missingassignmentrecord_set.all()
-            ]
-            response["sort_date"] = self.created_on
-
-        if self.type == "category":
-            response["last_assignment"] = self.score.assignment.short_name
-            response["last_assignment_score"] = self.score.score
-            response["last_assignment_points"] = self.score.assignment.possible_points
-            response["last_assignment_due_date"] = self.score.assignment.due_date
-            response["score_last_updated"] = self.score.last_updated
-            response["context_record"] = self.context_record.response_shape()
-            response["category_average_before"] = self.category_average_before
-            response["category_average_after"] = self.category_average_after
-            response["sort_date"] = self.score.assignment.due_date
-
-        return response
-
 
 class MissingAssignmentRecord(models.Model):
     delta = models.ForeignKey(Delta)
     assignment = models.ForeignKey(Assignment)
     missing_on = models.DateField()
-
-    def response_shape(self):
-        return {
-            "assignment_name": self.assignment.short_name,
-            "assignment_id": self.assignment_id,
-            "due_date": self.assignment.due_date,
-            "missing_on": self.missing_on
-        }
 
 
 class Action(models.Model):

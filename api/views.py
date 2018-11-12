@@ -285,10 +285,60 @@ def DeltaView(request, requesting_staff, student_id=None):
         delta_type
     )
 
-    return JsonResponse({
-        'data': [d.response_shape() for d in deltas]
-    })
+    def _shape_context_record(record):
+        return {
+            "category_id": record.category_id,
+            "category_name": record.category.category_name,
+            "date": record.date,
+            "total_points_possible": record.total_points_possible,
+            "average_points_earned": record.average_points_earned
+        }
 
+    def _shape_missing_record(record):
+        return {
+            "assignment_name": record.assignment.short_name,
+            "assignment_id": record.assignment_id,
+            "due_date": record.assignment.due_date,
+            "missing_on": record.missing_on
+        }
+
+    def _shape_delta(delta):
+
+        resp = {
+            "delta_id": delta.id,
+            "student_id": delta.student_id,
+            "created_on": delta.created_on,
+            "updated_on": delta.updated_on,
+            "type": delta.type,
+            "gradebook_name": delta.gradebook.gradebook_name,
+            "gradebook_id": delta.gradebook_id
+        }
+
+        if delta.type == "missing":
+            resp["missing_assignments"] = [
+                _shape_missing_record(a) for a in
+                delta.missingassignmentrecord_set.all()
+            ]
+            resp["sort_date"] = delta.created_on
+
+        if delta.type == "category":
+            resp["last_assignment"] = delta.score.assignment.short_name
+            resp["last_assignment_score"] = delta.score.score
+            resp[
+                "last_assignment_points"] = \
+                delta.score.assignment.possible_points
+            resp["last_assignment_due_date"] = delta.score.assignment.due_date
+            resp["score_last_updated"] = delta.score.last_updated
+            resp["context_record"] = _shape_context_record(delta.context_record)
+            resp["category_average_before"] = delta.category_average_before
+            resp["category_average_after"] = delta.category_average_after
+            resp["sort_date"] = delta.score.assignment.due_date
+
+        return resp
+
+    return JsonResponse({
+        'data': [_shape_delta(d) for d in deltas]
+    })
 
 
 @login_required
