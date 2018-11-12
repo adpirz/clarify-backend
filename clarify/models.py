@@ -89,7 +89,15 @@ class Student(PersonNameModel):
 
 
 class Staff(UserModel):
-    pass
+    ROLE_CHOICES = (
+        ('DA', 'District Admin'),
+        ('SA', 'School Admin'),
+        ('T', 'Teacher')
+    )
+
+    role = models.CharField(max_length=3,
+                            choices=ROLE_CHOICES,
+                            default='T')
 
 
 class Site(NamedModel):
