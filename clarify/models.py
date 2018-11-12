@@ -61,7 +61,7 @@ class UserModel(SISIDModel, CleverIDModel):
     )
 
     name = models.CharField(max_length=200, blank=True)
-    user = models.ForeignKey(User)
+    user = models.OneToOneField(User)
     prefix = models.CharField(max_length=3,
                               choices=PREFIX_CHOICES,
                               blank=True)
@@ -105,20 +105,36 @@ class Site(NamedModel):
 
 
 class Term(NamedModel):
+    # latter year; eg. 2019 represents '18 - '19 school year
     academic_year = models.IntegerField()
     start_date = models.DateField()
     end_date = models.DateField()
     site = models.ForeignKey(Site)
 
 
-class GradeLevel(NamedModel):
-    pass
-
-
 class Section(NamedModel):
+    GRADE_LEVEL_CHOICES = (
+        ('PK', 'Pre-Kindergarten'),
+        ('K', 'Kindergarten'),
+        ('1', '1st Grade'),
+        ('2', '2nd Grade'),
+        ('3', '3rd Grade'),
+        ('4', '4th Grade'),
+        ('5', '5th Grade'),
+        ('6', '6th Grade'),
+        ('7', '7th Grade'),
+        ('8', '8th Grade'),
+        ('9', '9th Grade'),
+        ('10', '10th Grade'),
+        ('11', '11th Grade'),
+        ('12', '12th Grade'),
+    )
+
     course_name = models.CharField(max_length=255, blank=True)
-    term = models.ForeignKey(Term)
-    grade_level = models.ForeignKey(GradeLevel)
+    term = models.ForeignKey(Term, null=True)
+
+    # Grade levels should be Clarify standardized
+    grade_level = models.CharField(max_length=2, choices=GRADE_LEVEL_CHOICES)
 
 
 class EnrollmentRecord(models.Model):

@@ -27,7 +27,7 @@ Order of loading:
 from __future__ import unicode_literals
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 
 
@@ -275,6 +275,10 @@ class Sites(models.Model):
     def __str__(self):
         return self.site_name
 
+    @staticmethod
+    def get_users_current_sites(user_id):
+        return UserTermRoleAff.get_current_sites_for_user_id(user_id)
+
     class Meta:
         managed = False
         db_table = 'sites'
@@ -459,10 +463,12 @@ class Gradebooks(models.Model):
     def __str__(self):
         return self.gradebook_name or str(self.gradebook_id)
 
-    @staticmethod
-    def get_all_current_gradebook_ids_for_user_id(user_id):
-        """Convenience method"""
-        return GradebookSectionCourseAff.get_users_current_gradebook_ids(user_id)
+    @classmethod
+    def get_all_current_gradebooks_for_user_id(cls, user_id):
+        # TODO: What about gradebooks that have transferred owners?
+        return cls.objects.filter(
+            active=True, created_by=user_id
+        ).all()
 
     class Meta:
         managed = False
@@ -514,49 +520,6 @@ class GradebookSectionCourseAff(models.Model):
 
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"
-
-    @classmethod
-    def get_users_current_gradebook_ids(cls, user_id):
-        gradebook_date_filter_string = "__".join([
-            "section",
-            "sectiongradingperiodaff",
-            "grading_period"
-        ])
-
-        gp_start_date = "__".join([
-            gradebook_date_filter_string, "grading_period_start_date", "lte"])
-        gp_end_date = "__".join([
-            gradebook_date_filter_string, "grading_period_end_date", "gte"])
-
-        teacher_filter_string = "__".join([
-            "section",
-            "sectionteacheraff",
-        ])
-
-        sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
-        sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
-        sta_end_date_null = "__".join(
-            [teacher_filter_string, "end_date", "isnull"])
-        sta_user = "__".join([teacher_filter_string, "user_id"])
-
-        now = timezone.now()
-
-        gsca_filter = {
-            gp_start_date: now,
-            gp_end_date: now,
-            sta_start_date: now,
-            sta_user: user_id
-        }
-
-        return (
-            cls.objects
-                .filter(**gsca_filter)
-                .filter(
-                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
-            )
-                .distinct('gradebook_id')
-                .values_list('gradebook_id', flat=True)
-        )
 
     class Meta:
         managed = False
@@ -663,8 +626,8 @@ class Sessions(models.Model):
 
 class SectionCourseAff(models.Model):
     section_course_aff_id = models.IntegerField(primary_key=True)
-    section_id = models.IntegerField()
-    course_id = models.IntegerField()
+    section = models.ForeignKey(Sections)
+    course = models.ForeignKey(Courses)
     max_capacity = models.SmallIntegerField(blank=True, null=True)
     min_capacity = models.SmallIntegerField(blank=True, null=True)
     average_capacity = models.SmallIntegerField(blank=True, null=True)
@@ -775,8 +738,6 @@ class ScoreCache(models.Model):
     def pull_query(cls):
         return (cls.objects
                 .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
-                .filter(assignment__assign_date__gte=timezone.datetime(2018,6,1))
-                .exclude(score__isnull=True)
                 .order_by('student_id', 'assignment_id', '-calculated_at')
                 .distinct('student_id', 'assignment_id')
                 .all())
@@ -811,6 +772,13 @@ class SsCube(models.Model):
     entry_date = models.DateField(blank=True, primary_key=True)
     leave_date = models.DateField(blank=True, primary_key=True)
     is_primary_teacher = models.NullBooleanField()
+
+    @classmethod
+    def get_current_sections_for_user_id(cls, user_id):
+        return cls.objects.filter(
+            user
+        )
+
 
     class Meta:
         managed = False
@@ -858,17 +826,75 @@ class Terms(models.Model):
     term_type = models.IntegerField()
     local_term_id = models.IntegerField(blank=True, null=True)
 
+    @staticmethod
+    def get_current_terms_for_user_id(user_id):
+        return UserTermRoleAff.get_current_terms_for_user_id(user_id)
+
     class Meta:
         managed = False
         db_table = 'terms'
 
 
 class UserTermRoleAff(models.Model):
+    DISTRICT_ADMIN_ROLES = [1, 6]
+    SCHOOL_ADMIN_ROLES = [5]
+    TEACHER_ROLES = [4, 8, 14]
+    RELEVANT_ROLES = DISTRICT_ADMIN_ROLES + SCHOOL_ADMIN_ROLES + TEACHER_ROLES
+
     utra_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(Users)
     role = models.ForeignKey(Roles)
     term = models.ForeignKey(Terms)
     last_schedule_id = models.IntegerField(blank=True, null=True)
+
+    @classmethod
+    def get_current_rows_for_user(cls, user_id):
+        return cls.objects.filter(
+            user_id=user_id,
+            term__start_date__lte=timezone.now(),
+            term__end_date__gte=timezone.now(),
+        )
+
+    @classmethod
+    def get_current_roles_for_user_id(cls, user_id):
+        current_roles = (cls.get_current_rows_for_user(user_id)
+                    .filter(role_id__in=cls.RELEVANT_ROLES)
+                    .annotate(sis_site_id=F('term__session__site_id'))
+                    .values('sis_site_id', 'role_id')
+                )
+
+        def _shape(role):
+            role_choice = "T"
+
+            if role["role_id"] in cls.DISTRICT_ADMIN_ROLES:
+                role_choice = "DA"
+            if role["role_id"] in cls.SCHOOL_ADMIN_ROLES:
+                role_choice = "SA"
+
+            return {"sis_site_id": role["sis_site_id"],
+                    "role": role_choice}
+
+        return [_shape(r) for r in current_roles]
+
+    @classmethod
+    def get_current_sites_for_user_id(cls, user_id):
+        return (cls.get_current_rows_for_user(user_id)
+                .annotate(sis_id=F('term__session__site_id'),
+                          name=F('term__session__site__site_name'),
+                          )
+                .values('sis_id', 'name')
+                )
+
+    @classmethod
+    def get_current_terms_for_user_id(cls, user_id):
+        return (cls.get_current_rows_for_user(user_id)
+                .annotate(sis_id=F('term_id'),
+                          start_date=F('term__start_date'),
+                          end_date=F('term__end_date'),
+                          sis_site_id=F('term__session__site_id')
+                          )
+                ).values('sis_id', 'start_date',
+                         'end_date', 'sis_site_id')
 
     class Meta:
         managed = False
