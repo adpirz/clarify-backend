@@ -19,3 +19,18 @@ from clarify.models import (
     StaffSectionRecord,
     DailyAttendanceNode
 )
+
+"""
+Entry point is a teacher or staff
+Build everything that doesn't currently exist in order for current term:
+- Staff
+- Site
+- Term
+- GradeLevels 
+- Sections
+- StaffRecord
+- Enrollment record
+- DailyAttendnace node
+"""
+
+
