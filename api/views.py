@@ -276,29 +276,13 @@ def SessionView(request):
 @login_required
 @require_methods("GET")
 @requires_staff
-def MissingAssignmentDeltaView(request, requesting_staff):
-
-    deltas = (
-        Delta
-            .return_response_query(
-                requesting_staff.id,
-                delta_type='missing'
-        )
-    )
-
-    return JsonResponse({"data": [
-        d.response_shape() for d in deltas
-    ]})
-
-
-@login_required
-@require_methods("GET")
-@requires_staff
-def DeltasView(request, requesting_staff, student_id=None):
+def DeltaView(request, requesting_staff, student_id=None):
+    delta_type = request.GET.get('type', None)
 
     deltas = Delta.return_response_query(
         requesting_staff.id,
-        student_id
+        student_id,
+        delta_type
     )
 
     return JsonResponse({
