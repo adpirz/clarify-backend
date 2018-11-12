@@ -131,6 +131,10 @@ class StaffSectionRecord(models.Model):
 class DailyAttendanceNode(models.Model):
     """Works for daily level attendance, not section level attendance"""
     FLAG_CHOICES = (
+        # Kept 'P', 'T', and 'A' as catch-alls
+        # for present, tardy, and absent codes
+        # not quantified here
+
         ('P', 'Present'),
         ('T', 'Tardy'),
         ('TE', 'Tardy Excused'),
