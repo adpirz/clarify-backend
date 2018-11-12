@@ -5,8 +5,8 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 """
 from django.conf.urls import url
 from .views import (
-    StudentView, SectionView, SessionView, UserView, CourseView,
-    MissingAssignmentDeltaView, ActionView, DeltaView)
+    StudentView, SectionView, SessionView,
+    UserView, CourseView, ActionView, DeltaView)
 
 urlpatterns = [
     url(r'^user/me/$', UserView),
