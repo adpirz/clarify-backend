@@ -760,6 +760,27 @@ class SectionTeacherAff(models.Model):
         managed = False
         db_table = 'section_teacher_aff'
 
+    @classmethod
+    def get_current_sections_for_staff_id(cls, staff_id):
+
+        return (cls.objects
+                .filter(
+                    user_id=staff_id,
+                    start_date__lte=timezone.now())
+                ).filter(
+                    Q(end_date__gte=timezone.now()) |
+                    Q(end_date__isnull=True)
+                ).annotate(
+                    course_name=F("__".join([
+                        "section",
+                        "gradebooksectioncourseaff",
+                        "course",
+                        "short_name"
+                    ]))
+                ).values(
+                    'section_id', 'course_name'
+                )
+
 
 class SsCube(models.Model):
     site = models.ForeignKey(Sites, primary_key=True)
@@ -772,13 +793,6 @@ class SsCube(models.Model):
     entry_date = models.DateField(blank=True, primary_key=True)
     leave_date = models.DateField(blank=True, primary_key=True)
     is_primary_teacher = models.NullBooleanField()
-
-    @classmethod
-    def get_current_sections_for_user_id(cls, user_id):
-        return cls.objects.filter(
-            user
-        )
-
 
     class Meta:
         managed = False

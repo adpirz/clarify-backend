@@ -95,8 +95,6 @@ class Sync:
                                                         **model_kwargs)
 
 
-
-
 class IlluminateSync(Sync):
 
     source_id_field = 'sis_id'
@@ -108,6 +106,6 @@ class IlluminateSync(Sync):
         return Terms.get_current_terms_for_user_id(staff_id)
 
     def get_source_related_sections_for_staff_id(cls, staff_id):
-        return Sections.
+        return Sections.get_current_sections_for_user_id(staff_id)
 
 

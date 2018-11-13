@@ -11,7 +11,7 @@ Abstract Base Models
 
 
 class CleverIDMixin (models.Model):
-    clever_id = models.CharField(max_length=50, blank=True)
+    clever_id = models.CharField(max_length=50, unique=True, null=True)
 
     class Meta:
         abstract = True
@@ -27,42 +27,27 @@ class SISMixin(models.Model):
 class NameInterface:
 
     def get_full_name(self):
-        raise NotImplementedError()
+        raise NotImplementedError('Must implement get_full_name')
 
     def get_first_name(self):
-        raise NotImplementedError()
+        raise NotImplementedError('Must implement get_first_name')
 
     def get_last_name(self):
-        raise NotImplementedError()
+        raise NotImplementedError('Must implement get_last_name')
 
 
-class BaseName(CleverIDMixin, SISMixin):
+class BaseNameModel(CleverIDMixin, SISMixin):
     name = models.CharField(max_length=255)
 
     class Meta:
         abstract = True
 
 
-class PersonNameModel(SISMixin, CleverIDMixin):
-    first_name = models.CharField(max_length=200, blank=True)
-    last_name = models.CharField(max_length=200, blank=True)
+"""
 
-    name = models.CharField(max_length=200, blank=True)
+Concrete Models
 
-    def get_full_name(self):
-        if len(self.first_name) and len(self.last_name):
-            return f"{self.first_name} {self.last_name}"
-        if len(self.first_name):
-            return self.first_name
-        if len(self.last_name):
-            return self.last_name
-        if len(self.name):
-            return self.name
-
-        raise AttributeError("No name provided.")
-
-    class Meta:
-        abstract = True
+"""
 
 
 class UserProfile(SISMixin, CleverIDMixin):
@@ -89,25 +74,30 @@ class UserProfile(SISMixin, CleverIDMixin):
             return self.name
 
 
-"""
+class Student(CleverIDMixin, SISMixin):
+    first_name = models.CharField(max_length=200, blank=True)
+    last_name = models.CharField(max_length=200, blank=True)
 
-Concrete Models
+    name = models.CharField(max_length=200, blank=True)
 
-"""
+    def get_full_name(self):
+        if len(self.first_name) and len(self.last_name):
+            return f"{self.first_name} {self.last_name}"
+        if len(self.first_name):
+            return self.first_name
+        if len(self.last_name):
+            return self.last_name
+        if len(self.name):
+            return self.name
+
+        raise AttributeError("No name provided.")
 
 
-class Student(PersonNameModel):
+class Site(BaseNameModel):
     pass
 
 
-
-
-
-class Site(NamedModel):
-    pass
-
-
-class Term(NamedModel):
+class Term(BaseNameModel):
     # latter year; eg. 2019 represents '18 - '19 school year
     academic_year = models.IntegerField()
     start_date = models.DateField()
@@ -115,7 +105,7 @@ class Term(NamedModel):
     site = models.ForeignKey(Site)
 
 
-class Section(NamedModel):
+class Section(BaseNameModel):
     GRADE_LEVEL_CHOICES = (
         ('PK', 'Pre-Kindergarten'),
         ('K', 'Kindergarten'),
@@ -148,7 +138,7 @@ class EnrollmentRecord(models.Model):
 
 
 class StaffSectionRecord(models.Model):
-    staff = models.ForeignKey(Staff)
+    user = models.ForeignKey(UserProfile)
     section = models.ForeignKey(Section)
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
@@ -179,21 +169,21 @@ class DailyAttendanceNode(models.Model):
         unique_together = ('date', 'student')
 
 
-class Gradebook(NamedModel):
+class Gradebook(BaseNameModel):
     section = models.ForeignKey(Section)
     # Some gradebooks have multiple owners / viewers
-    owners = models.ManyToManyField(Staff)
+    owners = models.ManyToManyField(UserProfile)
 
 
-class Category(NamedModel):
+class Category(BaseNameModel):
     gradebook = models.ForeignKey(Gradebook)
 
 
-class Assignment(NamedModel):
+class Assignment(BaseNameModel):
     # in case category doesn't exist, we keep
     # a gradebook record on the assignment
     gradebook = models.ForeignKey(Gradebook)
-    category = models.ForeignKey(Category)
+    category = models.ForeignKey(Category, null=True)
 
     # TODO: Which goes into final grade?
     possible_points = models.FloatField()
