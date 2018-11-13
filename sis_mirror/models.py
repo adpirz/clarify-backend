@@ -785,10 +785,18 @@ class SectionTeacherAff(models.Model):
         grading_period_end = grading_period_string + \
             "__grading_period_end_date__gte"
 
-        course_short_name = "__".join([
+        course = "__".join([
             "section",
             "gradebooksectioncourseaff",
             "course",
+        ])
+
+        course_short_name = course + "__short_name"
+
+        grade_level_name = "__".join([
+            course,
+            "coursegradelevels",
+            "grade_level",
             "short_name"
         ])
 
@@ -813,11 +821,12 @@ class SectionTeacherAff(models.Model):
                     name=F('section__section_name'),
                     course_name=F(course_short_name),
                     period=F(timeblock_name),
-
+                    grade_level=F(grade_level_name)
                 )
-                .distinct('section_id', 'grade_level')
+                .distinct('section_id', grade_level_name)
                 .values(
-                    'section_id', 'name', 'course_name', 'period', 'user_id'
+                    'section_id', 'name', 'course_name',
+                    'period', 'user_id', 'grade_level'
                 ))
 
 

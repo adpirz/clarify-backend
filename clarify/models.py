@@ -37,6 +37,7 @@ class NameInterface:
 
 
 class BaseNameModel(CleverIDMixin, SISMixin):
+
     name = models.CharField(max_length=255)
 
     class Meta:
@@ -118,6 +119,12 @@ class Term(BaseNameModel):
 
 
 class Section(BaseNameModel):
+
+    course_name = models.CharField(max_length=255, blank=True)
+    term = models.ForeignKey(Term, null=True)
+
+
+class SectionGradeLevels(models.Model):
     GRADE_LEVEL_CHOICES = (
         ('PK', 'Pre-Kindergarten'),
         ('K', 'Kindergarten'),
@@ -135,11 +142,9 @@ class Section(BaseNameModel):
         ('12', '12th Grade'),
     )
 
-    course_name = models.CharField(max_length=255, blank=True)
-    term = models.ForeignKey(Term, null=True)
-
     # Grade levels should be Clarify standardized
     grade_level = models.CharField(max_length=2, choices=GRADE_LEVEL_CHOICES)
+    section = models.ForeignKey(Section)
 
 
 class EnrollmentRecord(models.Model):
