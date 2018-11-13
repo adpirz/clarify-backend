@@ -785,16 +785,16 @@ class SectionTeacherAff(models.Model):
         grading_period_end = grading_period_string + \
             "__grading_period_end_date__gte"
 
-        course = "__".join([
+        course_string = "__".join([
             "section",
             "gradebooksectioncourseaff",
             "course",
         ])
 
-        course_short_name = course + "__short_name"
+        course_short_name = course_string + "__short_name"
 
         grade_level_name = "__".join([
-            course,
+            course_string,
             "coursegradelevels",
             "grade_level",
             "short_name"

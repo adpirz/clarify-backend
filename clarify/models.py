@@ -125,6 +125,7 @@ class Section(BaseNameModel):
 
 
 class SectionGradeLevels(models.Model):
+    """Allows for multiple choice grade levels per section"""
     GRADE_LEVEL_CHOICES = (
         ('PK', 'Pre-Kindergarten'),
         ('K', 'Kindergarten'),
