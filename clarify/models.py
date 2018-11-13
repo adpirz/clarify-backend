@@ -50,7 +50,7 @@ Concrete Models
 """
 
 
-class UserProfile(SISMixin, CleverIDMixin):
+class UserProfile(NameInterface, SISMixin, CleverIDMixin):
     PREFIX_CHOICES = (
         ('MR', 'Mr.'),
         ('MS', 'Ms.'),
@@ -73,8 +73,14 @@ class UserProfile(SISMixin, CleverIDMixin):
         if len(self.name):
             return self.name
 
+    def get_first_name(self):
+        return self.user.first_name
+    
+    def get_last_name(self):
+        return self.user.last_name
+    
 
-class Student(CleverIDMixin, SISMixin):
+class Student(NameInterface, CleverIDMixin, SISMixin):
     first_name = models.CharField(max_length=200, blank=True)
     last_name = models.CharField(max_length=200, blank=True)
 
@@ -91,6 +97,12 @@ class Student(CleverIDMixin, SISMixin):
             return self.name
 
         raise AttributeError("No name provided.")
+    
+    def get_first_name(self):
+        return self.first_name
+    
+    def get_last_name(self):
+        return self.last_name
 
 
 class Site(BaseNameModel):
