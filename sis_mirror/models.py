@@ -341,13 +341,16 @@ class Sections(models.Model):
     alternative_learning_experience_program_id = models.IntegerField(blank=True, null=True)
     alternative_learning_experience_type_id = models.IntegerField(blank=True, null=True)
 
-    def __str__(self):
-        return self.section_name or str(self.section_id)
-
-
     class Meta:
         managed = False
         db_table = 'sections'
+
+    def __str__(self):
+        return self.section_name or str(self.section_id)
+
+    @staticmethod
+    def get_current_sections_for_staff_id(staff_id):
+        return SectionTeacherAff.get_current_sections_for_staff_id(staff_id)
 
 
 class CategoryTypes(models.Model):
@@ -762,24 +765,50 @@ class SectionTeacherAff(models.Model):
 
     @classmethod
     def get_current_sections_for_staff_id(cls, staff_id):
+        grading_period_string = "__".join([
+            "section", "sectiongradingperiodaff", "grading_period"
+        ])
+
+        grading_period_start = grading_period_string + \
+            "__grading_period_start_date__lte"
+
+        grading_period_end = grading_period_string + \
+            "__grading_period_end_date__gte"
+
+        course_short_name = "__".join([
+            "section",
+            "gradebooksectioncourseaff",
+            "course",
+            "short_name"
+        ])
+
+        timeblock_name = "__".join([
+            "section",
+            "sectiontimeblockaff",
+            "timeblock",
+            "timeblock_name"
+        ])
 
         return (cls.objects
                 .filter(
                     user_id=staff_id,
                     start_date__lte=timezone.now())
-                ).filter(
-                    Q(end_date__gte=timezone.now()) |
-                    Q(end_date__isnull=True)
-                ).annotate(
-                    course_name=F("__".join([
-                        "section",
-                        "gradebooksectioncourseaff",
-                        "course",
-                        "short_name"
-                    ]))
-                ).values(
-                    'section_id', 'course_name'
+                .filter(
+                    Q(end_date__gte=timezone.now()) | Q(end_date__isnull=True))
+                .filter(**{
+                    grading_period_start: timezone.now(),
+                    grading_period_end: timezone.now()
+                })
+                .annotate(
+                    name=F('section__section_name'),
+                    course_name=F(course_short_name),
+                    period=F(timeblock_name),
+
                 )
+                .distinct('section_id', 'grade_level')
+                .values(
+                    'section_id', 'name', 'course_name', 'period', 'user_id'
+                ))
 
 
 class SsCube(models.Model):
