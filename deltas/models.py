@@ -62,7 +62,6 @@ class Delta(models.Model):
     gradebook = models.ForeignKey(Gradebook, null=True)
 
     # attendance field
-    attendance_dates = JSONField(null=True)
     settled = models.BooleanField(default=False)
 
     def __str__(self):
