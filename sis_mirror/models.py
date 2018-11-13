@@ -441,10 +441,20 @@ class Courses(models.Model):
     def __str__(self):
         return self.short_name or str(self.course_id)
 
-
     class Meta:
         managed = False
         db_table = 'courses'
+
+
+class CourseGradeLevels(models.Model):
+    cgl_id = models.IntegerField(primary_key=True)
+    course = models.ForeignKey('Courses', models.DO_NOTHING)
+    required = models.IntegerField(blank=True, null=True)
+    grade_level = models.ForeignKey('GradeLevels', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'course_grade_levels'
 
 
 class Gradebooks(models.Model):
