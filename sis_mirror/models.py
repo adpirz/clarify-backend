@@ -27,6 +27,7 @@ Order of loading:
 from __future__ import unicode_literals
 
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -458,12 +459,10 @@ class Gradebooks(models.Model):
     def __str__(self):
         return self.gradebook_name or str(self.gradebook_id)
 
-    @classmethod
-    def get_all_current_gradebooks_for_user_id(cls, user_id):
-        # TODO: What about gradebooks that have transferred owners?
-        return cls.objects.filter(
-            active=True, created_by=user_id
-        ).all()
+    @staticmethod
+    def get_all_current_gradebook_ids_for_user_id(user_id):
+        """Convenience method"""
+        return GradebookSectionCourseAff.get_users_current_gradebook_ids(user_id)
 
     class Meta:
         managed = False
@@ -515,6 +514,49 @@ class GradebookSectionCourseAff(models.Model):
 
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"
+
+    @classmethod
+    def get_users_current_gradebook_ids(cls, user_id):
+        gradebook_date_filter_string = "__".join([
+            "section",
+            "sectiongradingperiodaff",
+            "grading_period"
+        ])
+
+        gp_start_date = "__".join([
+            gradebook_date_filter_string, "grading_period_start_date", "lte"])
+        gp_end_date = "__".join([
+            gradebook_date_filter_string, "grading_period_end_date", "gte"])
+
+        teacher_filter_string = "__".join([
+            "section",
+            "sectionteacheraff",
+        ])
+
+        sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
+        sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
+        sta_end_date_null = "__".join(
+            [teacher_filter_string, "end_date", "isnull"])
+        sta_user = "__".join([teacher_filter_string, "user_id"])
+
+        now = timezone.now()
+
+        gsca_filter = {
+            gp_start_date: now,
+            gp_end_date: now,
+            sta_start_date: now,
+            sta_user: user_id
+        }
+
+        return (
+            cls.objects
+                .filter(**gsca_filter)
+                .filter(
+                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
+            )
+                .distinct('gradebook_id')
+                .values_list('gradebook_id', flat=True)
+        )
 
     class Meta:
         managed = False
@@ -733,6 +775,8 @@ class ScoreCache(models.Model):
     def pull_query(cls):
         return (cls.objects
                 .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
+                .filter(assignment__assign_date__gte=timezone.datetime(2018,6,1))
+                .exclude(score__isnull=True)
                 .order_by('student_id', 'assignment_id', '-calculated_at')
                 .distinct('student_id', 'assignment_id')
                 .all())

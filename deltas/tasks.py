@@ -8,7 +8,8 @@ from tqdm import tqdm
 from sis_mirror.models import (
     Gradebooks,
     GradingPeriods,
-    SsCube, GradebookSectionCourseAff)
+    SsCube
+)
 
 from sis_pull.models import ScoreCache, Category
 
@@ -76,7 +77,7 @@ def calculate_class_average_for_category(
             .values('student_id')
             .annotate(
                 total_points=Sum('score'),
-                total_possible_points=Sum('score'),
+                total_possible_points=Sum('assignment__possible_points'),
                 latest=Max(F('last_updated'))
             )
             .aggregate(
@@ -103,7 +104,6 @@ def calculate_category_score_until_date_or_score_for_student(
             .filter(assignment__due_date__lte=end_date,
                     last_updated__lte=end_date)
             .exclude(points__isnull=True)
-            .exclude(points=0.0)
             .prefetch_related('category')
             .values('student_id',
                     'gradebook_id',
@@ -244,8 +244,8 @@ def build_deltas_for_student_and_category(student_id, category_id):
         ScoreCache.objects
             .filter(**scores_filter)
             .exclude(is_excused=True)
-            .exclude(points__isnull=True)
-            .exclude(points=0.0)
+            .exclude(score__isnull=True,
+                     assignment__possible_points__isnull=True)
             .order_by('assignment__due_date')
             .prefetch_related('assignment', 'delta_set')
             .all()
@@ -267,11 +267,13 @@ def build_deltas_for_student_and_category(student_id, category_id):
         if score.delta_set.exists():
             continue
 
-        try:
-            total_earned = running_total["total_earned"]
-            total_possible = running_total["total_possible"]
-        except TypeError:
-            import pdb; pdb.set_trace()
+        total_earned = running_total["total_earned"]
+        total_possible = running_total["total_possible"]
+
+        if not (isinstance(score.score, int) or isinstance(score.score, float))\
+                and not (isinstance(score.assignment.possible_points, int) or
+                         isinstance(score.assignment.possible_points, float)):
+            continue
 
         clean_score = score.score or 0
 
@@ -297,10 +299,8 @@ def build_deltas_for_student_and_category(student_id, category_id):
                 else total_earned / total_possible
 
             after_earned = total_earned + clean_score
-            after_possible = total_possible + score.points
-            if after_possible == 0:
-                import pdb
-                pdb.set_trace()
+            after_possible = total_possible + score.assignment.possible_points
+
             category_average_after = after_earned / after_possible
 
             Delta.objects.create(
@@ -308,6 +308,7 @@ def build_deltas_for_student_and_category(student_id, category_id):
                 student_id=student_id,
                 context_record=category_context,
                 score=score,
+                gradebook_id=score.gradebook_id,
                 category_average_before=category_average_before,
                 category_average_after=category_average_after
             )
@@ -351,46 +352,9 @@ def build_deltas_for_gradebook(gradebook_id):
 
     return new_deltas
 
+
 def build_deltas_for_staff_current_gradebooks(staff_id):
-    gradebook_date_filter_string = "__".join([
-        "section",
-        "sectiongradingperiodaff",
-        "grading_period"
-    ])
-
-    gp_start_date = "__".join([
-        gradebook_date_filter_string, "grading_period_start_date", "lte"])
-    gp_end_date = "__".join([
-        gradebook_date_filter_string, "grading_period_end_date", "gte"])
-
-    teacher_filter_string = "__".join([
-        "section",
-        "sectionteacheraff",
-    ])
-
-    sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
-    sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
-    sta_end_date_null = "__".join([teacher_filter_string, "end_date", "isnull"])
-    sta_user = "__".join([teacher_filter_string, "user_id"])
-
-    now = timezone.now()
-
-    gsca_filter = {
-        gp_start_date: now,
-        gp_end_date: now,
-        sta_start_date: now,
-        sta_user: staff_id
-    }
-
-    gradebook_ids = (
-        GradebookSectionCourseAff.objects
-            .filter(**gsca_filter)
-            .filter(
-                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
-            )
-            .distinct('gradebook_id')
-            .values_list('gradebook_id', flat=True)
-    )
+    gradebook_ids = Gradebooks.get_all_current_gradebook_ids_for_user_id(staff_id)
 
     new_deltas = 0
 
@@ -503,14 +467,14 @@ def build_deltas_for_all_current_academic_teachers(clean=False):
     end = timezone.now()
     minutes, seconds = divmod(round((end - start).total_seconds()), 60)
 
-    success_string =  "Completed all missing assignment and category " + \
-           "deltas for current teachers." + \
-           f"\n\tTeachers: {len(teacher_ids)}" + \
-           f"\n\tTotal new deltas: {total_new_deltas} | " + \
-           f"Missing: {missing_deltas} | " + \
-           f"Category: {category_deltas}" + \
-           f"\n\tTotal errors: {total_errors}" + \
-           f"\n\tTotal time elapsed: {minutes} min {seconds} sec"
+    success_string = "Completed all missing assignment and category " + \
+        "deltas for current teachers." + \
+        f"\n\tTeachers: {len(teacher_ids)}" + \
+        f"\n\tTotal new deltas: {total_new_deltas} | " + \
+        f"Missing: {missing_deltas} | " + \
+        f"Category: {category_deltas}" + \
+        f"\n\tTotal errors: {total_errors}" + \
+        f"\n\tTotal time elapsed: {minutes} min {seconds} sec"
 
     if clean:
         success_string = "[ Cleaned: all prior deltas deleted ]\n" + \

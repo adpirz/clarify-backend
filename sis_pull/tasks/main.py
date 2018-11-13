@@ -36,8 +36,8 @@ from sis_pull.models import (
     Session,
     Role,
     Term,
-    StaffTermRoleAffinity
-)
+    StaffTermRoleAffinity,
+    SectionTeacherAffinity, GradingPeriod, SectionGradingPeriodAffinity)
 
 from sis_mirror.models import (
     Students,
@@ -64,8 +64,8 @@ from sis_mirror.models import (
     Sessions,
     Roles,
     Terms,
-    UserTermRoleAff
-)
+    UserTermRoleAff,
+    SectionTeacherAff, GradingPeriods, SectionGradingPeriodAff)
 
 
 def fields_list(model, remove_autos=True, keep_fks=True, return_fks=False):
@@ -278,16 +278,21 @@ def main(**options):
         'stba': (SectionTimeblockAff, SectionTimeblockAffinity),
         'gsca': (GradebookSectionCourseAff,
                  GradebookSectionCourseAffinity, user_staff_map),
+        'sta': (SectionTeacherAff,
+                SectionTeacherAffinity, user_staff_map),
+        'sessiontypes': (SessionTypes, SessionType),
+        'sessions': (Sessions, Session),
+        'terms': (Terms, Term),
+        'grading_periods': (GradingPeriods, GradingPeriod),
+        'sgpa':(SectionGradingPeriodAff,
+                SectionGradingPeriodAffinity),
         'overallscorecache': (OverallScoreCache, OSC),
         'daily_records': (DailyRecords, AttendanceDailyRecord),
         'categories': (Categories, Category),
         'csc': (CategoryScoreCache, CSC,),
         'assignments': (Assignments, Assignment,),
         'scorecache': (ScoreCache, SC),
-        'sessiontypes': (SessionTypes, SessionType),
-        'sessions': (Sessions, Session),
         'roles': (Roles, Role),
-        'terms': (Terms, Term),
         'usta': (UserTermRoleAff, StaffTermRoleAffinity, user_staff_map),
         'scores': (Scores, Pull_scores),
     })

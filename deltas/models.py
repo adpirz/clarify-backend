@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.postgres.fields import JSONField
 
+from sis_mirror.models import Gradebooks
 from sis_pull.models import Student, Assignment, Category, Score, Staff, \
     Gradebook, ScoreCache
 
@@ -50,52 +51,69 @@ class Delta(models.Model):
     # missing assignment fields
     missing_assignments = models.ManyToManyField(
         Assignment, through='MissingAssignmentRecord')
-    gradebook = models.ForeignKey(Gradebook, null=True)
 
     # category average fields
-    score = models.ForeignKey(ScoreCache, null=True)
+    score_cache = models.ForeignKey(ScoreCache, null=True)
     context_record = models.ForeignKey(CategoryGradeContextRecord, null=True)
     category_average_before = models.FloatField(null=True)
     category_average_after = models.FloatField(null=True)
 
+    # missing assignment and category
+    gradebook = models.ForeignKey(Gradebook, null=True)
+
     # attendance field
-    attendance_dates = JSONField(null=True)
     settled = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.student.id}: {self.type}"
 
-    def response_shape(self):
-        response = {
-            "student_id": self.student_id,
-            "created_on": self.created_on,
-            "updated_on": self.updated_on,
-            "type": self.type
+    @classmethod
+    def return_response_query(cls, staff_id, student_id=None, delta_type=None):
+        gradebook_ids = Gradebook\
+            .get_all_current_gradebook_ids_for_staff_id(staff_id)
+
+        filters = {
+            'gradebook_id__in': gradebook_ids
         }
 
-        if self.type == "missing":
-            response["missing_assignments"] = [
-                a.response_shape() for a in
-                self.missingassignmentrecord_set.all()
-            ]
-            response["gradebook_id"] = self.gradebook_id
-            response["gradebook_name"] = self.gradebook.gradebook_name
+        if delta_type and delta_type in ['missing', 'category']:
+            filters = {'type': delta_type}
 
-        return response
+        if student_id:
+            filters = {'student_id': student_id}
+
+        queryset = (
+            cls.objects
+                .filter(student__sectionlevelrosterperyear__staff_id=staff_id)
+                .order_by('student_id', '-id')
+        )
+
+        prefetch_list = ['gradebook']
+
+        if delta_type == "missing" or not delta_type:
+            prefetch_list += [
+                "missingassignmentrecord_set",
+                "missingassignmentrecord_set__assignment"
+            ]
+
+        if delta_type == "category" or not delta_type:
+            prefetch_list += [
+                "score_cache__assignment",
+                "context_record",
+                "context_record__category"
+            ]
+
+        return (queryset
+                    .filter(**filters)
+                    .prefetch_related(*prefetch_list)
+                    .distinct()
+                    .all())
 
 
 class MissingAssignmentRecord(models.Model):
     delta = models.ForeignKey(Delta)
     assignment = models.ForeignKey(Assignment)
     missing_on = models.DateField()
-
-    def response_shape(self):
-        return {
-            "assignment_name": self.assignment.short_name,
-            "assignment_id": self.assignment_id,
-            "due_date": self.assignment.due_date,
-            "missing_on": self.missing_on
-        }
 
 
 class Action(models.Model):

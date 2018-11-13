@@ -1,44 +1,51 @@
-from django.utils import timezone
 from json import loads
-from datetime import timedelta, datetime
+from datetime import datetime
+
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q, Case, When, Value, BooleanField
+from django.db.models import Case, When, Value, BooleanField
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from sis_pull.models import (
-    Student, Section, GradeLevel, Site, Staff,
+    Student, Section, GradeLevel, Staff,
     SectionLevelRosterPerYear,
-    StaffTermRoleAffinity, Assignment, GradebookSectionCourseAffinity,
-    Gradebook, Score,)
+)
+
+
 from deltas.models import Action, Delta
-from mimesis import Person
 from utils import get_academic_year
 
+from .decorators import requires_staff, require_methods
+
 
 @login_required
+@require_methods("GET")
 def UserView(request):
-    if request.method == 'GET':
-        user = request.user
-        return JsonResponse({
-            'data': {
-                'id': user.id,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
-            }
-        })
+    user = request.user
+    response = {
+        'data': {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+        }
+    }
+    if user.staff:
+        response["data"]["prefix"] = user.staff.get_prefix_display()
+    return JsonResponse(response)
 
 
 @login_required
-def StudentView(request):
+@require_methods("GET")
+@requires_staff
+def StudentView(request, requesting_staff):
     def _shape(student, student_section_pairs):
         return {
             'id': student.id,
@@ -48,14 +55,6 @@ def StudentView(request):
             'is_searchable': student.is_searchable,
             'enrolled_section_ids': list(set([s[1] for s in student_section_pairs if s[0] == student.id]))
         }
-
-    try:
-        requesting_staff = request.user.staff
-    except:
-        return JsonResponse(
-            {'error': 'No staff for that user'},
-            status=401
-        )
 
     staff_level = requesting_staff.get_max_role_level()
     staff_site_id = requesting_staff.get_most_recent_primary_site_id()
@@ -82,7 +81,8 @@ def StudentView(request):
 
     if staff_level < 700:
         # Staff member isn't an admin. The client should only allow them to
-        # search for students that they teach. Indicate which students those are.
+        # search for students that they teach.
+        # Indicate which students those are.
         staff_student_ids = (SectionLevelRosterPerYear.objects
             .filter(staff=requesting_staff)
             .filter(academic_year=get_academic_year())
@@ -91,7 +91,6 @@ def StudentView(request):
     else:
         # Staff is an admin, which means they can see all students at their site
         staff_student_ids = site_student_ids
-
 
     staff_students = (Student.objects.filter(id__in=staff_student_ids)
                       .annotate(is_searchable=Case(
@@ -111,6 +110,7 @@ def StudentView(request):
 
 
 @login_required
+@require_methods("GET")
 def SectionView(request):
     # TODO
     def _shape(section):
@@ -125,9 +125,9 @@ def SectionView(request):
             'tags': tags
         }
     # Decided somewhat arbitrarily to return all sections associated with a
-    # staff member. We'll want to come up with more specific rules for that soon,
-    # aka all sections at a staff member's site, that accounts for multi-site
-    # staff, etc.
+    # staff member. We'll want to come up with more specific
+    # rules for that soon, aka all sections at a staff member's site, that
+    # accounts for multi-site staff, etc.
     user = request.user
     staff_level = user.staff.get_max_role_level()
     if staff_level < 700:
@@ -153,7 +153,9 @@ def SectionView(request):
 
 
 @login_required
-def CourseView(request):
+@require_methods("GET")
+@requires_staff
+def CourseView(request, requesting_staff):
     def _shape(row):
         return {
             'id': row.course.id,
@@ -181,52 +183,40 @@ def CourseView(request):
 
 
 @csrf_exempt
+@require_methods("GET", "POST", "DELETE")
 def SessionView(request):
-    if request.method not in ['GET', 'POST', 'DELETE']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status_code=405)
 
-    if settings.IMPERSONATION and request.method == 'GET'\
-            and request.GET.get('user_id', None):
-
-        if request.user and request.user.is_authenticated:
-            return JsonResponse({
-                'data': {
-                    'id': request.user.id,
-                    'username': request.user.username,
-                    'first_name': request.user.first_name,
-                    'last_name': request.user.last_name,
-                    'email': request.user.email,
-                    'logged_in_already': 'yeah'
-                }
-            })
-        user_id = request.GET.get('user_id')
-        user = get_object_or_404(User, id=user_id)
-        login(request, user)
-
-        return JsonResponse({
+    def _user_response_shape(user):
+        response = {
             'data': {
                 'id': user.id,
                 'username': user.username,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'email': user.email,
+                'email': user.email
             }
-        }, status=201)
+        }
+        if user.staff:
+            response["data"]["prefix"] = user.staff.get_prefix_display()
+
+        return response
+
+    if settings.IMPERSONATION and request.method == 'GET'\
+            and request.GET.get('user_id', None):
+
+        if request.user and request.user.is_authenticated:
+            return JsonResponse(_user_response_shape(request.user), status=200)
+
+        user_id = request.GET.get('user_id')
+        user = get_object_or_404(User, id=user_id)
+        login(request, user)
+
+        return JsonResponse(_user_response_shape(user), status=201)
 
     user = request.user
     if request.method == 'GET':
         if user.is_authenticated():
-            return JsonResponse({
-                'data': {
-                    'id': user.id,
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                }
-            }, status=200)
+            return JsonResponse(_user_response_shape(user), status=200)
         else:
             return JsonResponse(
                 {'error': 'No session for user'},
@@ -234,15 +224,7 @@ def SessionView(request):
             )
     elif request.method == 'POST':
         if user.is_authenticated():
-            return JsonResponse({
-                'data': {
-                    'id': user.id,
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                }
-            }, status=200)
+            return JsonResponse(_user_response_shape(user), status=200)
         else:
             parseable_post = request.body.decode('utf8').replace("'", '"')
             parsed_post = loads(parseable_post)
@@ -273,15 +255,7 @@ def SessionView(request):
                     }, status=403)
 
                 login(request, user)
-                return JsonResponse({
-                    'data': {
-                        'id': user.id,
-                        'username': user.username,
-                        'first_name': user.first_name,
-                        'last_name': user.last_name,
-                        'email': user.email,
-                    }
-                }, status=201)
+                return JsonResponse(_user_response_shape(user), status=201)
     elif request.method == 'DELETE':
         if not user.is_authenticated():
             return JsonResponse(
@@ -300,57 +274,80 @@ def SessionView(request):
 
 
 @login_required
-def MissingAssignmentDeltaView(request):
-    if request.method not in ['GET']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status_code=405)
-    try:
-        requesting_staff = request.user.staff
-    except:
-        return JsonResponse(
-            {'error': 'No staff for that user'},
-            status=401
-        )
+@require_methods("GET")
+@requires_staff
+def DeltaView(request, requesting_staff, student_id=None):
+    delta_type = request.GET.get('type', None)
 
-    gradebook_ids = (
-        GradebookSectionCourseAffinity
-            .get_users_current_gradebook_ids(requesting_staff.id)
+    deltas = Delta.return_response_query(
+        requesting_staff.id,
+        student_id,
+        delta_type
     )
 
-    deltas = Delta.objects.filter(
-        type="missing",
-        gradebook_id__in=gradebook_ids
-    ).prefetch_related(
-        "missingassignmentrecord_set",
-        "missingassignmentrecord_set__assignment",
-        "gradebook"
-    ).all()
+    def _shape_context_record(record):
+        return {
+            "category_id": record.category_id,
+            "category_name": record.category.category_name,
+            "date": record.date,
+            "total_points_possible": record.total_points_possible,
+            "average_points_earned": record.average_points_earned
+        }
 
-    """
-    {
-        data: [
-            { student_id,
-              missing_assignments: [{
-                timestamp,
-                assignment: {
-                    name: string,
-                    due_date: time,
-                    missing_on: time,
-                }
+    def _shape_missing_record(record):
+        return {
+            "assignment_name": record.assignment.short_name,
+            "assignment_id": record.assignment_id,
+            "due_date": record.assignment.due_date,
+            "missing_on": record.missing_on
+        }
 
-              }]}
-        ]
-    }
-    """
+    def _shape_delta(delta):
 
-    return JsonResponse({"data": [
-        d.response_shape() for d in deltas
-    ]})
+        resp = {
+            "delta_id": delta.id,
+            "student_id": delta.student_id,
+            "created_on": delta.created_on,
+            "updated_on": delta.updated_on,
+            "type": delta.type,
+            "gradebook_name": delta.gradebook.gradebook_name,
+            "gradebook_id": delta.gradebook_id
+        }
+
+        if delta.type == "missing":
+            resp["missing_assignments"] = [
+                _shape_missing_record(a) for a in
+                delta.missingassignmentrecord_set.all()
+            ]
+            resp["sort_date"] = delta.created_on
+
+        if delta.type == "category":
+            score = {
+                "assignment_id": delta.score_cache.assignment_id,
+                "score_cache_id": delta.score_cache.id,
+                "assignment_name": delta.score_cache.assignment.short_name,
+                "score": delta.score_cache.score,
+                "possible_points": delta.score_cache.assignment.possible_points,
+                "due_date": delta.score_cache.assignment.due_date,
+                "last_updated": delta.score_cache.last_updated
+            }
+            resp["score"] = score
+            resp["context_record"] = _shape_context_record(delta.context_record)
+            resp["category_average_before"] = delta.category_average_before
+            resp["category_average_after"] = delta.category_average_after
+            resp["sort_date"] = delta.score_cache.assignment.due_date
+
+        return resp
+
+    return JsonResponse({
+        'data': [_shape_delta(d) for d in deltas]
+    })
 
 
 @login_required
-def ActionView(request):
+@require_methods("GET", "PUT", "POST", "DELETE")
+@requires_staff
+def ActionView(request, requesting_staff, action_id=None):
     def _shape(action):
         return {
             'id': action.id,
@@ -364,20 +361,6 @@ def ActionView(request):
             'updated_on': action.updated_on,
             'note': action.note,
         }
-
-    if request.method not in ['GET', 'POST']:
-        return JsonResponse({
-            'error': 'Method not allowed.'
-        }, status=405)
-
-    try:
-        requesting_staff = request.user.staff
-    except:
-        return JsonResponse(
-            {'error': 'No staff for that user'},
-            status=401
-        )
-
     if request.method == 'GET':
         staff_students = (SectionLevelRosterPerYear.objects
                          .filter(staff=requesting_staff)
@@ -389,14 +372,25 @@ def ActionView(request):
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
 
-    if request.method == 'POST':
-        parseable_post = request.body.decode('utf8')
-        if not parseable_post:
+    elif request.method == 'DELETE':
+        action = get_object_or_404(Action, id=action_id)
+        if requesting_staff != action.created_by:
             return JsonResponse(
-                {'error': 'Request body must be present'},
-                status=400)
+                {'error': 'You cannot delete an action you do not own.'},
+                status=403)
+        else:
+            action.delete()
+            return HttpResponse(status=204)
 
-        parsed_post = loads(parseable_post)
+    parseable_post = request.body.decode('utf8')
+    if not parseable_post:
+        return JsonResponse(
+            {'error': 'Request body must be present'},
+            status=400)
+
+    parsed_post = loads(parseable_post)
+
+    if request.method == 'POST':
         student_id = parsed_post.get('student_id')
 
         if not student_id:
@@ -411,7 +405,7 @@ def ActionView(request):
                 {'error': 'Target student could not be found'},
                 status=404)
 
-        new_action = (Action.objects.create(
+        new_action = (Action(
                         student=target_student,
                         note=parsed_post.get('note'),
                         created_by=requesting_staff))
@@ -457,3 +451,69 @@ def ActionView(request):
         return JsonResponse(
             {'data': _shape(new_action)},
             status=201)
+    else:
+        # Method is PUT
+        action_id = parsed_post.get('action_id')
+        action = get_object_or_404(Action, id=action_id)
+
+        if requesting_staff != action.created_by:
+            return JsonResponse(
+                {'error': 'You cannot update an action you do not own.'},
+                status=403)
+
+        student_id = parsed_post.get('student_id')
+
+        if student_id:
+            try:
+                target_student = Student.objects.get(id=student_id)
+                action.student=target_student
+            except Student.DoesNotExist:
+                return JsonResponse(
+                    {'error': 'Target student could not be found'},
+                    status=404)
+
+
+        new_note = parsed_post.get('note')
+        if new_note:
+            action.note = new_note
+
+        due_on = parsed_post.get('due_on')
+        completed_on = parsed_post.get('completed_on')
+
+        if due_on:
+            try:
+                due_on = datetime.strptime(due_on, '%m/%d/%Y %H:%M')
+                action.due_on = due_on
+            except:
+                return JsonResponse(
+                    {'error': 'Due date must be in the format mm/dd/yyyy HH:MM'},
+                    status=400)
+
+        if completed_on:
+            try:
+                completed_on = datetime.strptime(completed_on, '%m/%d/%Y %H:%M')
+                action.completed_on = completed_on
+            except:
+                return JsonResponse(
+                    {'error': 'Completed date must be in the format mm/dd/yyyy HH:MM'},
+                    status=400)
+
+        if parsed_post.get('type'):
+            action.type = parsed_post.get('type')
+
+
+        action.save()
+
+        deltas = parsed_post.get('deltas')
+        if deltas:
+            if isinstance(deltas, list):
+                action.deltas = deltas
+                action.save()
+            else:
+                return JsonResponse(
+                    {'error': 'Deltas must be a list. This update to action deltas was ignored.'},
+                    status=400)
+
+        return JsonResponse(
+            {'data': _shape(action)},
+            status=200)
