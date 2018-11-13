@@ -324,7 +324,7 @@ def DeltaView(request, requesting_staff, student_id=None):
         if delta.type == "category":
             score = {
                 "assignment_id": delta.score_cache.assignment_id,
-                "score_cache_id": delta.score_cache.score.id,
+                "score_cache_id": delta.score_cache.id,
                 "assignment_name": delta.score_cache.assignment.short_name,
                 "score": delta.score_cache.score,
                 "possible_points": delta.score_cache.assignment.possible_points,
@@ -335,7 +335,7 @@ def DeltaView(request, requesting_staff, student_id=None):
             resp["context_record"] = _shape_context_record(delta.context_record)
             resp["category_average_before"] = delta.category_average_before
             resp["category_average_after"] = delta.category_average_after
-            resp["sort_date"] = delta.score.assignment.due_date
+            resp["sort_date"] = delta.score_cache.assignment.due_date
 
         return resp
 

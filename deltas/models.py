@@ -104,7 +104,7 @@ class Delta(models.Model):
             ]
 
         return (queryset
-                    .filters(**filters)
+                    .filter(**filters)
                     .prefetch_related(*prefetch_list)
                     .all())
 
