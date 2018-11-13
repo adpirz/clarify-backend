@@ -214,6 +214,17 @@ class Users(models.Model):
         managed = False
         db_table = 'users'
 
+    @classmethod
+    def get_staff_values_for_staff_id(cls, staff_id):
+        user = cls.objects.get(user_id=staff_id)
+
+        return {
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.username,
+            'prefix': 'MR' if user.gender == 'M' else 'MS'
+        }
+
 
 class Sites(models.Model):
     site_id = models.IntegerField(primary_key=True)
