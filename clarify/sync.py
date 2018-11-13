@@ -106,6 +106,9 @@ class IlluminateSync(Sync):
         return Terms.get_current_terms_for_user_id(staff_id)
 
     def get_source_related_sections_for_staff_id(cls, staff_id):
-        return Sections.get_current_sections_for_user_id(staff_id)
+        return Sections.get_current_sections_for_staff_id(staff_id)
+
+    def get_source_related_students_for_staff_id(cls, staff_id):
+        return Students.get_current_students_for_staff_id(staff_id)
 
 

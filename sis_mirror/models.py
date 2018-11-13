@@ -146,12 +146,16 @@ class Students(models.Model):
     military_family_indicator = models.IntegerField()
     cellphone = models.CharField(max_length=20, blank=True, null=True)
 
-    def __str__(self):
-        return self.last_name + ", " + self.first_name
-
     class Meta:
         managed = False
         db_table = 'students'
+
+    def __str__(self):
+        return self.last_name + ", " + self.first_name
+
+    @staticmethod
+    def get_current_students_for_staff_id(staff_id):
+        return SsCube.get_current_students_for_staff_id(staff_id)
 
 
 class Users(models.Model):
@@ -845,6 +849,21 @@ class SsCube(models.Model):
     class Meta:
         managed = False
         db_table = 'ss_cube'
+
+    @classmethod
+    def get_current_students_for_staff_id(cls, staff_id):
+        section_ids = (Sections.get_current_sections_for_staff_id(staff_id)
+                               .values('section_id'))
+
+        return (cls.objects
+                    .filter(section_id__in=section_ids,
+                           user_id=staff_id)
+                    .annotate(
+                        first_name=F('student__first_name'),
+                        last_name=F('student__last_name'))
+                    .distinct('student_id')
+                    .values('student_id', 'first_name', 'last_name')
+        )
 
 
 class SsCurrent(models.Model):
