@@ -354,7 +354,7 @@ def build_deltas_for_gradebook(gradebook_id):
 
 
 def build_deltas_for_staff_current_gradebooks(staff_id):
-    gradebook_ids = Gradebooks.get_all_current_gradebook_ids_for_user_id(staff_id)
+    gradebook_ids = Gradebooks.get_current_gradebooks_for_staff_id(staff_id)
 
     new_deltas = 0
 

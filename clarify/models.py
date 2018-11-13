@@ -158,6 +158,8 @@ class EnrollmentRecord(models.Model):
 class StaffSectionRecord(models.Model):
     user = models.ForeignKey(UserProfile)
     section = models.ForeignKey(Section)
+    # catch all that determines if this is current
+    active = models.BooleanField(default=True)
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
     primary_teacher = models.BooleanField(default=True)

@@ -280,7 +280,7 @@ class Sites(models.Model):
         return self.site_name
 
     @staticmethod
-    def get_users_current_sites(user_id):
+    def get_current_sites_for_staff_id(user_id):
         return UserTermRoleAff.get_current_sites_for_user_id(user_id)
 
     class Meta:
@@ -356,6 +356,11 @@ class Sections(models.Model):
     def get_current_sections_for_staff_id(staff_id):
         return SectionTeacherAff.get_current_sections_for_staff_id(staff_id)
 
+    @staticmethod
+    def get_current_staff_section_records_for_staff_id(staff_id):
+        return SectionTeacherAff\
+            .get_current_staff_section_records_for_staff_id(staff_id)
+
 
 class CategoryTypes(models.Model):
     category_type_id = models.IntegerField(primary_key=True)
@@ -381,6 +386,21 @@ class Categories(models.Model):
     class Meta:
         managed = False
         db_table = 'categories'
+
+    @classmethod
+    def get_current_categories_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+            .get_current_gradebooks_for_staff_id(staff_id)
+            .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .distinct('category_id')
+                .annotate(sis_id=F('category_id'),
+                          name=F('category_name'),
+                          sis_gradebook_id=F('gradebook_id'))
+                .values('sis_id', 'name', 'sis_gradebook_id')
+                )
 
 
 class Courses(models.Model):
@@ -480,12 +500,11 @@ class Gradebooks(models.Model):
     def __str__(self):
         return self.gradebook_name or str(self.gradebook_id)
 
-    @classmethod
-    def get_all_current_gradebooks_for_user_id(cls, user_id):
-        # TODO: What about gradebooks that have transferred owners?
-        return cls.objects.filter(
-            active=True, created_by=user_id
-        ).all()
+    @staticmethod
+    def get_current_gradebooks_for_staff_id(staff_id):
+        """Convenience method"""
+        return GradebookSectionCourseAff\
+            .get_current_gradebooks_for_staff_id(staff_id)
 
     class Meta:
         managed = False
@@ -537,6 +556,56 @@ class GradebookSectionCourseAff(models.Model):
 
     def __str__(self):
         return f"{self.gradebook} - {self.section} - {self.course}"
+
+    @classmethod
+    def get_current_gradebooks_for_staff_id(cls, staff_id):
+        gradebook_date_filter_string = "__".join([
+            "section",
+            "sectiongradingperiodaff",
+            "grading_period"
+        ])
+
+        gp_start_date = "__".join([
+            gradebook_date_filter_string, "grading_period_start_date", "lte"])
+        gp_end_date = "__".join([
+            gradebook_date_filter_string, "grading_period_end_date", "gte"])
+
+        teacher_filter_string = "__".join([
+            "section",
+            "sectionteacheraff",
+        ])
+
+        sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
+        sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
+        sta_end_date_null = "__".join(
+            [teacher_filter_string, "end_date", "isnull"])
+        sta_user = "__".join([teacher_filter_string, "user_id"])
+
+        now = timezone.now()
+
+        gsca_filter = {
+            gp_start_date: now,
+            gp_end_date: now,
+            sta_start_date: now,
+            sta_user: staff_id
+        }
+
+        return (
+            cls.objects
+                .filter(**gsca_filter)
+                .filter(
+                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
+            )
+                .distinct('gradebook_id')
+                .annotate(
+                    gradebook_name=F('gradebook__gradebook_name'),
+                    sis_gradebook_id=F('gradebook_id'),
+                    sis_section_id=F('section_id'),
+                    sis_user_id=F('user_id')
+                )
+                .values('sis_gradebook_id', 'gradebook_name',
+                        'sis_user_id', 'sis_section_id')
+        )
 
     class Meta:
         managed = False
@@ -673,6 +742,25 @@ class SectionStudentAff(models.Model):
         managed = False
         db_table = 'section_student_aff'
 
+    @classmethod
+    def get_current_enrollment_for_staff_id(cls, staff_id):
+        section_ids = (Sections
+            .get_current_sections_for_staff_id(staff_id)
+            .values('section_id'))
+
+        return (cls.objects
+                .filter(section_id__in=section_ids,
+                        entry_date__lte=timezone.now())
+                .filter(Q(leave_date__gte=timezone.now()) |
+                        Q(leave_date__isnull=True))
+                .annotate(start_date=F('entry_date'),
+                          end_date=F('leave_date'),
+                          sis_student_id=F('student_id'),
+                          sis_section_id=F('section_id'))
+                .values('sis_student_id', 'sis_section_id',
+                        'start_date', 'end_date')
+                )
+
 
 class Assignments(models.Model):
     assignment_id = models.IntegerField(primary_key=True)
@@ -696,6 +784,21 @@ class Assignments(models.Model):
     class Meta:
         managed = False
         db_table = 'assignments'
+
+    @classmethod
+    def get_current_assignments_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+                         .get_current_gradebooks_for_staff_id(staff_id)
+                         .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .annotate(sis_id=F('assignment_id'),
+                          name=F('short_name'),
+                          sis_gradebook_id=F('gradebook_id'),
+                          sis_category_id=F('category_id'))
+                .values('sis_id', 'name',
+                        'sis_gradebook_id', 'sis_category_id'))
 
 
 class AssignmentGscaAff(models.Model):
@@ -755,9 +858,26 @@ class ScoreCache(models.Model):
     def pull_query(cls):
         return (cls.objects
                 .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
+                .filter(assignment__assign_date__gte=timezone.datetime(2018,6,1))
+                .exclude(score__isnull=True)
                 .order_by('student_id', 'assignment_id', '-calculated_at')
                 .distinct('student_id', 'assignment_id')
                 .all())
+
+    @classmethod
+    def get_current_scores_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+                         .get_current_gradebooks_for_staff_id(staff_id)
+                         .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .annotate(value=F('points'),
+                          sis_student_id=F('student_id'),
+                          sis_assignment_id=F('assignment_id'),
+                          )
+                .values('sis_student_id', 'sis_assignment_id', 'score', 'value',
+                        'is_missing', 'is_excused'))
 
     class Meta:
         managed = False
@@ -825,13 +945,22 @@ class SectionTeacherAff(models.Model):
                     name=F('section__section_name'),
                     course_name=F(course_short_name),
                     period=F(timeblock_name),
-                    grade_level=F(grade_level_name)
+                    grade_level=F(grade_level_name),
+                    sis_id=F('section_id'),
+                    sis_user_id=F('user_id')
                 )
                 .distinct('section_id', grade_level_name)
                 .values(
-                    'section_id', 'name', 'course_name',
-                    'period', 'user_id', 'grade_level'
+                    'sis_id', 'name', 'course_name',
+                    'period', 'sis_user_id', 'grade_level'
                 ))
+
+    @classmethod
+    def get_current_staff_section_records_for_staff_id(cls, staff_id):
+        return (cls.get_current_sections_for_staff_id(staff_id)
+            .annotate(sis_section_id=F('section_id'))
+            .values('sis_user_id', 'sis_section_id', 'primary_teacher',
+                    'start_date', 'end_date'))
 
 
 class SsCube(models.Model):
@@ -859,10 +988,11 @@ class SsCube(models.Model):
                     .filter(section_id__in=section_ids,
                            user_id=staff_id)
                     .annotate(
+                        sis_id=F('student_id'),
                         first_name=F('student__first_name'),
                         last_name=F('student__last_name'))
                     .distinct('student_id')
-                    .values('student_id', 'first_name', 'last_name')
+                    .values('sis_id', 'first_name', 'last_name')
         )
 
 
@@ -908,7 +1038,7 @@ class Terms(models.Model):
     local_term_id = models.IntegerField(blank=True, null=True)
 
     @staticmethod
-    def get_current_terms_for_user_id(user_id):
+    def get_current_terms_for_staff_id(user_id):
         return UserTermRoleAff.get_current_terms_for_user_id(user_id)
 
     class Meta:
@@ -972,10 +1102,12 @@ class UserTermRoleAff(models.Model):
                 .annotate(sis_id=F('term_id'),
                           start_date=F('term__start_date'),
                           end_date=F('term__end_date'),
-                          sis_site_id=F('term__session__site_id')
+                          sis_site_id=F('term__session__site_id'),
+                          name=F('term__term_name'),
+                          academic_year=F('term__session__academic_year')
                           )
-                ).values('sis_id', 'start_date',
-                         'end_date', 'sis_site_id')
+                ).values('sis_id', 'name', 'start_date',
+                         'end_date', 'sis_site_id', 'academic_year')
 
     class Meta:
         managed = False
