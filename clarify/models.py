@@ -10,28 +10,40 @@ Abstract Base Models
 """
 
 
-class CleverIDModel (models.Model):
+class CleverIDMixin (models.Model):
     clever_id = models.CharField(max_length=50, blank=True)
 
     class Meta:
         abstract = True
 
 
-class SISIDModel(models.Model):
+class SISMixin(models.Model):
     sis_id = models.IntegerField(null=True)
 
     class Meta:
         abstract = True
 
 
-class NamedModel(CleverIDModel, SISIDModel):
+class NameInterface:
+
+    def get_full_name(self):
+        raise NotImplementedError()
+
+    def get_first_name(self):
+        raise NotImplementedError()
+
+    def get_last_name(self):
+        raise NotImplementedError()
+
+
+class BaseName(CleverIDMixin, SISMixin):
     name = models.CharField(max_length=255)
 
     class Meta:
         abstract = True
 
 
-class PersonNameModel(SISIDModel, CleverIDModel):
+class PersonNameModel(SISMixin, CleverIDMixin):
     first_name = models.CharField(max_length=200, blank=True)
     last_name = models.CharField(max_length=200, blank=True)
 
@@ -53,7 +65,7 @@ class PersonNameModel(SISIDModel, CleverIDModel):
         abstract = True
 
 
-class UserModel(SISIDModel, CleverIDModel):
+class UserProfile(SISMixin, CleverIDMixin):
     PREFIX_CHOICES = (
         ('MR', 'Mr.'),
         ('MS', 'Ms.'),
@@ -88,16 +100,7 @@ class Student(PersonNameModel):
     pass
 
 
-class Staff(UserModel):
-    ROLE_CHOICES = (
-        ('DA', 'District Admin'),
-        ('SA', 'School Admin'),
-        ('T', 'Teacher')
-    )
 
-    role = models.CharField(max_length=3,
-                            choices=ROLE_CHOICES,
-                            default='T')
 
 
 class Site(NamedModel):
