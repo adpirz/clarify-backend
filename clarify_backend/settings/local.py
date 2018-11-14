@@ -37,7 +37,8 @@ DEBUG_TOOLBAR_CONFIG = {
 SHELL_PLUS_PRE_IMPORTS = [
     ('pprint', 'pprint'),
     ('experiment.management.commands._experiment', '*'),
-    ('deltas.tasks', '*')
+    ('deltas.tasks', '*'),
+    ('clarify.sync', '*'),
 ]
 
 if DEBUG and not DISABLE_LOGGING:

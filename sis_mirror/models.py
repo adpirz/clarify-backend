@@ -27,7 +27,7 @@ Order of loading:
 from __future__ import unicode_literals
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 
 
@@ -146,12 +146,16 @@ class Students(models.Model):
     military_family_indicator = models.IntegerField()
     cellphone = models.CharField(max_length=20, blank=True, null=True)
 
-    def __str__(self):
-        return self.last_name + ", " + self.first_name
-
     class Meta:
         managed = False
         db_table = 'students'
+
+    def __str__(self):
+        return self.last_name + ", " + self.first_name
+
+    @staticmethod
+    def get_current_students_for_staff_id(staff_id):
+        return SsCube.get_current_students_for_staff_id(staff_id)
 
 
 class Users(models.Model):
@@ -209,6 +213,21 @@ class Users(models.Model):
     class Meta:
         managed = False
         db_table = 'users'
+
+    @classmethod
+    def get_staff_values_for_staff_id(cls, staff_id):
+        user = cls.objects.get(user_id=staff_id)
+
+        return {
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.username,
+            'prefix': 'MR' if user.gender == 'M' else 'MS'
+        }
+
+    @staticmethod
+    def get_all_current_staff_ids():
+        return UserTermRoleAff.get_all_current_staff_ids()
 
 
 class Sites(models.Model):
@@ -275,6 +294,10 @@ class Sites(models.Model):
     def __str__(self):
         return self.site_name
 
+    @staticmethod
+    def get_current_sites_for_staff_id(user_id):
+        return UserTermRoleAff.get_current_sites_for_user_id(user_id)
+
     class Meta:
         managed = False
         db_table = 'sites'
@@ -337,13 +360,21 @@ class Sections(models.Model):
     alternative_learning_experience_program_id = models.IntegerField(blank=True, null=True)
     alternative_learning_experience_type_id = models.IntegerField(blank=True, null=True)
 
-    def __str__(self):
-        return self.section_name or str(self.section_id)
-
-
     class Meta:
         managed = False
         db_table = 'sections'
+
+    def __str__(self):
+        return self.section_name or str(self.section_id)
+
+    @staticmethod
+    def get_current_sections_for_staff_id(staff_id):
+        return SectionTeacherAff.get_current_sections_for_staff_id(staff_id)
+
+    @staticmethod
+    def get_current_staff_section_records_for_staff_id(staff_id):
+        return SectionTeacherAff\
+            .get_current_staff_section_records_for_staff_id(staff_id)
 
 
 class CategoryTypes(models.Model):
@@ -370,6 +401,21 @@ class Categories(models.Model):
     class Meta:
         managed = False
         db_table = 'categories'
+
+    @classmethod
+    def get_current_categories_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+            .get_current_gradebooks_for_staff_id(staff_id)
+            .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .distinct('category_id')
+                .annotate(sis_id=F('category_id'),
+                          name=F('category_name'),
+                          sis_gradebook_id=F('gradebook_id'))
+                .values('sis_id', 'name', 'sis_gradebook_id')
+                )
 
 
 class Courses(models.Model):
@@ -434,10 +480,20 @@ class Courses(models.Model):
     def __str__(self):
         return self.short_name or str(self.course_id)
 
-
     class Meta:
         managed = False
         db_table = 'courses'
+
+
+class CourseGradeLevels(models.Model):
+    cgl_id = models.IntegerField(primary_key=True)
+    course = models.ForeignKey('Courses', models.DO_NOTHING)
+    required = models.IntegerField(blank=True, null=True)
+    grade_level = models.ForeignKey('GradeLevels', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'course_grade_levels'
 
 
 class Gradebooks(models.Model):
@@ -460,9 +516,10 @@ class Gradebooks(models.Model):
         return self.gradebook_name or str(self.gradebook_id)
 
     @staticmethod
-    def get_all_current_gradebook_ids_for_user_id(user_id):
+    def get_current_gradebooks_for_staff_id(staff_id):
         """Convenience method"""
-        return GradebookSectionCourseAff.get_users_current_gradebook_ids(user_id)
+        return GradebookSectionCourseAff\
+            .get_current_gradebooks_for_staff_id(staff_id)
 
     class Meta:
         managed = False
@@ -516,7 +573,7 @@ class GradebookSectionCourseAff(models.Model):
         return f"{self.gradebook} - {self.section} - {self.course}"
 
     @classmethod
-    def get_users_current_gradebook_ids(cls, user_id):
+    def get_current_gradebooks_for_staff_id(cls, staff_id):
         gradebook_date_filter_string = "__".join([
             "section",
             "sectiongradingperiodaff",
@@ -545,7 +602,7 @@ class GradebookSectionCourseAff(models.Model):
             gp_start_date: now,
             gp_end_date: now,
             sta_start_date: now,
-            sta_user: user_id
+            sta_user: staff_id
         }
 
         return (
@@ -555,7 +612,14 @@ class GradebookSectionCourseAff(models.Model):
                 Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
             )
                 .distinct('gradebook_id')
-                .values_list('gradebook_id', flat=True)
+                .annotate(
+                    name=F('gradebook__gradebook_name'),
+                    sis_id=F('gradebook_id'),
+                    sis_section_id=F('section_id'),
+                    sis_user_id=F('user_id')
+                )
+                .values('sis_id', 'name',
+                        'sis_user_id', 'sis_section_id')
         )
 
     class Meta:
@@ -663,8 +727,8 @@ class Sessions(models.Model):
 
 class SectionCourseAff(models.Model):
     section_course_aff_id = models.IntegerField(primary_key=True)
-    section_id = models.IntegerField()
-    course_id = models.IntegerField()
+    section = models.ForeignKey(Sections)
+    course = models.ForeignKey(Courses)
     max_capacity = models.SmallIntegerField(blank=True, null=True)
     min_capacity = models.SmallIntegerField(blank=True, null=True)
     average_capacity = models.SmallIntegerField(blank=True, null=True)
@@ -693,6 +757,25 @@ class SectionStudentAff(models.Model):
         managed = False
         db_table = 'section_student_aff'
 
+    @classmethod
+    def get_current_enrollment_for_staff_id(cls, staff_id):
+        section_ids = (Sections
+            .get_current_sections_for_staff_id(staff_id)
+            .values('section_id'))
+
+        return (cls.objects
+                .filter(section_id__in=section_ids,
+                        entry_date__lte=timezone.now())
+                .filter(Q(leave_date__gte=timezone.now()) |
+                        Q(leave_date__isnull=True))
+                .annotate(start_date=F('entry_date'),
+                          end_date=F('leave_date'),
+                          sis_student_id=F('student_id'),
+                          sis_section_id=F('section_id'))
+                .values('sis_student_id', 'sis_section_id',
+                        'start_date', 'end_date')
+                )
+
 
 class Assignments(models.Model):
     assignment_id = models.IntegerField(primary_key=True)
@@ -716,6 +799,21 @@ class Assignments(models.Model):
     class Meta:
         managed = False
         db_table = 'assignments'
+
+    @classmethod
+    def get_current_assignments_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+                         .get_current_gradebooks_for_staff_id(staff_id)
+                         .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .annotate(sis_id=F('assignment_id'),
+                          name=F('short_name'),
+                          sis_gradebook_id=F('gradebook_id'),
+                          sis_category_id=F('category_id'))
+                .values('sis_id', 'name',
+                        'sis_gradebook_id', 'sis_category_id'))
 
 
 class AssignmentGscaAff(models.Model):
@@ -781,6 +879,24 @@ class ScoreCache(models.Model):
                 .distinct('student_id', 'assignment_id')
                 .all())
 
+    @classmethod
+    def get_current_scores_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+                         .get_current_gradebooks_for_staff_id(staff_id)
+                         .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .exclude(is_missing=False, is_excused=False,
+                         score__isnull=True, points__isnull=True)
+                .annotate(value=F('points'),
+                          sis_id=F('cache_id'),
+                          sis_student_id=F('student_id'),
+                          sis_assignment_id=F('assignment_id'),
+                          )
+                .values('sis_id', 'sis_student_id', 'sis_assignment_id',
+                        'score', 'value', 'is_missing', 'is_excused'))
+
     class Meta:
         managed = False
         db_table = 'score_cache'
@@ -799,6 +915,72 @@ class SectionTeacherAff(models.Model):
         managed = False
         db_table = 'section_teacher_aff'
 
+    @classmethod
+    def get_current_sections_for_staff_id(cls, staff_id):
+        grading_period_string = "__".join([
+            "section", "sectiongradingperiodaff", "grading_period"
+        ])
+
+        grading_period_start = grading_period_string + \
+            "__grading_period_start_date__lte"
+
+        grading_period_end = grading_period_string + \
+            "__grading_period_end_date__gte"
+
+        course_string = "__".join([
+            "section",
+            "gradebooksectioncourseaff",
+            "course",
+        ])
+
+        course_short_name = course_string + "__short_name"
+
+        grade_level_name = "__".join([
+            course_string,
+            "coursegradelevels",
+            "grade_level",
+            "short_name"
+        ])
+
+        timeblock_name = "__".join([
+            "section",
+            "sectiontimeblockaff",
+            "timeblock",
+            "timeblock_name"
+        ])
+
+        return (cls.objects
+                .filter(
+                    user_id=staff_id,
+                    start_date__lte=timezone.now())
+                .filter(
+                    Q(end_date__gte=timezone.now()) | Q(end_date__isnull=True))
+                .filter(**{
+                    grading_period_start: timezone.now(),
+                    grading_period_end: timezone.now()
+                })
+                .annotate(
+                    name=F('section__section_name'),
+                    course_name=F(course_short_name),
+                    period=F(timeblock_name),
+                    grade_level=F(grade_level_name),
+                    sis_id=F('section_id'),
+                    sis_user_id=F('user_id'),
+                    sis_term_id=F(grading_period_string + '__term_id')
+                )
+                .distinct('section_id', grade_level_name)
+                .values(
+                    'sis_id', 'name', 'course_name',
+                    'period', 'sis_user_id', 'grade_level', 'sis_term_id'
+                ))
+
+    @classmethod
+    def get_current_staff_section_records_for_staff_id(cls, staff_id):
+        return (cls.get_current_sections_for_staff_id(staff_id)
+            .annotate(sis_section_id=F('section_id'))
+            .values('sis_user_id', 'sis_section_id', 'primary_teacher',
+                    'start_date', 'end_date'))
+
 
 class SsCube(models.Model):
     site = models.ForeignKey(Sites, primary_key=True)
@@ -815,6 +997,22 @@ class SsCube(models.Model):
     class Meta:
         managed = False
         db_table = 'ss_cube'
+
+    @classmethod
+    def get_current_students_for_staff_id(cls, staff_id):
+        section_ids = (Sections.get_current_sections_for_staff_id(staff_id)
+                               .values('section_id'))
+
+        return (cls.objects
+                    .filter(section_id__in=section_ids,
+                           user_id=staff_id)
+                    .annotate(
+                        sis_id=F('student_id'),
+                        first_name=F('student__first_name'),
+                        last_name=F('student__last_name'))
+                    .distinct('student_id')
+                    .values('sis_id', 'first_name', 'last_name')
+        )
 
 
 class SsCurrent(models.Model):
@@ -858,17 +1056,85 @@ class Terms(models.Model):
     term_type = models.IntegerField()
     local_term_id = models.IntegerField(blank=True, null=True)
 
+    @staticmethod
+    def get_current_terms_for_staff_id(user_id):
+        return UserTermRoleAff.get_current_terms_for_user_id(user_id)
+
     class Meta:
         managed = False
         db_table = 'terms'
 
 
 class UserTermRoleAff(models.Model):
+    DISTRICT_ADMIN_ROLES = [1, 6]
+    SCHOOL_ADMIN_ROLES = [5]
+    TEACHER_ROLES = [4, 8, 14]
+    RELEVANT_ROLES = DISTRICT_ADMIN_ROLES + SCHOOL_ADMIN_ROLES + TEACHER_ROLES
+
     utra_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(Users)
     role = models.ForeignKey(Roles)
     term = models.ForeignKey(Terms)
     last_schedule_id = models.IntegerField(blank=True, null=True)
+
+    @classmethod
+    def get_current_rows_for_user(cls, user_id):
+        return cls.objects.filter(
+            user_id=user_id,
+            term__start_date__lte=timezone.now(),
+            term__end_date__gte=timezone.now(),
+        )
+
+    @classmethod
+    def get_current_roles_for_user_id(cls, user_id):
+        current_roles = (cls.get_current_rows_for_user(user_id)
+                    .filter(role_id__in=cls.RELEVANT_ROLES)
+                    .annotate(sis_site_id=F('term__session__site_id'))
+                    .values('sis_site_id', 'role_id')
+                )
+
+        def _shape(role):
+            role_choice = "T"
+
+            if role["role_id"] in cls.DISTRICT_ADMIN_ROLES:
+                role_choice = "DA"
+            if role["role_id"] in cls.SCHOOL_ADMIN_ROLES:
+                role_choice = "SA"
+
+            return {"sis_site_id": role["sis_site_id"],
+                    "role": role_choice}
+
+        return [_shape(r) for r in current_roles]
+
+    @classmethod
+    def get_current_sites_for_user_id(cls, user_id):
+        return (cls.get_current_rows_for_user(user_id)
+                .annotate(sis_id=F('term__session__site_id'),
+                          name=F('term__session__site__site_name'),
+                          )
+                .values('sis_id', 'name')
+                )
+
+    @classmethod
+    def get_current_terms_for_user_id(cls, user_id):
+        return (cls.get_current_rows_for_user(user_id)
+                .annotate(sis_id=F('term_id'),
+                          start_date=F('term__start_date'),
+                          end_date=F('term__end_date'),
+                          sis_site_id=F('term__session__site_id'),
+                          name=F('term__term_name'),
+                          academic_year=F('term__session__academic_year')
+                          )
+                ).values('sis_id', 'name', 'start_date',
+                         'end_date', 'sis_site_id', 'academic_year')
+
+    @classmethod
+    def get_all_current_staff_ids(cls):
+        return (cls.objects.filter(
+                    term__start_date__lte=timezone.now(),
+                    term__end_date__gte=timezone.now())
+                .distinct('user_id')
+                .values_list('user_id', flat=True))
 
     class Meta:
         managed = False
