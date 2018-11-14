@@ -227,13 +227,11 @@ class Sync:
                                              f"{instance.get('course_name')}"
 
                     if fk_list:
-                        try:
-                            fk_tuple = filter(lambda x: x is not None,[
-                                _get_related_model_id(f, instance.get(f))
-                                for f in fk_list
-                            ])
-                        except Exception as e:
-                            raise e
+                        fk_tuple = filter(
+                            lambda x: x is not None,
+                            [_get_related_model_id(f, instance.get(f))
+                             for f in fk_list]
+                        )
 
                         new_fk_kwargs = {i[0]: i[1] for i in fk_tuple}
                         new_kwargs.update(new_fk_kwargs)
@@ -266,7 +264,7 @@ class Sync:
             (Site, self.get_source_related_sites_for_staff_id,
                 ['sis_id', 'name']),
             (Term, self.get_source_related_terms_for_staff_id,
-                ['sis_id', 'name', 'academic_year', 'start_date','end_date'],
+                ['sis_id', 'name', 'academic_year', 'start_date', 'end_date'],
                 ['sis_site_id']),
             (Section, self.get_source_related_sections_for_staff_id,
                 ['sis_id', 'name', 'course_name'],
@@ -294,6 +292,7 @@ class Sync:
         for arg_set in build_args:
             new_count, new_errors = _build_all_models(*arg_set)
             model_name = arg_set[0].__name__
+
             if new_count > 0 or new_errors > 0:
                 return_dict[model_name] = [new_count, new_errors]
 
