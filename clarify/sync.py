@@ -260,7 +260,6 @@ class Sync:
                             grade_level=instance.get('grade_level'),
                             section=new_instance
                         )
-
             return count, errors
 
         build_args = [
@@ -295,7 +294,7 @@ class Sync:
         for arg_set in build_args:
             new_count, new_errors = _build_all_models(*arg_set)
             model_name = arg_set[0].__name__
-            if new_count > 0 and new_errors > 0:
+            if new_count > 0 or new_errors > 0:
                 return_dict[model_name] = [new_count, new_errors]
 
         return return_dict
@@ -353,19 +352,19 @@ class IlluminateSync(Sync):
     def get_all_current_staff_ids_from_source(cls):
         return Users.get_all_current_staff_ids()
 
-    @classmethod
-    def create_all_for_current_staff(cls, staff_id_list=None,
+    def create_all_for_current_staff(self, staff_id_list=None,
+                                     # used for rapid testing
                                      sparse=False):
         total_result_dict = {}
 
         staff_ids = staff_id_list if staff_id_list else \
-            cls.get_all_current_staff_ids_from_source()
+            self.get_all_current_staff_ids_from_source()
 
         if sparse:
-            staff_ids = staff_ids[::10]
+            staff_ids = staff_ids[::20]
 
         for staff_id in tqdm(staff_ids, desc="Staff"):
-            result_dict = cls.create_all_for_staff(staff_id)
+            result_dict = self.create_all_for_staff(staff_id)
             for model_name, outcome_list in result_dict.items():
                 if model_name not in total_result_dict:
                     total_result_dict[model_name] = outcome_list
