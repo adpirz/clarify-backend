@@ -1,8 +1,10 @@
 from django.contrib.auth.models import User
+from django.db.utils import IntegrityError
 from django.db.models import Model
 from django.utils import timezone
 from tqdm import tqdm
 
+from clarify import models
 from sis_mirror.models import (
     Sites,
     Terms,
@@ -24,7 +26,7 @@ from clarify.models import (
     EnrollmentRecord,
     StaffSectionRecord,
     DailyAttendanceNode,
-    Gradebook, Category, Assignment)
+    Gradebook, Category, Assignment, Score, SectionGradeLevels)
 
 
 class Sync:
@@ -32,6 +34,7 @@ class Sync:
 
     def __init__(self, logger=None, enable_logging=True):
         self.logger = (logger or print) if enable_logging else None
+        self.memoized_related = {}
 
     def log(self, *args, **kwargs):
         if self.logger:
@@ -68,7 +71,7 @@ class Sync:
             # > Returns a tuple of (object, created)
 
             return UserProfile.objects.create(
-                user=user, name=name, prefix=prefix
+                user=user, name=name, prefix=prefix, sis_id=source_id
             ), 1
 
         # match signature of Model.objects.get_or_create:
@@ -138,7 +141,13 @@ class Sync:
     def get_source_related_scores_for_staff_id(cls, staff_id):
         return None
 
-    def create_all_for_staff(self, source_id):
+    @classmethod
+    def get_all_current_staff_ids_from_source(cls):
+        return None
+
+    def create_all_for_staff(self, staff_id):
+
+        return_dict = {}
 
         id_field = self.source_id_field
         success_string = ""
@@ -150,34 +159,43 @@ class Sync:
 
         model_map["user"] = UserProfile
 
-        staff, staff_created = self.get_or_create_staff(source_id)
+        staff, staff_created = self.get_or_create_staff(staff_id)
 
         if staff_created:
             success_string += f"Staff created for " + \
-                              f"{id_field} {source_id}\n"
+                              f"{id_field} {staff_id}\n"
 
         # { <model> { <source_id> : <clarify_id> } }
-        memoized_related = {}
+        memoized_related = self.memoized_related
 
         def _get_related_model_id(fk_id_field, source_id):
+            if not source_id:
+                return None
+
             split_text = fk_id_field.split('_')
-            if len(split_text < 3):
+            if len(split_text) < 3:
                 raise ValueError('Improper field format.')
 
             related_model_name = "".join(split_text[1:-1])
 
-            related_field_key = "".join(split_text[1:])
+            related_field_key = "_".join(split_text[1:])
 
             if related_model_name in memoized_related and \
                source_id in memoized_related[related_model_name]:
-                clarify_id =  memoized_related[related_model_name][source_id]
+                clarify_id = memoized_related[related_model_name][source_id]
                 return related_field_key, clarify_id
 
             related_model: Model = model_map[related_model_name]
 
-            clarify_id = (related_model.objects
-                                .get(**{id_field: source_id})
-                                .id)
+            try:
+                clarify_id = (related_model.objects
+                                           .get(**{id_field: source_id})
+                                           .id)
+            except related_model.DoesNotExist:
+                return None
+
+            if related_model_name not in memoized_related:
+                memoized_related[related_model_name] = {}
 
             memoized_related[related_model_name][source_id] = clarify_id
 
@@ -185,43 +203,102 @@ class Sync:
 
         def _build_all_models(model: Model, related_query_func,
                               kwargs_list, fk_list=None):
-            source_models = related_query_func(source_id)
-            count = 0
-            import pdb; pdb.set_trace()
 
-            if source_models and len(source_models) > 1:
-                for instance in tqdm(source_models,
+            source_models = related_query_func(staff_id)
+            count = 0
+            errors = 0
+
+            if source_models and len(source_models) > 0:
+
+                if len(source_models) > 40:
+                    iterator = tqdm(source_models,
                                      desc=model.__name__,
-                                     leave=False):
-                    new_base_kwargs = { k: instance[k] for k in kwargs_list}
-                    new_fk_kwargs = {i[0]: i[1] for i in [
-                        _get_related_model_id(f, instance[f]) for f in fk_list
-                    ]}
-                    new_kwargs = {**new_base_kwargs, **new_fk_kwargs}
-                    new_instance, created = (model
+                                     leave=False)
+                else:
+                    iterator = source_models
+
+                for instance in iterator:
+                    new_kwargs = {
+                        k: instance.get(k) for k in kwargs_list
+                    }
+
+                    if model is Section and not instance.get('name'):
+                        new_kwargs["name"] = f"{instance.get('period')} " + \
+                                             f"{instance.get('course_name')}"
+
+                    if fk_list:
+                        try:
+                            fk_tuple = filter(lambda x: x is not None,[
+                                _get_related_model_id(f, instance.get(f))
+                                for f in fk_list
+                            ])
+                        except Exception as e:
+                            raise e
+
+                        new_fk_kwargs = {i[0]: i[1] for i in fk_tuple}
+                        new_kwargs.update(new_fk_kwargs)
+
+                    try:
+                        new_instance, created = (model
                                              .objects
                                              .get_or_create(**new_kwargs))
+                    except (model.MultipleObjectsReturned, IntegrityError):
+                        new_instance, created = (None, None)
+                        errors += 1
 
                     if created:
                         count += 1
 
-            pdb.set_trace()
+                    if (isinstance(new_instance, Gradebook) and
+                       not new_instance.owners.filter(pk=staff_id).exists()):
+                        new_instance.owners.add(staff_id)
 
-            if count > 0:
-                return f"New {model.__name__} instances: {count}\n"
+                    if (isinstance(new_instance, Section) and
+                            not new_instance.sectiongradelevels_set.exists()
+                            and instance.get('grade_level')):
+                        SectionGradeLevels.objects.create(
+                            grade_level=instance.get('grade_level'),
+                            section=new_instance
+                        )
 
-            return ""
+            return count, errors
 
-        success_string += _build_all_models(
-            Site, self.get_source_related_sites_for_staff_id,
-            ['name'])
+        build_args = [
+            (Site, self.get_source_related_sites_for_staff_id,
+                ['sis_id', 'name']),
+            (Term, self.get_source_related_terms_for_staff_id,
+                ['sis_id', 'name', 'academic_year', 'start_date','end_date'],
+                ['sis_site_id']),
+            (Section, self.get_source_related_sections_for_staff_id,
+                ['sis_id', 'name', 'course_name'],
+                ['sis_term_id']),
+            (Student, self.get_source_related_students_for_staff_id,
+                ['sis_id', 'first_name', 'last_name']),
+            (EnrollmentRecord,
+                self.get_source_related_enrollment_records_for_staff_id,
+                ['start_date', 'end_date'],
+                ['sis_student_id', 'sis_section_id']),
+            (Gradebook, self.get_source_related_gradebooks_for_staff_id,
+                ['sis_id', 'name'],
+                ['sis_section_id']),
+            (Category, self.get_source_related_categories_for_staff_id,
+                ['sis_id', 'name'],
+                ['sis_gradebook_id']),
+            (Assignment, self.get_source_related_assignments_for_staff_id,
+                ['sis_id', 'name', 'possible_points', 'possible_score'],
+                ['sis_gradebook_id', 'sis_category_id']),
+            (Score, self.get_source_related_scores_for_staff_id,
+                ['sis_id', 'score', 'value', 'is_missing', 'is_excused'],
+                ['sis_student_id', 'sis_assignment_id'])
+        ]
 
-        success_string += _build_all_models(
-            Term, self.get_source_related_sites_for_staff_id,
-            ['name', 'academic_year', 'start_date','end_date'],
-            ['sis_site_id'])
+        for arg_set in build_args:
+            new_count, new_errors = _build_all_models(*arg_set)
+            model_name = arg_set[0].__name__
+            if new_count > 0 and new_errors > 0:
+                return_dict[model_name] = [new_count, new_errors]
 
-        self.log(success_string)
+        return return_dict
 
 
 class IlluminateSync(Sync):
@@ -271,6 +348,32 @@ class IlluminateSync(Sync):
     @classmethod
     def get_source_related_scores_for_staff_id(cls, staff_id):
         return ScoreCache.get_current_scores_for_staff_id(staff_id)
+
+    @classmethod
+    def get_all_current_staff_ids_from_source(cls):
+        return Users.get_all_current_staff_ids()
+
+    @classmethod
+    def create_all_for_current_staff(cls, staff_id_list=None,
+                                     sparse=False):
+        total_result_dict = {}
+
+        staff_ids = staff_id_list if staff_id_list else \
+            cls.get_all_current_staff_ids_from_source()
+
+        if sparse:
+            staff_ids = staff_ids[::10]
+
+        for staff_id in tqdm(staff_ids, desc="Staff"):
+            result_dict = cls.create_all_for_staff(staff_id)
+            for model_name, outcome_list in result_dict.items():
+                if model_name not in total_result_dict:
+                    total_result_dict[model_name] = outcome_list
+                else:
+                    total_result_dict[model_name][0] += outcome_list[0]
+                    total_result_dict[model_name][1] += outcome_list[1]
+
+        return total_result_dict
 
 
 class CleverSync(Sync):

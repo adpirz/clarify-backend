@@ -18,7 +18,7 @@ class CleverIDMixin (models.Model):
 
 
 class SISMixin(models.Model):
-    sis_id = models.IntegerField(null=True)
+    sis_id = models.BigIntegerField(null=True)
 
     class Meta:
         abstract = True
@@ -120,7 +120,7 @@ class Term(BaseNameModel):
 
 class Section(BaseNameModel):
 
-    course_name = models.CharField(max_length=255, blank=True)
+    course_name = models.CharField(max_length=255, blank=True, null=True)
     term = models.ForeignKey(Term, null=True)
 
 
@@ -206,11 +206,11 @@ class Assignment(BaseNameModel):
     category = models.ForeignKey(Category, null=True)
 
     # TODO: Which goes into final grade?
-    possible_points = models.FloatField()
-    possible_score = models.FloatField()
+    possible_points = models.FloatField(null=True)
+    possible_score = models.FloatField(null=True)
 
 
-class Score(models.Model):
+class Score(SISMixin):
     student = models.ForeignKey(Student)
     assignment = models.ForeignKey(Assignment)
 
@@ -220,6 +220,9 @@ class Score(models.Model):
 
     is_missing = models.BooleanField(default=False)
     is_excused = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('student', 'assignment')
 
 
 

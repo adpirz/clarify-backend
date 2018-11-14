@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-from django.contrib.postgres.fields import JSONField
 
 from sis_mirror.models import Gradebooks
 from sis_pull.models import Student, Assignment, Category, Score, Staff, \

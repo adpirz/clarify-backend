@@ -225,6 +225,10 @@ class Users(models.Model):
             'prefix': 'MR' if user.gender == 'M' else 'MS'
         }
 
+    @staticmethod
+    def get_all_current_staff_ids():
+        return UserTermRoleAff.get_all_current_staff_ids()
+
 
 class Sites(models.Model):
     site_id = models.IntegerField(primary_key=True)
@@ -609,12 +613,12 @@ class GradebookSectionCourseAff(models.Model):
             )
                 .distinct('gradebook_id')
                 .annotate(
-                    gradebook_name=F('gradebook__gradebook_name'),
-                    sis_gradebook_id=F('gradebook_id'),
+                    name=F('gradebook__gradebook_name'),
+                    sis_id=F('gradebook_id'),
                     sis_section_id=F('section_id'),
                     sis_user_id=F('user_id')
                 )
-                .values('sis_gradebook_id', 'gradebook_name',
+                .values('sis_id', 'name',
                         'sis_user_id', 'sis_section_id')
         )
 
@@ -883,12 +887,15 @@ class ScoreCache(models.Model):
 
         return (cls.objects
                 .filter(gradebook_id__in=gradebook_ids)
+                .exclude(is_missing=False, is_excused=False,
+                         score__isnull=True, points__isnull=True)
                 .annotate(value=F('points'),
+                          sis_id=F('cache_id'),
                           sis_student_id=F('student_id'),
                           sis_assignment_id=F('assignment_id'),
                           )
-                .values('sis_student_id', 'sis_assignment_id', 'score', 'value',
-                        'is_missing', 'is_excused'))
+                .values('sis_id', 'sis_student_id', 'sis_assignment_id',
+                        'score', 'value', 'is_missing', 'is_excused'))
 
     class Meta:
         managed = False
@@ -958,12 +965,13 @@ class SectionTeacherAff(models.Model):
                     period=F(timeblock_name),
                     grade_level=F(grade_level_name),
                     sis_id=F('section_id'),
-                    sis_user_id=F('user_id')
+                    sis_user_id=F('user_id'),
+                    sis_term_id=F(grading_period_string + '__term_id')
                 )
                 .distinct('section_id', grade_level_name)
                 .values(
                     'sis_id', 'name', 'course_name',
-                    'period', 'sis_user_id', 'grade_level'
+                    'period', 'sis_user_id', 'grade_level', 'sis_term_id'
                 ))
 
     @classmethod
@@ -1119,6 +1127,14 @@ class UserTermRoleAff(models.Model):
                           )
                 ).values('sis_id', 'name', 'start_date',
                          'end_date', 'sis_site_id', 'academic_year')
+
+    @classmethod
+    def get_all_current_staff_ids(cls):
+        return (cls.objects.filter(
+                    term__start_date__lte=timezone.now(),
+                    term__end_date__gte=timezone.now())
+                .distinct('user_id')
+                .values_list('user_id', flat=True))
 
     class Meta:
         managed = False
