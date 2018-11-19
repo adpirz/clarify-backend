@@ -437,10 +437,10 @@ def ActionView(request, requesting_staff, action_id=None):
 
         new_action.save()
 
-        deltas = parsed_post.get('deltas')
-        if deltas:
-            if isinstance(deltas, list):
-                new_action.deltas = deltas
+        delta_ids = parsed_post.get('delta_ids')
+        if delta_ids:
+            if isinstance(delta_ids, list):
+                new_action.deltas = delta_ids
                 new_action.save()
             else:
                 new_action.delete()
