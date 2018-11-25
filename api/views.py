@@ -50,7 +50,7 @@ def StudentView(request, requesting_staff):
         return {
             'id': student.id,
             'first_name': student.first_name,
-            'last_name': student.last_name,
+            'last_name': student.last_name if not settings.ANONYMIZE_STUDENTS else student.last_name[0],
             'is_enrolled': student.is_enrolled,
             'is_searchable': student.is_searchable,
             'enrolled_section_ids': list(set([s[1] for s in student_section_pairs if s[0] == student.id]))
