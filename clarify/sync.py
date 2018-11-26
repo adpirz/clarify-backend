@@ -50,8 +50,9 @@ class Sync:
         :param model_kwargs: Dict of user + staff properties
         :return:
         """
+        id_field = cls.source_id_field
         if not (UserProfile.objects
-                .filter(**{cls.source_id_field: source_id})
+                .filter(**{id_field: source_id})
                 .exists()):
 
             model_kwargs = cls.get_source_related_staff_for_staff_id(source_id)
@@ -71,14 +72,14 @@ class Sync:
             # > Returns a tuple of (object, created)
 
             return UserProfile.objects.create(
-                user=user, name=name, prefix=prefix, sis_id=source_id
+                user=user, name=name, prefix=prefix, **{id_field: source_id}
             ), 1
 
         # match signature of Model.objects.get_or_create:
         # > Returns a tuple of (object, created)
 
         return UserProfile.objects.get(**{
-            cls.source_id_field: source_id
+            id_field: source_id
         }), 0
 
     """ All methods below pull only current records """
