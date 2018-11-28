@@ -7,14 +7,21 @@ from django.conf import settings
 
 
 def try_bulk_or_skip_errors(model, instance_list):
+    new, errors = 0, 0
+
     try:
         model.objects.bulk_create(instance_list)
+        new = len(instance_list)
     except IntegrityError:
         for instance in instance_list:
             try:
                 instance.save()
+                new += 1
             except IntegrityError:
+                errors += 1
                 continue
+
+    return new, errors
 
 def camel_to_underscore(name):
     """

@@ -1,3 +1,4 @@
+from django.utils import timezone
 from json import loads
 from datetime import datetime
 
@@ -6,25 +7,21 @@ from google.auth.transport import requests
 
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Case, When, Value, BooleanField
+from django.db.models import Case, When, Value, BooleanField, Q, F
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from sis_pull.models import (
-    Student, Section, GradeLevel, Staff,
-    SectionLevelRosterPerYear,
-)
 
-
+from clarify.models import Student, Section
 from deltas.models import Action, Delta
 from utils import get_academic_year
 
-from decorators import requires_staff, require_methods
+from decorators import requires_user_profile, require_methods
 
 
-@login_required
+@login_required(login_url="/")
 @require_methods("GET")
 def UserView(request):
     user = request.user
@@ -37,124 +34,61 @@ def UserView(request):
             'email': user.email,
         }
     }
-    if user.staff:
-        response["data"]["prefix"] = user.staff.get_prefix_display()
+    if user.userprofile:
+        response["data"]["prefix"] = user.userprofile.get_prefix_display()
     return JsonResponse(response)
 
 
 @login_required
 @require_methods("GET")
-@requires_staff
-def StudentView(request, requesting_staff):
-    def _shape(student, student_section_pairs):
+@requires_user_profile
+def StudentView(request, requesting_user_profile):
+    # TODO: Make this work for an admin account
+
+    def _shape(student):
         return {
-            'id': student.id,
-            'first_name': student.first_name,
-            'last_name': student.last_name if not settings.ANONYMIZE_STUDENTS else student.last_name[0],
-            'is_enrolled': student.is_enrolled,
-            'is_searchable': student.is_searchable,
-            'enrolled_section_ids': list(set([s[1] for s in student_section_pairs if s[0] == student.id]))
+            'id': student["id"],
+            'first_name': student["first_name"],
+            'last_name': student["last_name"] if not settings.ANONYMIZE_STUDENTS else student["last_name"][0],
+            'is_enrolled': True,
+            'is_searchable': True,
+            'enrolled_section_ids': [student["section_id"]]
         }
 
-    staff_level = requesting_staff.get_max_role_level()
-    staff_site_id = requesting_staff.get_most_recent_primary_site_id()
-
-    if not staff_level:
-        return JsonResponse(
-            {'error': 'Could not determine staff level'},
-            status=400
-        )
-
-    if not staff_site_id:
-        return JsonResponse(
-            {'error': 'Could not determine site for that staff'},
-            status=400
-        )
-
-    student_section_pairs = (SectionLevelRosterPerYear.objects
-        .filter(site_id=staff_site_id)
-        .filter(academic_year=get_academic_year())
-        .filter(staff=requesting_staff)
-        .values_list('student_id', 'section_id').distinct()
+    students = Student.get_currently_enrolled_for_user_profile(
+        requesting_user_profile.id
     )
-    site_student_ids = [s[0] for s in student_section_pairs]
-
-    if staff_level < 700:
-        # Staff member isn't an admin. The client should only allow them to
-        # search for students that they teach.
-        # Indicate which students those are.
-        staff_student_ids = (SectionLevelRosterPerYear.objects
-            .filter(staff=requesting_staff)
-            .filter(academic_year=get_academic_year())
-            .values_list('student_id').distinct()
-        )
-    else:
-        # Staff is an admin, which means they can see all students at their site
-        staff_student_ids = site_student_ids
-
-    staff_students = (Student.objects.filter(id__in=staff_student_ids)
-                      .annotate(is_searchable=Case(
-                        When(id__in=staff_student_ids, then=Value(True)),
-                        default=Value(False),
-                        output_field=BooleanField(),
-                      ))
-                      .annotate(is_enrolled=Case(
-                        When(currentroster__isnull=False, then=Value(True)),
-                        default=Value(False),
-                        output_field=BooleanField(),
-                      )))
 
     return JsonResponse({
-        'data': [_shape(s, student_section_pairs) for s in staff_students]
+        'data': [_shape(s) for s in students]
     })
 
 
 @login_required
 @require_methods("GET")
-def SectionView(request):
-    # TODO
+@requires_user_profile
+def SectionView(request, requesting_user_profile):
+    # TODO: make work for admins:
+
     def _shape(section):
-        tags = [str(section.get_timeblock())]
-        course = section.get_course()
-
-        if course:
-            tags.append(str(course))
         return {
-            'id': section.id,
-            'section_name': str(section),
-            'tags': tags
+            'id': section["id"],
+            'section_name': section["name"],
         }
-    # Decided somewhat arbitrarily to return all sections associated with a
-    # staff member. We'll want to come up with more specific
-    # rules for that soon, aka all sections at a staff member's site, that
-    # accounts for multi-site staff, etc.
-    user = request.user
-    staff_level = user.staff.get_max_role_level()
-    if staff_level < 700:
-        request_teacher = Staff.objects.filter(user=user)
-        teacher_section_ids = (SectionLevelRosterPerYear.objects
-            .filter(staff=request_teacher.first())
-            .filter(academic_year=get_academic_year())
-            .values_list('section_id')
-        )
-        staff_sections = Section.objects.filter(id__in=teacher_section_ids)
-    else:
-        # Admins can see all sections at the site.
-        current_site_id = user.staff.get_most_recent_primary_site_id()
-        site_section_ids = (SectionLevelRosterPerYear.objects
-            .filter(site_id=current_site_id)
-            .filter(academic_year=get_academic_year())
-            .values_list('section_id')
-        )
-        staff_sections = Section.objects.filter(id__in=site_section_ids)
+
+    sections = Section.objects.filter(
+        staffsectionrecord__active=True,
+        staffsectionrecord__user_id=requesting_user_profile.id
+    ).values('id', 'name')
+
     return JsonResponse({
-        'data': [_shape(s) for s in staff_sections]
+        'data': [_shape(s) for s in sections]
     })
 
 
 @login_required
 @require_methods("GET")
-@requires_staff
+@requires_user_profile
 def CourseView(request, requesting_staff):
     def _shape(row):
         return {
@@ -275,7 +209,7 @@ def SessionView(request):
 
 @login_required
 @require_methods("GET")
-@requires_staff
+@requires_user_profile
 def DeltaView(request, requesting_staff, student_id=None):
     delta_type = request.GET.get('type', None)
 
@@ -346,8 +280,10 @@ def DeltaView(request, requesting_staff, student_id=None):
 
 @login_required
 @require_methods("GET", "PUT", "POST", "DELETE")
-@requires_staff
+@requires_user_profile
 def ActionView(request, requesting_staff, action_id=None):
+    return JsonResponse({}, status=200)
+
     def _shape(action):
         return {
             'id': action.id,

@@ -79,7 +79,7 @@ class Sync:
                 .exists()):
 
             model_kwargs = self.get_source_related_staff_for_staff_id(source_id)
-            email = model_kwargs.get["email", ""]
+            email = model_kwargs.get("email", "")
             first_name = model_kwargs.get("first_name", "")
             last_name = model_kwargs.get("last_name", "")
             username = model_kwargs.get("username", None) or email
@@ -481,7 +481,8 @@ class CleverSync(Sync):
             course_name = name.split(" - ")[0]
             section_tuple = (Section(
                 name=name,
-                course_name=course_name
+                course_name=course_name,
+                clever_id=clever_id
             ), data["grade"], data["students"])
             sections.append(section_tuple)
             self.sections[clever_id] = section_tuple
@@ -520,6 +521,8 @@ class CleverSync(Sync):
 
     def create_all_for_staff_from_source(self, source_id):
 
+        new, errors = 0, 0
+
         user = self.get_or_create_staff(source_id)[0]
         self.get_source_related_staff_for_staff_id(user.id)
 
@@ -531,15 +534,21 @@ class CleverSync(Sync):
 
         sections = [s[0] for s in self.sections.values()]
 
-        try_bulk_or_skip_errors(Section, sections)
+        sec_new, sec_err = try_bulk_or_skip_errors(Section, sections)
 
-        try_bulk_or_skip_errors(Student, self.students.values())
+        stu_new, stu_err = try_bulk_or_skip_errors(Student,
+                                                   self.students.values())
+
+        self.log(f"SECTION NEW: {sec_new}, SECTION ERR: {sec_err}")
+        self.log(f"STUDENT NEW: {stu_new}, STUDENT ERR: {stu_err}")
 
         for section, grade_level, clever_student_ids in self.sections.values():
-            StaffSectionRecord.objects.get_or_create(
-                user=user,
-                section=section
-            )
+            if section.id:
+                StaffSectionRecord.objects.get_or_create(
+                    user=user,
+                    section=section,
+                    active=True
+                )
 
             enrollments = []
             for clever_student_id in clever_student_ids:
@@ -551,8 +560,10 @@ class CleverSync(Sync):
                     )
                 )
 
-            try_bulk_or_skip_errors(EnrollmentRecord, enrollments)
-            print("ENROLLMENTS DONE")
+            enr_new, enr_err = try_bulk_or_skip_errors(EnrollmentRecord,
+                                                       enrollments)
+            self.log(f"ENROLLMENTS NEW: {enr_new}, ENROLLMENTS ERR: {enr_err}")
+
 
 
 

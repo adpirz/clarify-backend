@@ -3,7 +3,7 @@ from django.contrib.sessions.models import Session
 from django.db import models
 
 # Create your models here.
-from django.db.models import Q
+from django.db.models import Q, F
 from django.utils import timezone
 
 """
@@ -137,6 +137,30 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
     def get_last_name(self):
         return self.last_name
 
+    @classmethod
+    def get_currently_enrolled_for_user_profile(cls, profile_id):
+
+        student_section_teacher_id = "__".join([
+            "enrollmentrecord", "section", "staffsectionrecord", "user_id"
+        ])
+
+        enrolled_now = (
+            Q(enrollmentrecord__start_date__lte=timezone.now()) |
+            Q(enrollmentrecord__start_date__isnull=True),
+            Q(enrollmentrecord__end_date__gte=timezone.now()) |
+            Q(enrollmentrecord__end_date__isnull=True),
+        )
+
+        return (
+            cls.objects
+                .filter(
+                **{student_section_teacher_id: profile_id})
+                .filter(*enrolled_now)
+                .annotate(section_id=F("enrollmentrecord__section_id"))
+                .distinct('id', 'section_id')
+                .values('id', 'first_name', 'last_name', 'section_id')
+        )
+
 
 class Site(BaseNameModel):
     pass
@@ -198,6 +222,9 @@ class EnrollmentRecord(models.Model):
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
 
+    class Meta:
+        unique_together = ('student', 'section')
+
 
 class StaffSectionRecord(models.Model):
     user = models.ForeignKey(UserProfile)
@@ -207,6 +234,9 @@ class StaffSectionRecord(models.Model):
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
     primary_teacher = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('user', 'section')
 
 
 class StaffAdminRecord(models.Model):
