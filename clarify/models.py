@@ -132,7 +132,7 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
         raise AttributeError("No name provided.")
     
     def get_first_name(self):
-        return self.first_name
+        return self.FIRST_NAME
     
     def get_last_name(self):
         return self.last_name

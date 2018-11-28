@@ -1,11 +1,20 @@
 import re
 from django.utils import timezone
 
-from django.db import models
+from django.db import models, IntegrityError
 from django.utils import timezone
 from django.conf import settings
 
 
+def try_bulk_or_skip_errors(model, instance_list):
+    try:
+        model.objects.bulk_create(instance_list)
+    except IntegrityError:
+        for instance in instance_list:
+            try:
+                instance.save()
+            except IntegrityError:
+                continue
 
 def camel_to_underscore(name):
     """

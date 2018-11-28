@@ -44,7 +44,6 @@ def CleverTokenView(request):
                             .encode("ascii")).decode('utf-8')
 
     auth_string = f"Basic {auth}"
-    print("\n\nAUTH", auth_string, "\nCODE", code, "\n\n")
     resp = requests.post("https://clever.com/oauth/tokens",
                           headers={
                               "Authorization": auth_string
@@ -54,16 +53,27 @@ def CleverTokenView(request):
                               "grant_type": "authorization_code",
                               "redirect_uri": CLEVER_REDIRECT_URL
                           })
-    data = resp.json()
-    print("\nRESPONSE", pprint(data), "\n")
+
     try:
         resp.raise_for_status()
     except HTTPError as e:
         return JsonResponse({}, status=400)
 
+    data = resp.json()
+
     bearer_token = data["access_token"]
 
     clever_id = get_clever_user_id_from_token(bearer_token)
+
+
+    #  --- DELETE THIS , TESTING ONLY ----
+
+    sync = CleverSync(bearer_token)
+    sync.create_all_for_staff_from_source(clever_id)
+
+
+    # ---- END DELETE -------
+
 
     u = UserProfile.objects.filter(clever_id=clever_id).first()
 
@@ -93,7 +103,9 @@ def get_clever_user_id_from_token(bearer_token):
 
     req.raise_for_status()
 
-    return req.json()["data"]["id"]
+    data = req.json()["data"]
+
+    return data["id"]
 
 
 def first_clever_login(clever_id, bearer_token):

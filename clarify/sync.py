@@ -30,6 +30,7 @@ from clarify.models import (
     StaffSectionRecord,
     DailyAttendanceNode,
     Gradebook, Category, Assignment, Score, SectionGradeLevels)
+from utils import try_bulk_or_skip_errors
 
 
 class Sync:
@@ -78,7 +79,7 @@ class Sync:
                 .exists()):
 
             model_kwargs = self.get_source_related_staff_for_staff_id(source_id)
-            email = model_kwargs["email"]
+            email = model_kwargs.get["email", ""]
             first_name = model_kwargs.get("first_name", "")
             last_name = model_kwargs.get("last_name", "")
             username = model_kwargs.get("username", None) or email
@@ -167,7 +168,7 @@ class Sync:
     def get_all_current_staff_ids_from_source(cls):
         return None
 
-    def create_all_for_staff(self, staff_id):
+    def create_all_for_staff_from_source(self, source_id):
 
         return_dict = {}
 
@@ -181,11 +182,11 @@ class Sync:
 
         model_map["user"] = UserProfile
 
-        staff, staff_created = self.get_or_create_staff(staff_id)
+        staff, staff_created = self.get_or_create_staff(source_id)
 
         if staff_created:
             success_string += f"Staff created for " + \
-                              f"{id_field} {staff_id}\n"
+                              f"{id_field} {source_id}\n"
 
         # { <model> { <source_id> : <clarify_id> } }
         memoized_related = self.memoized_related
@@ -226,7 +227,7 @@ class Sync:
         def _build_all_models(model: Model, related_query_func,
                               kwargs_list, fk_list=None):
 
-            source_models = related_query_func(staff_id)
+            source_models = related_query_func(source_id)
             count = 0
             errors = 0
 
@@ -270,8 +271,8 @@ class Sync:
                         count += 1
 
                     if (isinstance(new_instance, Gradebook) and
-                       not new_instance.owners.filter(pk=staff_id).exists()):
-                        new_instance.owners.add(staff_id)
+                       not new_instance.owners.filter(pk=source_id).exists()):
+                        new_instance.owners.add(source_id)
 
                     if (isinstance(new_instance, Section) and
                             not new_instance.sectiongradelevels_set.exists()
@@ -376,7 +377,7 @@ class IlluminateSync(Sync):
             staff_ids = staff_ids[::20]
 
         for staff_id in tqdm(staff_ids, desc="Staff"):
-            result_dict = self.create_all_for_staff(staff_id)
+            result_dict = self.create_all_for_staff_from_source(staff_id)
             for model_name, outcome_list in result_dict.items():
                 if model_name not in total_result_dict:
                     total_result_dict[model_name] = outcome_list
@@ -407,6 +408,12 @@ class CleverSync(Sync):
         self.token = token
         self.staff_id = staff_id
         self._teacher_id = None
+
+        # { clever_id: (<Section>, grade_level_string) }
+        self.sections = {}
+
+        # { clever_id: <Student> }
+        self.students = {}
 
     @property
     def teacher_id(self):
@@ -461,14 +468,93 @@ class CleverSync(Sync):
     def get_source_related_sections_for_staff_id(self, staff_id):
         if not self.teacher_id:
             raise AttributeError("Need a teacher ID")
-        return self.get_resource_from_clever_api(
+
+        sections_data = self.get_resource_from_clever_api(
             f"/teachers/{self.teacher_id}/sections"
         )["data"]
 
-    def get_source_related_students_for_staff_id(self, staff_id):
-        return self.get_resource_from_clever_api('students/')
+        sections = []
+        for section_data in sections_data:
+            data = section_data["data"]
+            clever_id = data.get("id", "")
+            name = data.get("name", "")
+            course_name = name.split(" - ")[0]
+            section_tuple = (Section(
+                name=name,
+                course_name=course_name
+            ), data["grade"], data["students"])
+            sections.append(section_tuple)
+            self.sections[clever_id] = section_tuple
 
-    def create_all_for_staff(self, staff_id):
+        return sections
+
+    def get_source_related_students_for_staff_id(self, staff_id):
+        if not self.teacher_id:
+            raise AttributeError("Need a teacher ID")
+
+        if not self.sections:
+            self.get_source_related_sections_for_staff_id(staff_id)
+
+        students_data = []
+
+        for section_id in self.sections.keys():
+            students_data += self.get_resource_from_clever_api(
+                f"/sections/{section_id}/students"
+            )["data"]
+
+        students = []
+        for student_data in students_data:
+            data = student_data["data"]
+            clever_id = data["id"]
+            first_name = data["name"]["first"]
+            last_name = data["name"]["last"]
+            new_student = Student(
+                first_name=first_name,
+                last_name=last_name,
+                clever_id=clever_id
+            )
+            self.students[clever_id] = new_student
+            students.append(new_student)
+
+        return students
+
+    def create_all_for_staff_from_source(self, source_id):
+
+        user = self.get_or_create_staff(source_id)[0]
+        self.get_source_related_staff_for_staff_id(user.id)
+
+        if not self.sections:
+            self.get_source_related_sections_for_staff_id(source_id)
+
+        if not self.students:
+            self.get_source_related_students_for_staff_id(source_id)
+
+        sections = [s[0] for s in self.sections.values()]
+
+        try_bulk_or_skip_errors(Section, sections)
+
+        try_bulk_or_skip_errors(Student, self.students.values())
+
+        for section, grade_level, clever_student_ids in self.sections.values():
+            StaffSectionRecord.objects.get_or_create(
+                user=user,
+                section=section
+            )
+
+            enrollments = []
+            for clever_student_id in clever_student_ids:
+                student_id = self.students[clever_student_id].id
+                enrollments.append(
+                    EnrollmentRecord(
+                        student_id=student_id,
+                        section_id=section.id
+                    )
+                )
+
+            try_bulk_or_skip_errors(EnrollmentRecord, enrollments)
+            print("ENROLLMENTS DONE")
+
+
 
 
 
