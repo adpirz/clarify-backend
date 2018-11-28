@@ -21,7 +21,7 @@ from sis_pull.models import (
 from deltas.models import Action, Delta
 from utils import get_academic_year
 
-from .decorators import requires_staff, require_methods
+from decorators import requires_staff, require_methods
 
 
 @login_required

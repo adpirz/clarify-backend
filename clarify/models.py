@@ -1,7 +1,10 @@
 from django.contrib.auth.models import User
+from django.contrib.sessions.models import Session
 from django.db import models
 
 # Create your models here.
+from django.db.models import Q
+from django.utils import timezone
 
 """
 
@@ -63,6 +66,7 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
     prefix = models.CharField(max_length=3,
                               choices=PREFIX_CHOICES,
                               blank=True)
+    clever_token = models.CharField(max_length=300, null=True)
 
     def get_full_mame(self):
         if len(self.user.first_name) and len(self.user.last_name):
@@ -79,7 +83,35 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
     
     def get_last_name(self):
         return self.user.last_name
-    
+
+    def get_current_sections(self):
+        return StaffSectionRecord.objects.filter(
+            Q(start_date__lte=timezone.now()) | Q(start_date__isnull=True),
+            Q(end_date__gte=timezone.now()) | Q(end_date__isnull=True),
+            active=True
+        ).distinct('section_id')
+
+    def get_students_for_current_sections(self):
+        ssr = "section__staffsectionrecord"
+        ssr_start_lte = "__".join([ssr, "start_date", "lte"])
+        ssr_start_null = "__".join([ssr, "start_date", "isnull"])
+        ssr_end_gte = "__".join([ssr, "end_date", "gte"])
+        ssr_end_null = "__".join([ssr, "end_date", "isnull"])
+
+        return EnrollmentRecord.objects.filter(
+            Q(**{ssr_start_lte: timezone.now()}) | Q(**{ssr_start_null: True}),
+            Q(**{ssr_end_gte: timezone.now()}) | Q(**{ssr_end_null: True}),
+            Q(end_date__gte=timezone.now) | Q(end_date__isnull=True),
+            section__staffsectionrecord__user_id=self.id,
+            section__staffsectionrecord__active=True,
+            start_date__lte=timezone.now()
+        ).distinct('student_id').values_list('student_id', flat=True)
+
+
+class CleverCode(models.Model):
+    code = models.CharField(max_length=250, unique=True)
+    user = models.ForeignKey(UserProfile, null=True)
+
 
 class Student(NameInterface, CleverIDMixin, SISMixin):
     first_name = models.CharField(max_length=200, blank=True)
@@ -116,6 +148,18 @@ class Term(BaseNameModel):
     start_date = models.DateField()
     end_date = models.DateField()
     site = models.ForeignKey(Site)
+
+    @classmethod
+    def current_terms_qs(cls):
+        return cls.objects.filter(
+            start_date__lte=timezone.now(),
+            end_date__gte=timezone.now()
+        )
+
+    def get_section_ids(self):
+        return Section.objects.filter(
+            term_id=self.id
+        ).values_list('section_id', flat=True)
 
 
 class Section(BaseNameModel):
@@ -163,6 +207,11 @@ class StaffSectionRecord(models.Model):
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
     primary_teacher = models.BooleanField(default=True)
+
+
+class StaffAdminRecord(models.Model):
+    user = models.ForeignKey(UserProfile)
+    term = models.ForeignKey(Term)
 
 
 class DailyAttendanceNode(models.Model):
@@ -223,7 +272,4 @@ class Score(SISMixin):
 
     class Meta:
         unique_together = ('student', 'assignment')
-
-
-
 

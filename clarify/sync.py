@@ -1,7 +1,10 @@
+import re
+import requests
 from django.contrib.auth.models import User
 from django.db.utils import IntegrityError
 from django.db.models import Model
 from django.utils import timezone
+from pprint import pprint
 from tqdm import tqdm
 
 from clarify import models
@@ -31,10 +34,11 @@ from clarify.models import (
 
 class Sync:
     source_id_field = None
+    model_args_map = None
 
     def __init__(self, logger=None, enable_logging=True):
         self.logger = (logger or print) if enable_logging else None
-        self.memoized_related = {}
+        self.memoized_related = {},
 
     def log(self, *args, **kwargs):
         if self.logger:
@@ -42,20 +46,38 @@ class Sync:
 
         return None
 
-    @classmethod
-    def get_or_create_staff(cls, source_id):
+    def get_model_query_func(self, clarify_model):
+        # Instance function in case
+        # subclasses implement an instance
+        # method for any of the functions
+
+        query_map = {
+            Site: self.get_source_related_sites_for_staff_id,
+            Term: self.get_source_related_terms_for_staff_id,
+            Section: self.get_source_related_sections_for_staff_id,
+            Student: self.get_source_related_students_for_staff_id,
+            EnrollmentRecord: self.get_source_related_enrollment_records_for_staff_id,
+            Gradebook: self.get_source_related_gradebooks_for_staff_id,
+            Category: self.get_source_related_categories_for_staff_id,
+            Assignment: self.get_source_related_assignments_for_staff_id,
+            Score: self.get_source_related_scores_for_staff_id
+        }
+
+        return query_map.get(clarify_model, None)
+
+    def get_or_create_staff(self, source_id):
         """
         Create Staff and User if doesn't exist for given source_id
         :param source_id: String; name of source field on Staff
         :param model_kwargs: Dict of user + staff properties
         :return:
         """
-        id_field = cls.source_id_field
+        id_field = self.source_id_field
         if not (UserProfile.objects
                 .filter(**{id_field: source_id})
                 .exists()):
 
-            model_kwargs = cls.get_source_related_staff_for_staff_id(source_id)
+            model_kwargs = self.get_source_related_staff_for_staff_id(source_id)
             email = model_kwargs["email"]
             first_name = model_kwargs.get("first_name", "")
             last_name = model_kwargs.get("last_name", "")
@@ -77,7 +99,6 @@ class Sync:
 
         # match signature of Model.objects.get_or_create:
         # > Returns a tuple of (object, created)
-
         return UserProfile.objects.get(**{
             id_field: source_id
         }), 0
@@ -261,38 +282,11 @@ class Sync:
                         )
             return count, errors
 
-        build_args = [
-            (Site, self.get_source_related_sites_for_staff_id,
-                ['sis_id', 'name']),
-            (Term, self.get_source_related_terms_for_staff_id,
-                ['sis_id', 'name', 'academic_year', 'start_date', 'end_date'],
-                ['sis_site_id']),
-            (Section, self.get_source_related_sections_for_staff_id,
-                ['sis_id', 'name', 'course_name'],
-                ['sis_term_id']),
-            (Student, self.get_source_related_students_for_staff_id,
-                ['sis_id', 'first_name', 'last_name']),
-            (EnrollmentRecord,
-                self.get_source_related_enrollment_records_for_staff_id,
-                ['start_date', 'end_date'],
-                ['sis_student_id', 'sis_section_id']),
-            (Gradebook, self.get_source_related_gradebooks_for_staff_id,
-                ['sis_id', 'name'],
-                ['sis_section_id']),
-            (Category, self.get_source_related_categories_for_staff_id,
-                ['sis_id', 'name'],
-                ['sis_gradebook_id']),
-            (Assignment, self.get_source_related_assignments_for_staff_id,
-                ['sis_id', 'name', 'possible_points', 'possible_score'],
-                ['sis_gradebook_id', 'sis_category_id']),
-            (Score, self.get_source_related_scores_for_staff_id,
-                ['sis_id', 'score', 'value', 'is_missing', 'is_excused'],
-                ['sis_student_id', 'sis_assignment_id'])
-        ]
-
-        for arg_set in build_args:
-            new_count, new_errors = _build_all_models(*arg_set)
-            model_name = arg_set[0].__name__
+        for model, model_args in self.model_args_map.items():
+            query_func = self.get_model_query_func(model)
+            args = [model, query_func] + list(model_args)
+            new_count, new_errors = _build_all_models(*args)
+            model_name = model.__name__
 
             if new_count > 0 or new_errors > 0:
                 return_dict[model_name] = [new_count, new_errors]
@@ -303,6 +297,24 @@ class Sync:
 class IlluminateSync(Sync):
 
     source_id_field = 'sis_id'
+    model_args_map = {
+        Site: (['sis_id', 'name']),
+        Term: (['sis_id', 'name', 'academic_year', 'start_date', 'end_date'],
+                ['sis_site_id']),
+        Section: (['sis_id', 'name', 'course_name'],
+                ['sis_term_id']),
+        Student: (['sis_id', 'first_name', 'last_name']),
+        EnrollmentRecord: (['start_date', 'end_date'],
+                           ['sis_student_id', 'sis_section_id']),
+        Gradebook: (['sis_id', 'name'],
+                    ['sis_section_id']),
+        Category: (['sis_id', 'name'],
+                   ['sis_gradebook_id']),
+        Assignment: (['sis_id', 'name', 'possible_points', 'possible_score'],
+                     ['sis_gradebook_id', 'sis_category_id']),
+        Score: (['sis_id', 'score', 'value', 'is_missing', 'is_excused'],
+                ['sis_student_id', 'sis_assignment_id'])
+    }
 
     @classmethod
     def get_source_related_staff_for_staff_id(cls, staff_id):
@@ -376,15 +388,88 @@ class IlluminateSync(Sync):
 
 
 class CleverSync(Sync):
+    model_args_map = {
+        Site: (['clever_id', 'name']),
+        Term: (['clever_id', 'name', 'academic_year', 'start_date', 'end_date'],
+               ['clever_site_id']),
+        Section: (['clever_id', 'name', 'course_name'],
+                  ['clever_term_id']),
+        Student: (['clever_id', 'first_name', 'last_name']),
+        EnrollmentRecord: (['start_date', 'end_date'],
+                           ['clever_student_id', 'clever_section_id'])
+    }
 
     source_id_field = 'clever_id'
+    base_url = "https://api.clever.com"
+
+    def __init__(self, token=None, staff_id=None):
+        Sync.__init__(self)
+        self.token = token
+        self.staff_id = staff_id
+        self._teacher_id = None
+
+    @property
+    def teacher_id(self):
+        if self._teacher_id:
+            return self._teacher_id
+        if self.staff_id:
+            teacher_id = self\
+                .get_source_related_staff_for_staff_id(self.staff_id)["id"]
+            self._teacher_id = teacher_id
+            return teacher_id
+        return None
+
+    @teacher_id.setter
+    def teacher_id(self, teacher_id):
+        self._teacher_id = teacher_id
 
     @classmethod
-    def get_source_related_sections_for_staff_id(cls, staff_id):
-        pass
+    def build_url(cls, resource_string):
+        resource_formatted = resource_string if resource_string[0] == '/' \
+            else '/' + resource_string
+        if re.match(r'/v\d\.\d/', resource_string):
+            return cls.base_url + resource_formatted
+        return cls.base_url + '/v2.0' + resource_formatted
 
-    @classmethod
-    def get_source_related_students_for_staff_id(cls, staff_id):
-        pass
+    def get_resource_from_clever_api(self, resource_string):
+        if not self.token:
+            raise AttributeError("No token for auth.")
+
+        resource = requests.get(self.build_url(resource_string),
+                            headers={
+                                "Authorization": f"Bearer {self.token}"
+                            })
+        resource.raise_for_status()
+        return resource.json()
+
+    def get_source_related_staff_for_staff_id(self, source_id):
+        if not self.token:
+            raise AttributeError("No token for auth.")
+
+        me = requests.get(self.build_url('/me'),
+                          headers={
+                              "Authorization": f"Bearer {self.token}"
+                          })
+        me = me.json()
+
+        self.teacher_id = me["data"]["id"]
+
+        url = me["links"][1]["uri"]
+
+        return self.get_resource_from_clever_api(url)["data"]
+
+    def get_source_related_sections_for_staff_id(self, staff_id):
+        if not self.teacher_id:
+            raise AttributeError("Need a teacher ID")
+        return self.get_resource_from_clever_api(
+            f"/teachers/{self.teacher_id}/sections"
+        )["data"]
+
+    def get_source_related_students_for_staff_id(self, staff_id):
+        return self.get_resource_from_clever_api('students/')
+
+    def create_all_for_staff(self, staff_id):
+
+
 
 
