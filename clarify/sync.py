@@ -39,7 +39,6 @@ class Sync:
 
     def __init__(self, logger=None, enable_logging=True):
         self.logger = (logger or print) if enable_logging else None
-        self.memoized_related = {},
 
     def log(self, *args, **kwargs):
         if self.logger:
@@ -189,7 +188,7 @@ class Sync:
                               f"{id_field} {source_id}\n"
 
         # { <model> { <source_id> : <clarify_id> } }
-        memoized_related = self.memoized_related
+        memoized_related = {}
 
         def _get_related_model_id(fk_id_field, source_id):
             if not source_id:
@@ -299,12 +298,12 @@ class IlluminateSync(Sync):
 
     source_id_field = 'sis_id'
     model_args_map = {
-        Site: (['sis_id', 'name']),
+        Site: (['sis_id', 'name'],),
         Term: (['sis_id', 'name', 'academic_year', 'start_date', 'end_date'],
                 ['sis_site_id']),
         Section: (['sis_id', 'name', 'course_name'],
                 ['sis_term_id']),
-        Student: (['sis_id', 'first_name', 'last_name']),
+        Student: (['sis_id', 'first_name', 'last_name'],),
         EnrollmentRecord: (['start_date', 'end_date'],
                            ['sis_student_id', 'sis_section_id']),
         Gradebook: (['sis_id', 'name'],
@@ -390,12 +389,12 @@ class IlluminateSync(Sync):
 
 class CleverSync(Sync):
     model_args_map = {
-        Site: (['clever_id', 'name']),
+        Site: (['clever_id', 'name'],),
         Term: (['clever_id', 'name', 'academic_year', 'start_date', 'end_date'],
                ['clever_site_id']),
         Section: (['clever_id', 'name', 'course_name'],
                   ['clever_term_id']),
-        Student: (['clever_id', 'first_name', 'last_name']),
+        Student: (['clever_id', 'first_name', 'last_name'],),
         EnrollmentRecord: (['start_date', 'end_date'],
                            ['clever_student_id', 'clever_section_id'])
     }
