@@ -28,10 +28,10 @@ def requires_user_profile(func):
     @wraps(func)
     def inner(request, *args, **kwargs):
         try:
-            requesting_staff = request.user.userprofile
+            requesting_user_profile = request.user.userprofile
         except UserProfile.DoesNotExist:
             return JsonResponse({
-                "error": "No staff exists for this user"
+                "error": "No user profile exists for this user"
             }, status=401)
-        return func(request, requesting_staff, *args, **kwargs)
+        return func(request, requesting_user_profile, *args, **kwargs)
     return inner

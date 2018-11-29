@@ -110,7 +110,7 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
 
 class CleverCode(models.Model):
     code = models.CharField(max_length=250, unique=True)
-    user = models.ForeignKey(UserProfile, null=True)
+    user_profile = models.ForeignKey(UserProfile, null=True)
 
 
 class Student(NameInterface, CleverIDMixin, SISMixin):
@@ -227,7 +227,7 @@ class EnrollmentRecord(models.Model):
 
 
 class StaffSectionRecord(models.Model):
-    user = models.ForeignKey(UserProfile)
+    user_profile = models.ForeignKey(UserProfile)
     section = models.ForeignKey(Section)
     # catch all that determines if this is current
     active = models.BooleanField(default=True)
@@ -236,11 +236,11 @@ class StaffSectionRecord(models.Model):
     primary_teacher = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ('user', 'section')
+        unique_together = ('user_profile', 'section')
 
 
 class StaffAdminRecord(models.Model):
-    user = models.ForeignKey(UserProfile)
+    user_profile = models.ForeignKey(UserProfile)
     term = models.ForeignKey(Term)
 
 
