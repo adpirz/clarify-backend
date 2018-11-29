@@ -363,11 +363,11 @@ def build_deltas_for_staff_current_gradebooks(staff_id):
 """
 
     Missing Assignment Deltas:
-    
+
     1. Pull missing assignments for a gradebook from ScoreCache
-    2. For each student with missing assignments, create a delta 
+    2. For each student with missing assignments, create a delta
     3. Check if delta is duplicate; if not, save
-    
+
 """
 
 
@@ -420,7 +420,7 @@ def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
 
         for assignment in missing_assignments:
             clarify_assignment = Assignment.objects.get(
-                sis_id=assignment.id
+                sis_id=assignment.get('assignment_id')
             )
 
             try:
