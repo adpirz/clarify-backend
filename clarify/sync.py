@@ -523,8 +523,8 @@ class CleverSync(Sync):
 
         new, errors = 0, 0
 
-        user = self.get_or_create_staff(source_id)[0]
-        self.get_source_related_staff_for_staff_id(user.id)
+        user_profile = self.get_or_create_staff(source_id)[0]
+        self.get_source_related_staff_for_staff_id(user_profile.id)
 
         if not self.sections:
             self.get_source_related_sections_for_staff_id(source_id)
@@ -545,7 +545,7 @@ class CleverSync(Sync):
         for section, grade_level, clever_student_ids in self.sections.values():
             if section.id:
                 StaffSectionRecord.objects.get_or_create(
-                    user=user,
+                    user_profile=user_profile,
                     section=section,
                     active=True
                 )

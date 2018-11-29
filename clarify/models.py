@@ -141,7 +141,8 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
     def get_currently_enrolled_for_user_profile(cls, profile_id):
 
         student_section_teacher_id = "__".join([
-            "enrollmentrecord", "section", "staffsectionrecord", "user_id"
+            "enrollmentrecord", "section",
+            "staffsectionrecord", "user_profile_id"
         ])
 
         enrolled_now = (
@@ -272,6 +273,13 @@ class Gradebook(BaseNameModel):
     section = models.ForeignKey(Section)
     # Some gradebooks have multiple owners / viewers
     owners = models.ManyToManyField(UserProfile)
+
+    @classmethod
+    def get_all_current_gradebook_ids_for_user_profile(cls, profile_id):
+        return (cls.objects
+                .filter(owners__id=profile_id)
+                .distinct('id')
+                .values_list('id', flat=True))
 
 
 class Category(BaseNameModel):

@@ -78,7 +78,7 @@ def CleverTokenView(request):
     try:
         CleverCode.objects.create(
             code=code,
-            user=u
+            user_profile=u
         )
     except IntegrityError:
         clever_code = CleverCode.objects.get(

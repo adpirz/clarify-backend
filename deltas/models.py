@@ -67,9 +67,9 @@ class Delta(models.Model):
         return f"{self.student.id}: {self.type}"
 
     @classmethod
-    def return_response_query(cls, staff_id, student_id=None, delta_type=None):
+    def return_response_query(cls, profile_id, student_id=None, delta_type=None):
         gradebook_ids = Gradebook\
-            .get_all_current_gradebook_ids_for_staff_id(staff_id)
+            .get_all_current_gradebook_ids_for_user_profile(profile_id)
 
         filters = {
             'gradebook_id__in': gradebook_ids
@@ -81,9 +81,17 @@ class Delta(models.Model):
         if student_id:
             filters = {'student_id': student_id}
 
+        sections_for_profile = "__".join([
+            "student",
+            "enrollmentrecord",
+            "section",
+            "staffsectionrecord",
+            "user_profile_id"
+        ])
+
         queryset = (
             cls.objects
-                .filter(student__sectionlevelrosterperyear__staff_id=staff_id)
+                .filter(**{sections_for_profile: profile_id})
                 .order_by('student_id', '-id')
         )
 

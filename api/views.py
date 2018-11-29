@@ -78,7 +78,7 @@ def SectionView(request, requesting_user_profile):
 
     sections = Section.objects.filter(
         staffsectionrecord__active=True,
-        staffsectionrecord__user_id=requesting_user_profile.id
+        staffsectionrecord__user_profile_id=requesting_user_profile.id
     ).values('id', 'name')
 
     return JsonResponse({
@@ -130,8 +130,8 @@ def SessionView(request):
                 'email': user.email
             }
         }
-        if user.staff:
-            response["data"]["prefix"] = user.staff.get_prefix_display()
+        if user.userprofile:
+            response["data"]["prefix"] = user.userprofile.get_prefix_display()
 
         return response
 
