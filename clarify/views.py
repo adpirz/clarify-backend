@@ -61,15 +61,12 @@ def CleverTokenView(request):
 
     clever_id = get_clever_user_id_from_token(bearer_token)
 
-
     #  --- DELETE THIS , TESTING ONLY ----
 
     sync = CleverSync(bearer_token)
     sync.create_all_for_staff_from_source(clever_id)
 
-
     # ---- END DELETE -------
-
 
     u = UserProfile.objects.filter(clever_id=clever_id).first()
 
