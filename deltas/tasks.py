@@ -5,14 +5,14 @@ from django.db.models import Sum, F, Avg, Max, Q, Count
 from django.utils import timezone
 from tqdm import tqdm
 
-from clarify.models import Score, Assignment, Gradebook
+from clarify.models import Score, Assignment, Gradebook, Student
 from sis_mirror.models import (
     Gradebooks,
     GradingPeriods,
     SsCube,
     ScoreCache,
-    Categories
-)
+    Categories,
+    Users)
 
 from .models import Delta, MissingAssignmentRecord, CategoryGradeContextRecord
 
@@ -379,9 +379,11 @@ def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
     new_deltas_created = 0
     errors = 0
 
-    for student_id, missing_assignments in tqdm(all_missing.items(),
+    for sis_student_id, missing_assignments in tqdm(all_missing.items(),
                                                 desc="Students",
                                                 leave=False):
+        student_id = Student.objects.get(sis_id=sis_student_id).id
+
         last_missing_delta_for_student = (
             Delta.objects
                 .filter(student_id=student_id,
@@ -417,10 +419,13 @@ def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
             print(f"Error creating delta: {e}")
             errors += 1
             continue
+        except Exception as e:
+            import pdb; pdb.set_trace()
+            raise e
 
         for assignment in missing_assignments:
             clarify_assignment = Assignment.objects.get(
-                sis_id=assignment.get('assignment_id')
+                sis_id=assignment["assignment_id"]
             )
 
             try:
@@ -438,21 +443,12 @@ def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
     return new_deltas_created, errors
 
 
-def get_all_current_teacher_ids():
-    return (
-        SsCube.objects
-            .filter(academic_year__gte=timezone.now().year)
-            .distinct('user_id')
-            .values_list('user_id', flat=True)
-    )
-
-
 def build_deltas_for_all_current_academic_teachers(clean=False):
 
     if clean:
         Delta.objects.all().delete()
 
-    teacher_ids = get_all_current_teacher_ids()
+    teacher_ids = Users.get_all_current_staff_ids()
 
     start = timezone.now()
 
