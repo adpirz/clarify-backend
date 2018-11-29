@@ -2,7 +2,6 @@ from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
 from django.db import models
 
-# Create your models here.
 from django.db.models import Q, F
 from django.utils import timezone
 
@@ -53,7 +52,7 @@ Concrete Models
 
 """
 
-
+# This is akin to a Staff or Teacher object in Clever and SISs.
 class UserProfile(NameInterface, SISMixin, CleverIDMixin):
     PREFIX_CHOICES = (
         ('MR', 'Mr.'),
@@ -80,7 +79,7 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
 
     def get_first_name(self):
         return self.user.first_name
-    
+
     def get_last_name(self):
         return self.user.last_name
 
@@ -130,10 +129,10 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
             return self.name
 
         raise AttributeError("No name provided.")
-    
+
     def get_first_name(self):
         return self.FIRST_NAME
-    
+
     def get_last_name(self):
         return self.last_name
 
@@ -141,8 +140,7 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
     def get_currently_enrolled_for_user_profile(cls, profile_id):
 
         student_section_teacher_id = "__".join([
-            "enrollmentrecord", "section",
-            "staffsectionrecord", "user_profile_id"
+            "enrollmentrecord", "section", "staffsectionrecord", "user_profile_id"
         ])
 
         enrolled_now = (

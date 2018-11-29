@@ -363,11 +363,11 @@ def build_deltas_for_staff_current_gradebooks(staff_id):
 """
 
     Missing Assignment Deltas:
-    
+
     1. Pull missing assignments for a gradebook from ScoreCache
-    2. For each student with missing assignments, create a delta 
+    2. For each student with missing assignments, create a delta
     3. Check if delta is duplicate; if not, save
-    
+
 """
 
 

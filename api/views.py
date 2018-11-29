@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 
-from clarify.models import Student, Section
+from clarify.models import Student, Section, EnrollmentRecord, StaffSectionRecord
 from deltas.models import Action, Delta
 from utils import get_academic_year
 
@@ -84,37 +84,6 @@ def SectionView(request, requesting_user_profile):
     return JsonResponse({
         'data': [_shape(s) for s in sections]
     })
-
-
-@login_required
-@require_methods("GET")
-@requires_user_profile
-def CourseView(request, requesting_staff):
-    def _shape(row):
-        return {
-            'id': row.course.id,
-            'short_name': row.course.short_name,
-            'long_name': row.course.long_name,
-        }
-
-    user = request.user
-    requesting_staff = Staff.objects.get(user=user)
-    filter_kwargs = {}
-
-    if requesting_staff.get_max_role_level() < 700:
-        grade_levels = GradeLevel.get_users_current_grade_levels(requesting_staff)
-        filter_kwargs["grade_level_id__in"] = grade_levels
-        filter_kwargs["staff"] = requesting_staff
-    else:
-        filter_kwargs["site_id"] = requesting_staff.get_most_recent_primary_site_id()
-
-    return JsonResponse({
-        'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
-                 .filter(**filter_kwargs)\
-                 .distinct('course_id')
-                 ]
-    })
-
 
 @csrf_exempt
 @require_methods("GET", "POST", "DELETE")
@@ -210,11 +179,11 @@ def SessionView(request):
 @login_required
 @require_methods("GET")
 @requires_user_profile
-def DeltaView(request, requesting_staff, student_id=None):
+def DeltaView(request, requesting_user_profile, student_id=None):
     delta_type = request.GET.get('type', None)
 
     deltas = Delta.return_response_query(
-        requesting_staff.id,
+        requesting_user_profile.id,
         student_id,
         delta_type
     )
@@ -281,9 +250,7 @@ def DeltaView(request, requesting_staff, student_id=None):
 @login_required
 @require_methods("GET", "PUT", "POST", "DELETE")
 @requires_user_profile
-def ActionView(request, requesting_staff, action_id=None):
-    return JsonResponse({}, status=200)
-
+def ActionView(request, requesting_user_profile, action_id=None):
     def _shape(action):
         return {
             'id': action.id,
@@ -298,9 +265,15 @@ def ActionView(request, requesting_staff, action_id=None):
             'note': action.note,
         }
     if request.method == 'GET':
-        staff_students = (SectionLevelRosterPerYear.objects
-                         .filter(staff=requesting_staff)
-                         .filter(academic_year=get_academic_year())
+        staff_sections = (StaffSectionRecord.objects
+                         .filter(user_profile=requesting_user_profile)
+                         .filter(active=True)
+                         .values_list('id')
+                         .distinct())
+        staff_students = (EnrollmentRecord.objects
+                         .filter(id__in=staff_sections)
+                         .filter(start_date__lte=datetime.today())
+                         .filter(Q(end_date__isnull=True) | Q(end_date__gte=datetime.today()))
                          .values_list('student_id')
                          .distinct())
 
@@ -310,7 +283,7 @@ def ActionView(request, requesting_staff, action_id=None):
 
     elif request.method == 'DELETE':
         action = get_object_or_404(Action, id=action_id)
-        if requesting_staff != action.created_by:
+        if requesting_user_profile != action.created_by:
             return JsonResponse(
                 {'error': 'You cannot delete an action you do not own.'},
                 status=403)
@@ -344,7 +317,7 @@ def ActionView(request, requesting_staff, action_id=None):
         new_action = (Action(
                         student=target_student,
                         note=parsed_post.get('note'),
-                        created_by=requesting_staff))
+                        created_by=requesting_user_profile))
 
         due_on = parsed_post.get('due_on')
         completed_on = parsed_post.get('completed_on')
@@ -392,7 +365,7 @@ def ActionView(request, requesting_staff, action_id=None):
         action_id = parsed_post.get('action_id')
         action = get_object_or_404(Action, id=action_id)
 
-        if requesting_staff != action.created_by:
+        if requesting_user_profile != action.created_by:
             return JsonResponse(
                 {'error': 'You cannot update an action you do not own.'},
                 status=403)

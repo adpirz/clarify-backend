@@ -68,17 +68,18 @@ def CleverTokenView(request):
 
     # ---- END DELETE -------
 
-    u = UserProfile.objects.filter(clever_id=clever_id).first()
 
-    u.clever_token = bearer_token
-    u.save()
+    user_profile = UserProfile.objects.filter(clever_id=clever_id).first()
 
-    login(request, u.user)
+    user_profile.clever_token = bearer_token
+    user_profile.save()
+
+    login(request, user_profile.user)
 
     try:
         CleverCode.objects.create(
             code=code,
-            user_profile=u
+            user_profile=user_profile
         )
     except IntegrityError:
         clever_code = CleverCode.objects.get(

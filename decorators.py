@@ -23,7 +23,7 @@ def require_methods(*method_list):
 
 
 def requires_user_profile(func):
-    """Passes requesting_staff as second argument or sends error"""
+    """Passes requesting_user_profile as second argument or sends error"""
 
     @wraps(func)
     def inner(request, *args, **kwargs):
