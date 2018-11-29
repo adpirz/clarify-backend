@@ -812,7 +812,7 @@ class Assignments(models.Model):
                           name=F('short_name'),
                           sis_gradebook_id=F('gradebook_id'),
                           sis_category_id=F('category_id'))
-                .values('sis_id', 'name',
+                .values('sis_id', 'name', 'due_date',
                         'sis_gradebook_id', 'sis_category_id'))
 
 
@@ -893,9 +893,11 @@ class ScoreCache(models.Model):
                           sis_id=F('cache_id'),
                           sis_student_id=F('student_id'),
                           sis_assignment_id=F('assignment_id'),
+                          updated_on=F('last_updated')
                           )
                 .values('sis_id', 'sis_student_id', 'sis_assignment_id',
-                        'score', 'value', 'is_missing', 'is_excused'))
+                        'score', 'value', 'is_missing', 'is_excused',
+                        'last_updated'))
 
     class Meta:
         managed = False

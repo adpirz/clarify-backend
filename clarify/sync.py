@@ -312,7 +312,8 @@ class IlluminateSync(Sync):
                    ['sis_gradebook_id']),
         Assignment: (['sis_id', 'name', 'possible_points', 'possible_score'],
                      ['sis_gradebook_id', 'sis_category_id']),
-        Score: (['sis_id', 'score', 'value', 'is_missing', 'is_excused'],
+        Score: (['sis_id', 'score', 'value', 'is_missing',
+                 'is_excused', 'updated_on'],
                 ['sis_student_id', 'sis_assignment_id'])
     }
 

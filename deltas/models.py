@@ -2,8 +2,8 @@ from django.db import models
 from django.utils import timezone
 
 from sis_mirror.models import Gradebooks
-from sis_pull.models import Student, Assignment, Category, Score, Staff, \
-    Gradebook, ScoreCache
+from clarify.models import Student, Assignment, Category, Score, UserProfile, \
+    Gradebook, Score
 
 """
 Allows for easy lookup of scores by date
@@ -52,7 +52,7 @@ class Delta(models.Model):
         Assignment, through='MissingAssignmentRecord')
 
     # category average fields
-    score_cache = models.ForeignKey(ScoreCache, null=True)
+    score = models.ForeignKey(Score, null=True)
     context_record = models.ForeignKey(CategoryGradeContextRecord, null=True)
     category_average_before = models.FloatField(null=True)
     category_average_after = models.FloatField(null=True)
@@ -122,7 +122,7 @@ class Action(models.Model):
         ('message', 'Message'),
     )
     type = models.CharField(choices=TYPE_CHOICES, max_length=255, default=TYPE_CHOICES[0][0])
-    created_by = models.ForeignKey(Staff)
+    created_by = models.ForeignKey(UserProfile)
     student = models.ForeignKey(Student)
     completed_on = models.DateTimeField(null=True, blank=True)
     due_on = models.DateTimeField(null=True, blank=True)

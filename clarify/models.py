@@ -288,6 +288,8 @@ class Assignment(BaseNameModel):
     possible_points = models.FloatField(null=True)
     possible_score = models.FloatField(null=True)
 
+    due_date = models.DateField(null=True)
+
 
 class Score(SISMixin):
     student = models.ForeignKey(Student)
@@ -299,6 +301,8 @@ class Score(SISMixin):
 
     is_missing = models.BooleanField(default=False)
     is_excused = models.BooleanField(default=False)
+
+    updated_on = models.DateTimeField(null=True)
 
     class Meta:
         unique_together = ('student', 'assignment')
