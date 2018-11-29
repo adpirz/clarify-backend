@@ -309,6 +309,8 @@ class IlluminateSync(Sync):
         Student: (['sis_id', 'first_name', 'last_name'],),
         EnrollmentRecord: (['start_date', 'end_date'],
                            ['sis_student_id', 'sis_section_id']),
+        StaffSectionRecord: (['start_date', 'end_date', 'primary_teacher'],
+                             ['sis_user_id', 'sis_section_id']),
         Gradebook: (['sis_id', 'name'],
                     ['sis_section_id']),
         Category: (['sis_id', 'name'],
