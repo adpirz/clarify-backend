@@ -1,7 +1,9 @@
 from django.contrib.auth.models import User
+from django.contrib.sessions.models import Session
 from django.db import models
 
-# Create your models here.
+from django.db.models import Q, F
+from django.utils import timezone
 
 """
 
@@ -50,7 +52,7 @@ Concrete Models
 
 """
 
-
+# This is akin to a Staff or Teacher object in Clever and SISs.
 class UserProfile(NameInterface, SISMixin, CleverIDMixin):
     PREFIX_CHOICES = (
         ('MR', 'Mr.'),
@@ -63,6 +65,7 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
     prefix = models.CharField(max_length=3,
                               choices=PREFIX_CHOICES,
                               blank=True)
+    clever_token = models.CharField(max_length=300, null=True)
 
     def get_full_mame(self):
         if len(self.user.first_name) and len(self.user.last_name):
@@ -76,10 +79,38 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
 
     def get_first_name(self):
         return self.user.first_name
-    
+
     def get_last_name(self):
         return self.user.last_name
-    
+
+    def get_current_sections(self):
+        return StaffSectionRecord.objects.filter(
+            Q(start_date__lte=timezone.now()) | Q(start_date__isnull=True),
+            Q(end_date__gte=timezone.now()) | Q(end_date__isnull=True),
+            active=True
+        ).distinct('section_id')
+
+    def get_students_for_current_sections(self):
+        ssr = "section__staffsectionrecord"
+        ssr_start_lte = "__".join([ssr, "start_date", "lte"])
+        ssr_start_null = "__".join([ssr, "start_date", "isnull"])
+        ssr_end_gte = "__".join([ssr, "end_date", "gte"])
+        ssr_end_null = "__".join([ssr, "end_date", "isnull"])
+
+        return EnrollmentRecord.objects.filter(
+            Q(**{ssr_start_lte: timezone.now()}) | Q(**{ssr_start_null: True}),
+            Q(**{ssr_end_gte: timezone.now()}) | Q(**{ssr_end_null: True}),
+            Q(end_date__gte=timezone.now) | Q(end_date__isnull=True),
+            section__staffsectionrecord__user_id=self.id,
+            section__staffsectionrecord__active=True,
+            start_date__lte=timezone.now()
+        ).distinct('student_id').values_list('student_id', flat=True)
+
+
+class CleverCode(models.Model):
+    code = models.CharField(max_length=250, unique=True)
+    user_profile = models.ForeignKey(UserProfile, null=True)
+
 
 class Student(NameInterface, CleverIDMixin, SISMixin):
     first_name = models.CharField(max_length=200, blank=True)
@@ -98,12 +129,39 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
             return self.name
 
         raise AttributeError("No name provided.")
-    
+
     def get_first_name(self):
-        return self.first_name
-    
+        return self.FIRST_NAME
+
     def get_last_name(self):
         return self.last_name
+
+    @classmethod
+    def get_enrolled_for_user_profile(cls, profile_id):
+
+        student_section_teacher_id = "__".join([
+            "enrollmentrecord", "section", "staffsectionrecord", "user_profile_id"
+        ])
+
+        enrolled_now = (
+            Q(enrollmentrecord__start_date__lte=timezone.now()) |
+            Q(enrollmentrecord__start_date__isnull=True),
+            Q(enrollmentrecord__end_date__gte=timezone.now()) |
+            Q(enrollmentrecord__end_date__isnull=True),
+        )
+
+        return (
+            cls.objects
+                .filter(
+                **{student_section_teacher_id: profile_id})
+                .filter(*enrolled_now)
+                .annotate(section_id=F("enrollmentrecord__section_id"))
+                .distinct('id', 'section_id')
+        )
+
+    # Adding this so that the django admin presents Students more intelligbly
+    def __str__(self):
+        return self.get_full_name()
 
 
 class Site(BaseNameModel):
@@ -116,6 +174,18 @@ class Term(BaseNameModel):
     start_date = models.DateField()
     end_date = models.DateField()
     site = models.ForeignKey(Site)
+
+    @classmethod
+    def current_terms_qs(cls):
+        return cls.objects.filter(
+            start_date__lte=timezone.now(),
+            end_date__gte=timezone.now()
+        )
+
+    def get_section_ids(self):
+        return Section.objects.filter(
+            term_id=self.id
+        ).values_list('section_id', flat=True)
 
 
 class Section(BaseNameModel):
@@ -154,15 +224,26 @@ class EnrollmentRecord(models.Model):
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
 
+    class Meta:
+        unique_together = ('student', 'section')
+
 
 class StaffSectionRecord(models.Model):
-    user = models.ForeignKey(UserProfile)
+    user_profile = models.ForeignKey(UserProfile)
     section = models.ForeignKey(Section)
     # catch all that determines if this is current
     active = models.BooleanField(default=True)
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
     primary_teacher = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('user_profile', 'section')
+
+
+class StaffAdminRecord(models.Model):
+    user_profile = models.ForeignKey(UserProfile)
+    term = models.ForeignKey(Term)
 
 
 class DailyAttendanceNode(models.Model):
@@ -194,6 +275,13 @@ class Gradebook(BaseNameModel):
     # Some gradebooks have multiple owners / viewers
     owners = models.ManyToManyField(UserProfile)
 
+    @classmethod
+    def get_all_current_gradebook_ids_for_user_profile(cls, profile_id):
+        return (cls.objects
+                .filter(owners__id=profile_id)
+                .distinct('id')
+                .values_list('id', flat=True))
+
 
 class Category(BaseNameModel):
     gradebook = models.ForeignKey(Gradebook)
@@ -209,6 +297,8 @@ class Assignment(BaseNameModel):
     possible_points = models.FloatField(null=True)
     possible_score = models.FloatField(null=True)
 
+    due_date = models.DateField(null=True)
+
 
 class Score(SISMixin):
     student = models.ForeignKey(Student)
@@ -221,9 +311,8 @@ class Score(SISMixin):
     is_missing = models.BooleanField(default=False)
     is_excused = models.BooleanField(default=False)
 
+    updated_on = models.DateTimeField(null=True)
+
     class Meta:
         unique_together = ('student', 'assignment')
-
-
-
 

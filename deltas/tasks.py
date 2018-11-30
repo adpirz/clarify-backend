@@ -5,13 +5,14 @@ from django.db.models import Sum, F, Avg, Max, Q, Count
 from django.utils import timezone
 from tqdm import tqdm
 
+from clarify.models import Score, Assignment, Gradebook, Student
 from sis_mirror.models import (
     Gradebooks,
     GradingPeriods,
-    SsCube
-)
-
-from sis_pull.models import ScoreCache, Category
+    SsCube,
+    ScoreCache,
+    Categories,
+    Users)
 
 from .models import Delta, MissingAssignmentRecord, CategoryGradeContextRecord
 
@@ -162,19 +163,14 @@ def get_all_missing_for_user(user_id, grading_period_id=None):
         "grading_period_id",
         "in"
     ])
-    gradebook_ids = (
-        Gradebooks.objects
-            .filter(**{grading_period_filter: active_grading_periods})
-            .filter(created_by=user_id)
-            .values_list('gradebook_id', flat=True)
-    )
+    gradebooks = Gradebooks.get_current_gradebooks_for_staff_id(user_id)
 
     missing = []
 
-    for gradebook_id in tqdm(gradebook_ids,
+    for gradebook in tqdm(gradebooks,
                              desc="Gradebooks",
                              leave=False):
-        missing += get_missing_for_gradebook(gradebook_id)
+        missing += get_missing_for_gradebook(gradebook["sis_id"])
 
     student_dict = {}
 
@@ -228,20 +224,20 @@ def build_deltas_for_student_and_category(student_id, category_id):
                     score__assignment__category_id=category_id)
             .prefetch_related('score')
             .order_by('-updated_on')
-            .annotate(score_created=F('score__last_updated'))
+            .annotate(score_created=F('score__updated_on'))
             .first()
     )
 
     scores_filter = {
         'student_id': student_id,
-        'category_id': category_id
+        'assignment__category_id': category_id
     }
 
     if latest_delta:
-        scores_filter["last_updated__gt"] = latest_delta.score_created
+        scores_filter["updated_on__gt"] = latest_delta.score_created
 
     scores_list = (
-        ScoreCache.objects
+        Score.objects
             .filter(**scores_filter)
             .exclude(is_excused=True)
             .exclude(score__isnull=True,
@@ -339,9 +335,10 @@ def build_deltas_for_category(category_id):
 
 def build_deltas_for_gradebook(gradebook_id):
     category_ids = (
-        Category.objects
+        Categories.objects
             .filter(gradebook_id=gradebook_id)
-            .distinct('id')
+            .distinct('category_id')
+            .annotate(id=F('category_id'))
             .values_list('id', flat=True)
     )
 
@@ -354,23 +351,23 @@ def build_deltas_for_gradebook(gradebook_id):
 
 
 def build_deltas_for_staff_current_gradebooks(staff_id):
-    gradebook_ids = Gradebooks.get_current_gradebooks_for_staff_id(staff_id)
+    gradebooks = Gradebooks.get_current_gradebooks_for_staff_id(staff_id)
 
     new_deltas = 0
 
-    for gradebook_id in tqdm(gradebook_ids, desc="Gradebooks", leave=False):
-        new_deltas += build_deltas_for_gradebook(gradebook_id)
+    for gradebook in tqdm(gradebooks, desc="Gradebooks", leave=False):
+        new_deltas += build_deltas_for_gradebook(gradebook["sis_id"])
 
     return new_deltas
 
 """
 
     Missing Assignment Deltas:
-    
+
     1. Pull missing assignments for a gradebook from ScoreCache
-    2. For each student with missing assignments, create a delta 
+    2. For each student with missing assignments, create a delta
     3. Check if delta is duplicate; if not, save
-    
+
 """
 
 
@@ -382,9 +379,11 @@ def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
     new_deltas_created = 0
     errors = 0
 
-    for student_id, missing_assignments in tqdm(all_missing.items(),
+    for sis_student_id, missing_assignments in tqdm(all_missing.items(),
                                                 desc="Students",
                                                 leave=False):
+        student_id = Student.objects.get(sis_id=sis_student_id).id
+
         last_missing_delta_for_student = (
             Delta.objects
                 .filter(student_id=student_id,
@@ -407,21 +406,32 @@ def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
                 continue
 
         try:
+            clarify_gradebook = Gradebook.objects.get(
+                sis_id=missing_assignments[0]['gradebook_id']
+            )
             new_delta = Delta.objects.create(
                 type="missing",
                 student_id=student_id,
-                gradebook_id=missing_assignments[0]['gradebook_id'],
+                gradebook_id=clarify_gradebook.id,
             )
+
         except IntegrityError as e:
             print(f"Error creating delta: {e}")
             errors += 1
             continue
+        except Exception as e:
+            import pdb; pdb.set_trace()
+            raise e
 
         for assignment in missing_assignments:
+            clarify_assignment = Assignment.objects.get(
+                sis_id=assignment["assignment_id"]
+            )
+
             try:
                 MissingAssignmentRecord.objects.create(
                     delta=new_delta,
-                    assignment_id=assignment["assignment_id"],
+                    assignment_id=clarify_assignment.id,
                     missing_on=timezone.now().date()
                 )
             except IntegrityError:
@@ -433,21 +443,12 @@ def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
     return new_deltas_created, errors
 
 
-def get_all_current_teacher_ids():
-    return (
-        SsCube.objects
-            .filter(academic_year__gte=timezone.now().year)
-            .distinct('user_id')
-            .values_list('user_id', flat=True)
-    )
-
-
 def build_deltas_for_all_current_academic_teachers(clean=False):
 
     if clean:
         Delta.objects.all().delete()
 
-    teacher_ids = get_all_current_teacher_ids()
+    teacher_ids = Users.get_all_current_staff_ids()
 
     start = timezone.now()
 

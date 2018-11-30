@@ -2,8 +2,8 @@ from django.db import models
 from django.utils import timezone
 
 from sis_mirror.models import Gradebooks
-from sis_pull.models import Student, Assignment, Category, Score, Staff, \
-    Gradebook, ScoreCache
+from clarify.models import Student, Assignment, Category, Score, UserProfile, \
+    Gradebook, Score
 
 """
 Allows for easy lookup of scores by date
@@ -52,7 +52,7 @@ class Delta(models.Model):
         Assignment, through='MissingAssignmentRecord')
 
     # category average fields
-    score_cache = models.ForeignKey(ScoreCache, null=True)
+    score = models.ForeignKey(Score, null=True)
     context_record = models.ForeignKey(CategoryGradeContextRecord, null=True)
     category_average_before = models.FloatField(null=True)
     category_average_after = models.FloatField(null=True)
@@ -67,9 +67,9 @@ class Delta(models.Model):
         return f"{self.student.id}: {self.type}"
 
     @classmethod
-    def return_response_query(cls, staff_id, student_id=None, delta_type=None):
+    def return_response_query(cls, profile_id, student_id=None, delta_type=None):
         gradebook_ids = Gradebook\
-            .get_all_current_gradebook_ids_for_staff_id(staff_id)
+            .get_all_current_gradebook_ids_for_user_profile(profile_id)
 
         filters = {
             'gradebook_id__in': gradebook_ids
@@ -81,9 +81,17 @@ class Delta(models.Model):
         if student_id:
             filters = {'student_id': student_id}
 
+        sections_for_profile = "__".join([
+            "student",
+            "enrollmentrecord",
+            "section",
+            "staffsectionrecord",
+            "user_profile_id"
+        ])
+
         queryset = (
             cls.objects
-                .filter(student__sectionlevelrosterperyear__staff_id=staff_id)
+                .filter(**{sections_for_profile: profile_id})
                 .order_by('student_id', '-id')
         )
 
@@ -122,7 +130,7 @@ class Action(models.Model):
         ('message', 'Message'),
     )
     type = models.CharField(choices=TYPE_CHOICES, max_length=255, default=TYPE_CHOICES[0][0])
-    created_by = models.ForeignKey(Staff)
+    created_by = models.ForeignKey(UserProfile)
     student = models.ForeignKey(Student)
     completed_on = models.DateTimeField(null=True, blank=True)
     due_on = models.DateTimeField(null=True, blank=True)

@@ -1,3 +1,4 @@
+from django.utils import timezone
 from json import loads
 from datetime import datetime
 
@@ -6,25 +7,21 @@ from google.auth.transport import requests
 
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Case, When, Value, BooleanField
+from django.db.models import Case, When, Value, BooleanField, Q, F
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from sis_pull.models import (
-    Student, Section, GradeLevel, Staff,
-    SectionLevelRosterPerYear,
-)
 
-
+from clarify.models import Student, Section, EnrollmentRecord, StaffSectionRecord
 from deltas.models import Action, Delta
 from utils import get_academic_year
 
-from .decorators import requires_staff, require_methods
+from decorators import requires_user_profile, require_methods
 
 
-@login_required
+@login_required(login_url="/")
 @require_methods("GET")
 def UserView(request):
     user = request.user
@@ -37,150 +34,56 @@ def UserView(request):
             'email': user.email,
         }
     }
-    if user.staff:
-        response["data"]["prefix"] = user.staff.get_prefix_display()
+    if user.userprofile:
+        response["data"]["prefix"] = user.userprofile.get_prefix_display()
     return JsonResponse(response)
 
 
 @login_required
 @require_methods("GET")
-@requires_staff
-def StudentView(request, requesting_staff):
+@requires_user_profile
+def StudentView(request, requesting_user_profile):
+    # TODO: Make this work for an admin account
+
     def _shape(student, student_section_pairs):
         return {
             'id': student.id,
             'first_name': student.first_name,
             'last_name': student.last_name if not settings.ANONYMIZE_STUDENTS else student.last_name[0],
-            'is_enrolled': student.is_enrolled,
-            'is_searchable': student.is_searchable,
-            'enrolled_section_ids': list(set([s[1] for s in student_section_pairs if s[0] == student.id]))
+            'is_enrolled': True,
+            'enrolled_section_ids': [ssp.section_id for ssp in student_section_pairs if ssp.id == student.id]
         }
 
-    staff_level = requesting_staff.get_max_role_level()
-    staff_site_id = requesting_staff.get_most_recent_primary_site_id()
+    student_section_pairs = Student.get_enrolled_for_user_profile(requesting_user_profile.id)
 
-    if not staff_level:
-        return JsonResponse(
-            {'error': 'Could not determine staff level'},
-            status=400
-        )
+    unique_students = student_section_pairs.distinct('id')
 
-    if not staff_site_id:
-        return JsonResponse(
-            {'error': 'Could not determine site for that staff'},
-            status=400
-        )
-
-    student_section_pairs = (SectionLevelRosterPerYear.objects
-        .filter(site_id=staff_site_id)
-        .filter(academic_year=get_academic_year())
-        .filter(staff=requesting_staff)
-        .values_list('student_id', 'section_id').distinct()
-    )
-    site_student_ids = [s[0] for s in student_section_pairs]
-
-    if staff_level < 700:
-        # Staff member isn't an admin. The client should only allow them to
-        # search for students that they teach.
-        # Indicate which students those are.
-        staff_student_ids = (SectionLevelRosterPerYear.objects
-            .filter(staff=requesting_staff)
-            .filter(academic_year=get_academic_year())
-            .values_list('student_id').distinct()
-        )
-    else:
-        # Staff is an admin, which means they can see all students at their site
-        staff_student_ids = site_student_ids
-
-    staff_students = (Student.objects.filter(id__in=staff_student_ids)
-                      .annotate(is_searchable=Case(
-                        When(id__in=staff_student_ids, then=Value(True)),
-                        default=Value(False),
-                        output_field=BooleanField(),
-                      ))
-                      .annotate(is_enrolled=Case(
-                        When(currentroster__isnull=False, then=Value(True)),
-                        default=Value(False),
-                        output_field=BooleanField(),
-                      )))
 
     return JsonResponse({
-        'data': [_shape(s, student_section_pairs) for s in staff_students]
+        'data': [_shape(s, student_section_pairs) for s in unique_students]
     })
 
 
 @login_required
 @require_methods("GET")
-def SectionView(request):
-    # TODO
+@requires_user_profile
+def SectionView(request, requesting_user_profile):
+    # TODO: make work for admins:
+
     def _shape(section):
-        tags = [str(section.get_timeblock())]
-        course = section.get_course()
-
-        if course:
-            tags.append(str(course))
         return {
-            'id': section.id,
-            'section_name': str(section),
-            'tags': tags
-        }
-    # Decided somewhat arbitrarily to return all sections associated with a
-    # staff member. We'll want to come up with more specific
-    # rules for that soon, aka all sections at a staff member's site, that
-    # accounts for multi-site staff, etc.
-    user = request.user
-    staff_level = user.staff.get_max_role_level()
-    if staff_level < 700:
-        request_teacher = Staff.objects.filter(user=user)
-        teacher_section_ids = (SectionLevelRosterPerYear.objects
-            .filter(staff=request_teacher.first())
-            .filter(academic_year=get_academic_year())
-            .values_list('section_id')
-        )
-        staff_sections = Section.objects.filter(id__in=teacher_section_ids)
-    else:
-        # Admins can see all sections at the site.
-        current_site_id = user.staff.get_most_recent_primary_site_id()
-        site_section_ids = (SectionLevelRosterPerYear.objects
-            .filter(site_id=current_site_id)
-            .filter(academic_year=get_academic_year())
-            .values_list('section_id')
-        )
-        staff_sections = Section.objects.filter(id__in=site_section_ids)
-    return JsonResponse({
-        'data': [_shape(s) for s in staff_sections]
-    })
-
-
-@login_required
-@require_methods("GET")
-@requires_staff
-def CourseView(request, requesting_staff):
-    def _shape(row):
-        return {
-            'id': row.course.id,
-            'short_name': row.course.short_name,
-            'long_name': row.course.long_name,
+            'id': section["id"],
+            'section_name': section["name"],
         }
 
-    user = request.user
-    requesting_staff = Staff.objects.get(user=user)
-    filter_kwargs = {}
-
-    if requesting_staff.get_max_role_level() < 700:
-        grade_levels = GradeLevel.get_users_current_grade_levels(requesting_staff)
-        filter_kwargs["grade_level_id__in"] = grade_levels
-        filter_kwargs["staff"] = requesting_staff
-    else:
-        filter_kwargs["site_id"] = requesting_staff.get_most_recent_primary_site_id()
+    sections = Section.objects.filter(
+        staffsectionrecord__active=True,
+        staffsectionrecord__user_profile_id=requesting_user_profile.id
+    ).values('id', 'name')
 
     return JsonResponse({
-        'data': [_shape(row) for row in SectionLevelRosterPerYear.objects
-                 .filter(**filter_kwargs)\
-                 .distinct('course_id')
-                 ]
+        'data': [_shape(s) for s in sections]
     })
-
 
 @csrf_exempt
 @require_methods("GET", "POST", "DELETE")
@@ -196,8 +99,8 @@ def SessionView(request):
                 'email': user.email
             }
         }
-        if user.staff:
-            response["data"]["prefix"] = user.staff.get_prefix_display()
+        if user.userprofile:
+            response["data"]["prefix"] = user.userprofile.get_prefix_display()
 
         return response
 
@@ -275,12 +178,12 @@ def SessionView(request):
 
 @login_required
 @require_methods("GET")
-@requires_staff
-def DeltaView(request, requesting_staff, student_id=None):
+@requires_user_profile
+def DeltaView(request, requesting_user_profile, student_id=None):
     delta_type = request.GET.get('type', None)
 
     deltas = Delta.return_response_query(
-        requesting_staff.id,
+        requesting_user_profile.id,
         student_id,
         delta_type
     )
@@ -346,8 +249,8 @@ def DeltaView(request, requesting_staff, student_id=None):
 
 @login_required
 @require_methods("GET", "PUT", "POST", "DELETE")
-@requires_staff
-def ActionView(request, requesting_staff, action_id=None):
+@requires_user_profile
+def ActionView(request, requesting_user_profile, action_id=None):
     def _shape(action):
         return {
             'id': action.id,
@@ -362,19 +265,15 @@ def ActionView(request, requesting_staff, action_id=None):
             'note': action.note,
         }
     if request.method == 'GET':
-        staff_students = (SectionLevelRosterPerYear.objects
-                         .filter(staff=requesting_staff)
-                         .filter(academic_year=get_academic_year())
-                         .values_list('student_id')
-                         .distinct())
+        staff_students = Student.get_enrolled_for_user_profile(requesting_user_profile.id)
 
-        student_actions = Action.objects.filter(student__in=staff_students)
+        student_actions = Action.objects.filter(student__in=[s.id for s in staff_students])
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
 
     elif request.method == 'DELETE':
         action = get_object_or_404(Action, id=action_id)
-        if requesting_staff != action.created_by:
+        if requesting_user_profile != action.created_by:
             return JsonResponse(
                 {'error': 'You cannot delete an action you do not own.'},
                 status=403)
@@ -408,7 +307,7 @@ def ActionView(request, requesting_staff, action_id=None):
         new_action = (Action(
                         student=target_student,
                         note=parsed_post.get('note'),
-                        created_by=requesting_staff))
+                        created_by=requesting_user_profile))
 
         due_on = parsed_post.get('due_on')
         completed_on = parsed_post.get('completed_on')
@@ -456,7 +355,7 @@ def ActionView(request, requesting_staff, action_id=None):
         action_id = parsed_post.get('action_id')
         action = get_object_or_404(Action, id=action_id)
 
-        if requesting_staff != action.created_by:
+        if requesting_user_profile != action.created_by:
             return JsonResponse(
                 {'error': 'You cannot update an action you do not own.'},
                 status=403)

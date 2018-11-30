@@ -2,7 +2,7 @@ from functools import wraps
 
 from django.http import JsonResponse
 
-from sis_pull.models import Staff
+from clarify.models import UserProfile
 
 
 def require_methods(*method_list):
@@ -22,16 +22,16 @@ def require_methods(*method_list):
     return decorator
 
 
-def requires_staff(func):
-    """Passes requesting_staff as second argument or sends error"""
+def requires_user_profile(func):
+    """Passes requesting_user_profile as second argument or sends error"""
 
     @wraps(func)
     def inner(request, *args, **kwargs):
         try:
-            requesting_staff = request.user.staff
-        except Staff.DoesNotExist:
+            requesting_user_profile = request.user.userprofile
+        except UserProfile.DoesNotExist:
             return JsonResponse({
-                "error": "No staff exists for this user"
+                "error": "No user profile exists for this user"
             }, status=401)
-        return func(request, requesting_staff, *args, **kwargs)
+        return func(request, requesting_user_profile, *args, **kwargs)
     return inner

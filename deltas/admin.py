@@ -6,7 +6,7 @@ from sis_pull.models import Student
 @admin.register(Action)
 class ActionAdmin(admin.ModelAdmin):
     search_fields = ['student']
-    list_display = ('student', 'due_on', 'type', 'completed_on')
+    list_display = ('student', 'due_on', 'type', 'completed_on', 'note')
 
 
 @admin.register(Delta)
