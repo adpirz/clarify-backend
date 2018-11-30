@@ -137,7 +137,7 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
         return self.last_name
 
     @classmethod
-    def get_currently_enrolled_for_user_profile(cls, profile_id):
+    def get_enrolled_for_user_profile(cls, profile_id):
 
         student_section_teacher_id = "__".join([
             "enrollmentrecord", "section", "staffsectionrecord", "user_profile_id"
@@ -157,7 +157,6 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
                 .filter(*enrolled_now)
                 .annotate(section_id=F("enrollmentrecord__section_id"))
                 .distinct('id', 'section_id')
-                .values('id', 'first_name', 'last_name', 'section_id')
         )
 
     # Adding this so that the django admin presents Students more intelligbly

@@ -45,22 +45,22 @@ def UserView(request):
 def StudentView(request, requesting_user_profile):
     # TODO: Make this work for an admin account
 
-    def _shape(student):
+    def _shape(student, student_section_pairs):
         return {
-            'id': student["id"],
-            'first_name': student["first_name"],
-            'last_name': student["last_name"] if not settings.ANONYMIZE_STUDENTS else student["last_name"][0],
+            'id': student.id,
+            'first_name': student.first_name,
+            'last_name': student.last_name if not settings.ANONYMIZE_STUDENTS else student.last_name[0],
             'is_enrolled': True,
-            'is_searchable': True,
-            'enrolled_section_ids': [student["section_id"]]
+            'enrolled_section_ids': [ssp.section_id for ssp in student_section_pairs if ssp.id == student.id]
         }
 
-    students = Student.get_currently_enrolled_for_user_profile(
-        requesting_user_profile.id
-    )
+    student_section_pairs = Student.get_enrolled_for_user_profile(requesting_user_profile.id)
+
+    unique_students = student_section_pairs.distinct('id')
+
 
     return JsonResponse({
-        'data': [_shape(s) for s in students]
+        'data': [_shape(s, student_section_pairs) for s in unique_students]
     })
 
 
@@ -265,11 +265,9 @@ def ActionView(request, requesting_user_profile, action_id=None):
             'note': action.note,
         }
     if request.method == 'GET':
-        staff_students = Student.get_currently_enrolled_for_user_profile(
-            requesting_user_profile.id
-        )
+        staff_students = Student.get_enrolled_for_user_profile(requesting_user_profile.id)
 
-        student_actions = Action.objects.filter(student__in=[s.get('id') for s in staff_students])
+        student_actions = Action.objects.filter(student__in=[s.id for s in staff_students])
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
 
