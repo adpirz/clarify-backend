@@ -86,6 +86,9 @@ class Sync:
                 username=username, email=email,
                 first_name=first_name, last_name=last_name
             )
+            # We don't want passwords blank or folks can sign in willy nilly, plus the admin form
+            # comlains when we save Users without passworsd.
+            user.set_password(User.objects.make_random_password())
 
             name = model_kwargs.get("name", "")
             prefix = model_kwargs.get("prefix", "")
