@@ -32,6 +32,7 @@ def UserView(request):
             'first_name': user.first_name,
             'last_name': user.last_name,
             'email': user.email,
+            'sis_enabled': not bool(user.userprofile.clever_token),
         }
     }
     if user.userprofile:
