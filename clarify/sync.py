@@ -56,6 +56,7 @@ class Sync:
             Term: self.get_source_related_terms_for_staff_id,
             Section: self.get_source_related_sections_for_staff_id,
             Student: self.get_source_related_students_for_staff_id,
+            StaffSectionRecord: self.get_source_related_staffsectionrecord_for_staff_id,
             EnrollmentRecord: self.get_source_related_enrollment_records_for_staff_id,
             Gradebook: self.get_source_related_gradebooks_for_staff_id,
             Category: self.get_source_related_categories_for_staff_id,
@@ -193,7 +194,7 @@ class Sync:
         # { <model> { <source_id> : <clarify_id> } }
         memoized_related = {}
 
-        def _get_related_model_id(fk_id_field, source_id):
+        def _get_related_model_field_and_id(fk_id_field, source_id):
             if not source_id:
                 return None
 
@@ -204,6 +205,9 @@ class Sync:
             related_model_name = "".join(split_text[1:-1])
 
             related_field_key = "_".join(split_text[1:])
+
+            if related_field_key == "user_id":
+                related_field_key = "user_profile_id"
 
             if related_model_name in memoized_related and \
                source_id in memoized_related[related_model_name]:
@@ -227,7 +231,7 @@ class Sync:
             return related_field_key, clarify_id
 
         def _build_all_models(model: Model, related_query_func,
-                              kwargs_list, fk_list=None):
+                              kwargs_list, fk_field_list=None):
 
             source_models = related_query_func(source_id)
             count = 0
@@ -251,13 +255,12 @@ class Sync:
                         new_kwargs["name"] = f"{instance.get('period')} " + \
                                              f"{instance.get('course_name')}"
 
-                    if fk_list:
+                    if fk_field_list:
                         fk_tuple = filter(
                             lambda x: x is not None,
-                            [_get_related_model_id(f, instance.get(f))
-                             for f in fk_list]
+                            [_get_related_model_field_and_id(f, instance.get(f))
+                             for f in fk_field_list]
                         )
-
                         new_fk_kwargs = {i[0]: i[1] for i in fk_tuple}
                         new_kwargs.update(new_fk_kwargs)
 

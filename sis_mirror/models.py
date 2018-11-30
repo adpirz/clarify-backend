@@ -897,7 +897,7 @@ class ScoreCache(models.Model):
                           )
                 .values('sis_id', 'sis_student_id', 'sis_assignment_id',
                         'score', 'value', 'is_missing', 'is_excused',
-                        'last_updated'))
+                        'updated_on'))
 
     class Meta:
         managed = False

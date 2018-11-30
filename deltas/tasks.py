@@ -5,7 +5,7 @@ from django.db.models import Sum, F, Avg, Max, Q, Count
 from django.utils import timezone
 from tqdm import tqdm
 
-from clarify.models import Score, Assignment, Gradebook, Student
+from clarify.models import Score, Assignment, Gradebook, Student, Category
 from sis_mirror.models import (
     Gradebooks,
     GradingPeriods,
@@ -60,7 +60,7 @@ def calculate_class_average_for_category(
     if datetime:
         end_date = datetime.date()
     elif score:
-        end_date = score.last_updated.date()
+        end_date = score.updated_on.date()
 
     filters = {
         "category_id": category_id,
@@ -215,7 +215,17 @@ def delta_threshold_test(score: ScoreCache, running_score_dict):
     return False
 
 
-def build_deltas_for_student_and_category(student_id, category_id):
+def build_deltas_for_student_and_category(sis_student_id, sis_category_id):
+
+    student = (Student.objects.filter(sis_id=sis_student_id)
+                  .first())
+    category = (Category.objects.filter(sis_id=sis_category_id)
+                   .first())
+
+    if not student or not category:
+        return 0
+
+    student_id, category_id = student.id, category.id
 
     latest_delta = (
         Delta.objects
@@ -280,7 +290,7 @@ def build_deltas_for_student_and_category(student_id, category_id):
                 category_context = (
                     CategoryGradeContextRecord.objects
                         .get(
-                            date=score.last_updated.date(),
+                            date=score.updated_on.date(),
                             category_id=category_id
                     )
                 )
@@ -382,7 +392,13 @@ def build_missing_assignment_deltas_for_user(user_id, grading_period_id=None):
     for sis_student_id, missing_assignments in tqdm(all_missing.items(),
                                                 desc="Students",
                                                 leave=False):
-        student_id = Student.objects.get(sis_id=sis_student_id).id
+        student = (Student.objects
+                      .filter(sis_id=sis_student_id).first())
+
+        if not student:
+            continue
+
+        student_id = student.id
 
         last_missing_delta_for_student = (
             Delta.objects

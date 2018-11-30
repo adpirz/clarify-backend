@@ -20,6 +20,7 @@ class Command(BaseCommand):
                             action='store_true',
                             dest='sparse',
                             default=False)
+
     
     def handle(self, *args, **options):
         selected_ids = options["staff_ids"]
