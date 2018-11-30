@@ -160,6 +160,10 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
                 .values('id', 'first_name', 'last_name', 'section_id')
         )
 
+    # Adding this so that the django admin presents Students more intelligbly
+    def __str__(self):
+        return self.get_full_name()
+
 
 class Site(BaseNameModel):
     pass

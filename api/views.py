@@ -265,19 +265,11 @@ def ActionView(request, requesting_user_profile, action_id=None):
             'note': action.note,
         }
     if request.method == 'GET':
-        staff_sections = (StaffSectionRecord.objects
-                         .filter(user_profile=requesting_user_profile)
-                         .filter(active=True)
-                         .values_list('id')
-                         .distinct())
-        staff_students = (EnrollmentRecord.objects
-                         .filter(id__in=staff_sections)
-                         .filter(start_date__lte=datetime.today())
-                         .filter(Q(end_date__isnull=True) | Q(end_date__gte=datetime.today()))
-                         .values_list('student_id')
-                         .distinct())
+        staff_students = Student.get_currently_enrolled_for_user_profile(
+            requesting_user_profile.id
+        )
 
-        student_actions = Action.objects.filter(student__in=staff_students)
+        student_actions = Action.objects.filter(student__in=[s.get('id') for s in staff_students])
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
 
