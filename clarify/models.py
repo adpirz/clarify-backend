@@ -87,24 +87,33 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
         return StaffSectionRecord.objects.filter(
             Q(start_date__lte=timezone.now()) | Q(start_date__isnull=True),
             Q(end_date__gte=timezone.now()) | Q(end_date__isnull=True),
-            active=True
+            active=True,
+            user_profile_id=self.id,
         ).distinct('section_id')
 
-    def get_students_for_current_sections(self):
-        ssr = "section__staffsectionrecord"
-        ssr_start_lte = "__".join([ssr, "start_date", "lte"])
-        ssr_start_null = "__".join([ssr, "start_date", "isnull"])
-        ssr_end_gte = "__".join([ssr, "end_date", "gte"])
-        ssr_end_null = "__".join([ssr, "end_date", "isnull"])
 
-        return EnrollmentRecord.objects.filter(
-            Q(**{ssr_start_lte: timezone.now()}) | Q(**{ssr_start_null: True}),
-            Q(**{ssr_end_gte: timezone.now()}) | Q(**{ssr_end_null: True}),
-            Q(end_date__gte=timezone.now) | Q(end_date__isnull=True),
-            section__staffsectionrecord__user_id=self.id,
-            section__staffsectionrecord__active=True,
-            start_date__lte=timezone.now()
-        ).distinct('student_id').values_list('student_id', flat=True)
+    def get_enrolled_students(self):
+
+        student_section_teacher_id = "__".join([
+            "enrollmentrecord", "section", "staffsectionrecord", "user_profile_id"
+        ])
+
+        enrolled_now = (
+            Q(enrollmentrecord__start_date__lte=timezone.now()) |
+            Q(enrollmentrecord__start_date__isnull=True),
+            Q(enrollmentrecord__end_date__gte=timezone.now()) |
+            Q(enrollmentrecord__end_date__isnull=True),
+        )
+
+        return (
+            Student.objects
+                .filter(
+                **{student_section_teacher_id: self.id})
+                .filter(*enrolled_now)
+                .annotate(section_id=F("enrollmentrecord__section_id"))
+                .distinct('id', 'section_id')
+        )
+
 
 
 class CleverCode(models.Model):
@@ -135,29 +144,6 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
 
     def get_last_name(self):
         return self.last_name
-
-    @classmethod
-    def get_enrolled_for_user_profile(cls, profile_id):
-
-        student_section_teacher_id = "__".join([
-            "enrollmentrecord", "section", "staffsectionrecord", "user_profile_id"
-        ])
-
-        enrolled_now = (
-            Q(enrollmentrecord__start_date__lte=timezone.now()) |
-            Q(enrollmentrecord__start_date__isnull=True),
-            Q(enrollmentrecord__end_date__gte=timezone.now()) |
-            Q(enrollmentrecord__end_date__isnull=True),
-        )
-
-        return (
-            cls.objects
-                .filter(
-                **{student_section_teacher_id: profile_id})
-                .filter(*enrolled_now)
-                .annotate(section_id=F("enrollmentrecord__section_id"))
-                .distinct('id', 'section_id')
-        )
 
     # Adding this so that the django admin presents Students more intelligbly
     def __str__(self):
