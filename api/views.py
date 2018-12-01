@@ -264,11 +264,14 @@ def ActionView(request, requesting_user_profile, action_id=None):
             'created_on': action.created_on,
             'updated_on': action.updated_on,
             'note': action.note,
+            'public': action.public,
         }
     if request.method == 'GET':
         staff_students = Student.get_enrolled_for_user_profile(requesting_user_profile.id)
 
-        student_actions = Action.objects.filter(student__in=[s.id for s in staff_students])
+        student_actions = (Action.objects
+                            .filter(student__in=[s.id for s in staff_students])
+                            .filter(Q(created_by=requesting_user_profile) | Q(public=True)))
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
 
@@ -308,7 +311,8 @@ def ActionView(request, requesting_user_profile, action_id=None):
         new_action = (Action(
                         student=target_student,
                         note=parsed_post.get('note'),
-                        created_by=requesting_user_profile))
+                        created_by=requesting_user_profile,
+                        public=bool(parsed_post.get('public'))))
 
         due_on = parsed_post.get('due_on')
         completed_on = parsed_post.get('completed_on')
