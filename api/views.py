@@ -28,10 +28,12 @@ def UserView(request):
     response = {
         'data': {
             'id': user.id,
+            'user_profile_id': user.userprofile.id,
             'username': user.username,
             'first_name': user.first_name,
             'last_name': user.last_name,
             'email': user.email,
+            'sis_enabled': not bool(user.userprofile.clever_token),
         }
     }
     if user.userprofile:
@@ -54,7 +56,7 @@ def StudentView(request, requesting_user_profile):
             'enrolled_section_ids': [ssp.section_id for ssp in student_section_pairs if ssp.id == student.id]
         }
 
-    student_section_pairs = Student.get_enrolled_for_user_profile(requesting_user_profile.id)
+    student_section_pairs = requesting_user_profile.get_enrolled_students()
 
     unique_students = student_section_pairs.distinct('id')
 
@@ -255,7 +257,11 @@ def ActionView(request, requesting_user_profile, action_id=None):
         return {
             'id': action.id,
             'completed_on': action.completed_on,
-            'created_by': action.created_by.id,
+            'created_by': {
+                'user_profile_id': action.created_by.id,
+                'first_name': action.created_by.user.first_name,
+                'last_name': action.created_by.user.last_name,
+            },
             'due_on': action.due_on,
             'type': action.type,
             'student_id': action.student.id,
@@ -263,11 +269,14 @@ def ActionView(request, requesting_user_profile, action_id=None):
             'created_on': action.created_on,
             'updated_on': action.updated_on,
             'note': action.note,
+            'public': action.public,
         }
     if request.method == 'GET':
-        staff_students = Student.get_enrolled_for_user_profile(requesting_user_profile.id)
+        staff_students = requesting_user_profile.get_enrolled_students()
 
-        student_actions = Action.objects.filter(student__in=[s.id for s in staff_students])
+        student_actions = (Action.objects
+                            .filter(student__in=[s.id for s in staff_students])
+                            .filter(Q(created_by=requesting_user_profile) | Q(public=True)))
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
 
@@ -307,7 +316,8 @@ def ActionView(request, requesting_user_profile, action_id=None):
         new_action = (Action(
                         student=target_student,
                         note=parsed_post.get('note'),
-                        created_by=requesting_user_profile))
+                        created_by=requesting_user_profile,
+                        public=bool(parsed_post.get('public'))))
 
         due_on = parsed_post.get('due_on')
         completed_on = parsed_post.get('completed_on')
