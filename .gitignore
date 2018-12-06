@@ -43,3 +43,6 @@ _testing/
 
 # Environment variables
 .env
+
+scripts/
+.vscode/
