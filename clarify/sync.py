@@ -180,7 +180,7 @@ class Sync:
 
         model_map = {m.__name__.lower(): m for m in [
             Site, Term, Section, Student, Gradebook,
-            Category, Assignment
+            Category, Assignment, Score
         ]}
 
         model_map["user"] = UserProfile

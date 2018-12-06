@@ -36,13 +36,14 @@ Temporary Items
 .idea/
 .idea_modules/
 
+# VSCode
+.vscode/
+
 pg_dumps/
 
 _cache_inspect.py
 _testing/
+scripts/
 
 # Environment variables
 .env
-
-scripts/
-.vscode/
