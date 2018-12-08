@@ -125,8 +125,6 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
     first_name = models.CharField(max_length=200, blank=True)
     last_name = models.CharField(max_length=200, blank=True)
 
-    name = models.CharField(max_length=200, blank=True)
-
     def get_full_name(self):
         if len(self.first_name) and len(self.last_name):
             return f"{self.first_name} {self.last_name}"
@@ -151,7 +149,8 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
 
 
 class Site(BaseNameModel):
-    pass
+    def __str__(self):
+        return self.name
 
 
 class Term(BaseNameModel):
@@ -172,6 +171,9 @@ class Term(BaseNameModel):
         return Section.objects.filter(
             term_id=self.id
         ).values_list('section_id', flat=True)
+
+    def __str__(self):
+        return f"{self.site}: {self.academic_year}"
 
 
 class Section(BaseNameModel):

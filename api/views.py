@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Case, When, Value, BooleanField, Q, F
 from django.contrib.auth.models import User
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, authenticate
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
@@ -134,25 +134,32 @@ def SessionView(request):
             parseable_post = request.body.decode('utf8').replace("'", '"')
             parsed_post = loads(parseable_post)
             request_google_token = parsed_post.get('google_token', '')
-            try:
-                idinfo = id_token.verify_oauth2_token(
-                    request_google_token,
-                    requests.Request(),
-                    settings.GOOGLE_CLIENT_ID
-                )
-            except ValueError:
-                return JsonResponse(
-                    {'error': 'google-auth'},
-                    status=400)
-            email = idinfo["email"]
-            try:
-                # In Illuminate, no email objects stored
-                user = User.objects.get(email=email)
-            except (User.DoesNotExist, User.MultipleObjectsReturned):
-                return JsonResponse(
-                    {'error': 'user-lookup'},
-                    status=400
-                )
+            user = None
+            import pdb; pdb.set_trace()
+            if request_google_token:
+                try:
+                    idinfo = id_token.verify_oauth2_token(
+                        request_google_token,
+                        requests.Request(),
+                        settings.GOOGLE_CLIENT_ID
+                    )
+                except ValueError:
+                    return JsonResponse(
+                        {'error': 'google-auth'},
+                        status=400)
+                email = idinfo["email"]
+                try:
+                    # In Illuminate, no email objects stored
+                    user = User.objects.get(email=email)
+                except (User.DoesNotExist, User.MultipleObjectsReturned):
+                    return JsonResponse(
+                        {'error': 'user-lookup'},
+                        status=400
+                    )
+            else:
+                username = parsed_post.get('username')
+                password = parsed_post.get('password')
+                user = authenticate(request, username=username, password=password)
             if user:
                 if not user.is_active:
                     return JsonResponse({
@@ -161,6 +168,10 @@ def SessionView(request):
 
                 login(request, user)
                 return JsonResponse(_user_response_shape(user), status=201)
+            else:
+                return JsonResponse({
+                    'error': 'invalid-credentials'
+                }, status=401)
     elif request.method == 'DELETE':
         if not user.is_authenticated():
             return JsonResponse(

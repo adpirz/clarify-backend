@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import UserProfile, Student
+from .models import UserProfile, Student, Term
 # Register your models here.
 
 
@@ -13,3 +13,7 @@ class UserProfileAdmin(admin.ModelAdmin):
 class StudentAdmin(admin.ModelAdmin):
     search_fields = ['first_name', 'last_name']
     list_display = ('first_name', 'last_name')
+
+@admin.register(Term)
+class TermAdmin(admin.ModelAdmin):
+    pass
