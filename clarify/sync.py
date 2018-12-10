@@ -1,13 +1,20 @@
 import re
 import requests
 from django.contrib.auth.models import User
-from django.db.utils import IntegrityError
 from django.db.models import Model
-from django.utils import timezone
-from pprint import pprint
+from django.db.utils import IntegrityError
 from tqdm import tqdm
 
-from clarify import models
+from clarify.models import (
+    Student,
+    UserProfile,
+    Site,
+    Term,
+    Section,
+    EnrollmentRecord,
+    StaffSectionRecord,
+    Gradebook, Category, Assignment, Score, SectionGradeLevels)
+
 from sis_mirror.models import (
     Sites,
     Terms,
@@ -20,16 +27,6 @@ from sis_mirror.models import (
     ScoreCache,
     Users)
 
-from clarify.models import (
-    Student,
-    UserProfile,
-    Site,
-    Term,
-    Section,
-    EnrollmentRecord,
-    StaffSectionRecord,
-    DailyAttendanceNode,
-    Gradebook, Category, Assignment, Score, SectionGradeLevels)
 from clarify_backend.utils import try_bulk_or_skip_errors
 
 
@@ -39,6 +36,7 @@ class Sync:
 
     def __init__(self, logger=None, enable_logging=True):
         self.logger = (logger or print) if enable_logging else None
+        self.memo = {}
 
     def log(self, *args, **kwargs):
         if self.logger:
@@ -171,7 +169,7 @@ class Sync:
     def get_all_current_staff_ids_from_source(cls):
         return None
 
-    def create_all_for_staff_from_source(self, source_id):
+    def create_all_for_staff_from_source(self, source_id, models=None):
 
         return_dict = {}
 
@@ -192,7 +190,7 @@ class Sync:
                               f"{id_field} {source_id}\n"
 
         # { <model> { <source_id> : <clarify_id> } }
-        memoized_related = {}
+        memoized_related = self.memo
 
         def _get_related_model_field_and_id(fk_id_field, source_id):
             if not source_id:
@@ -230,12 +228,25 @@ class Sync:
 
             return related_field_key, clarify_id
 
+        def _try_create_or_return_none(model: Model, **new_kwargs):
+            error = False
+            try:
+                new_instance, created = (model
+                                         .objects
+                                         .get_or_create(**new_kwargs))
+            except (model.MultipleObjectsReturned, IntegrityError):
+                new_instance, created = (None, None)
+                error = True
+
+            return new_instance, created, error
+
         def _build_all_models(model: Model, related_query_func,
                               kwargs_list, fk_field_list=None):
 
             source_models = related_query_func(source_id)
             count = 0
             errors = 0
+            bulk = []
 
             if source_models and len(source_models) > 0:
 
@@ -264,35 +275,59 @@ class Sync:
                         new_fk_kwargs = {i[0]: i[1] for i in fk_tuple}
                         new_kwargs.update(new_fk_kwargs)
 
-                    try:
-                        new_instance, created = (model
-                                             .objects
-                                             .get_or_create(**new_kwargs))
-                    except (model.MultipleObjectsReturned, IntegrityError):
-                        new_instance, created = (None, None)
-                        errors += 1
+                    # Try and bulk create models with many more rows
+                    if model in [Assignment, Section]:
+                        bulk.append(new_kwargs)
 
-                    if created:
-                        count += 1
+                    else:
+                        new_instance, created, did_error = \
+                            _try_create_or_return_none(model, **new_kwargs)
 
-                    if (isinstance(new_instance, Gradebook) and
-                       not new_instance.owners.filter(pk=source_id).exists()):
-                        new_instance.owners.add(source_id)
+                        if created:
+                            count += 1
+                        if did_error:
+                            errors += 1
 
-                    if (isinstance(new_instance, Section) and
-                            not new_instance.sectiongradelevels_set.exists()
-                            and instance.get('grade_level')):
-                        SectionGradeLevels.objects.create(
-                            grade_level=instance.get('grade_level'),
-                            section=new_instance
+                        if (isinstance(new_instance, Gradebook) and
+                           not new_instance.owners.filter(pk=source_id).exists()):
+                            new_instance.owners.add(source_id)
+
+                        if (isinstance(new_instance, Section) and
+                                not new_instance.sectiongradelevels_set.exists()
+                                and instance.get('grade_level')):
+                            SectionGradeLevels.objects.create(
+                                grade_level=instance.get('grade_level'),
+                                section=new_instance
                         )
+
+            if len(bulk) > 0:
+                bulk_models = [model(**kwargs) for kwargs in bulk]
+                try:
+                    model.objects.bulk_create(bulk_models)
+                except IntegrityError:
+                    for kwargs in bulk:
+                        new_instance, created, did_error = \
+                            _try_create_or_return_none(model, **kwargs)
+                        if created:
+                            count += 1
+                        if did_error:
+                            errors += 1
+
             return count, errors
 
-        for model, model_args in self.model_args_map.items():
+        if models:
+            models_to_run = models
+        else:
+            models_to_run = self.model_args_map.keys()
+
+        for model in models_to_run:
+            model_name = model.__name__
+            model_args = self.model_args_map[model]
+
             query_func = self.get_model_query_func(model)
             args = [model, query_func] + list(model_args)
+
             new_count, new_errors = _build_all_models(*args)
-            model_name = model.__name__
 
             if new_count > 0 or new_errors > 0:
                 return_dict[model_name] = [new_count, new_errors]
@@ -320,8 +355,8 @@ class IlluminateSync(Sync):
                    ['sis_gradebook_id']),
         Assignment: (['sis_id', 'name', 'possible_points', 'possible_score'],
                      ['sis_gradebook_id', 'sis_category_id']),
-        Score: (['sis_id', 'score', 'value', 'is_missing',
-                 'is_excused', 'updated_on'],
+        Score: (['sis_id', 'score', 'points', 'is_missing',
+                 'is_excused', 'last_updated'],
                 ['sis_student_id', 'sis_assignment_id'])
     }
 
@@ -375,7 +410,7 @@ class IlluminateSync(Sync):
 
     def create_all_for_current_staff(self, staff_id_list=None,
                                      # used for rapid testing
-                                     sparse=False):
+                                     sparse=False, models=None):
         total_result_dict = {}
 
         staff_ids = staff_id_list if staff_id_list else \
@@ -385,7 +420,8 @@ class IlluminateSync(Sync):
             staff_ids = staff_ids[::20]
 
         for staff_id in tqdm(staff_ids, desc="Staff"):
-            result_dict = self.create_all_for_staff_from_source(staff_id)
+            result_dict = self.create_all_for_staff_from_source(staff_id,
+                                                                models=models)
             for model_name, outcome_list in result_dict.items():
                 if model_name not in total_result_dict:
                     total_result_dict[model_name] = outcome_list

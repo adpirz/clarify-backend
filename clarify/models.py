@@ -286,6 +286,7 @@ class Assignment(BaseNameModel):
     possible_score = models.FloatField(null=True)
 
     due_date = models.DateField(null=True)
+    is_active = models.NullBooleanField()
 
 
 class Score(SISMixin):
@@ -295,12 +296,20 @@ class Score(SISMixin):
     # Nullable if excused
     score = models.FloatField(null=True)
     value = models.FloatField(null=True)
+    points = models.FloatField(null=True)
+    percentage = models.FloatField(null=True)
 
     is_missing = models.BooleanField(default=False)
     is_excused = models.BooleanField(default=False)
 
-    updated_on = models.DateTimeField(null=True)
+    last_updated = models.DateTimeField(null=True)
 
     class Meta:
         unique_together = ('student', 'assignment')
 
+    def __str__(self):
+        return f"S:{self.student_id}, " \
+               f"A:{self.assignment_id}, " \
+               f"Pts:{self.points}" \
+               f"{'| M' if self.is_missing else ''}" \
+               f"{'| E' if self.is_excused else ''}"

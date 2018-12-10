@@ -157,6 +157,20 @@ class Students(models.Model):
     def get_current_students_for_staff_id(staff_id):
         return SsCube.get_current_students_for_staff_id(staff_id)
 
+    @staticmethod
+    def get_current_student_ids(site_id=None):
+        filters = {}
+
+        if site_id is not None:
+            filters["site_id"] = site_id
+
+        return (
+            SsCurrent
+                .objects
+                .filter(**filters)
+                .values_list('student_id', flat=True)
+        )
+
 
 class Users(models.Model):
     user_id = models.AutoField(primary_key=True)
@@ -573,7 +587,7 @@ class GradebookSectionCourseAff(models.Model):
         return f"{self.gradebook} - {self.section} - {self.course}"
 
     @classmethod
-    def get_current_gradebooks_for_staff_id(cls, staff_id):
+    def get_current_gradebooks_qs(cls):
         gradebook_date_filter_string = "__".join([
             "section",
             "sectiongradingperiodaff",
@@ -585,6 +599,17 @@ class GradebookSectionCourseAff(models.Model):
         gp_end_date = "__".join([
             gradebook_date_filter_string, "grading_period_end_date", "gte"])
 
+        now = timezone.now()
+
+        gsca_filter = {
+            gp_start_date: now,
+            gp_end_date: now,
+        }
+
+        return cls.objects.filter(**gsca_filter)
+
+    @classmethod
+    def get_current_gradebooks_for_staff_id(cls, staff_id):
         teacher_filter_string = "__".join([
             "section",
             "sectionteacheraff",
@@ -599,14 +624,12 @@ class GradebookSectionCourseAff(models.Model):
         now = timezone.now()
 
         gsca_filter = {
-            gp_start_date: now,
-            gp_end_date: now,
             sta_start_date: now,
             sta_user: staff_id
         }
 
         return (
-            cls.objects
+            cls.get_current_gradebooks_qs()
                 .filter(**gsca_filter)
                 .filter(
                 Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
@@ -813,7 +836,8 @@ class Assignments(models.Model):
                           sis_gradebook_id=F('gradebook_id'),
                           sis_category_id=F('category_id'))
                 .values('sis_id', 'name', 'due_date',
-                        'sis_gradebook_id', 'sis_category_id'))
+                        'sis_gradebook_id', 'sis_category_id',
+                        'possible_points', 'is_active'))
 
 
 class AssignmentGscaAff(models.Model):
@@ -887,17 +911,25 @@ class ScoreCache(models.Model):
 
         return (cls.objects
                 .filter(gradebook_id__in=gradebook_ids)
-                .exclude(is_missing=False, is_excused=False,
-                         score__isnull=True, points__isnull=True)
-                .annotate(value=F('points'),
-                          sis_id=F('cache_id'),
+                .exclude(is_excused=False,
+                         points__isnull=True)
+                .annotate(sis_id=F('cache_id'),
                           sis_student_id=F('student_id'),
                           sis_assignment_id=F('assignment_id'),
-                          updated_on=F('last_updated')
                           )
                 .values('sis_id', 'sis_student_id', 'sis_assignment_id',
-                        'score', 'value', 'is_missing', 'is_excused',
-                        'updated_on'))
+                        'score', 'points', 'is_missing', 'is_excused',
+                        'last_updated'))
+
+    def __str__(self):
+        return f"S:{self.student_id}, " \
+               f"C:{self.category_id}, " \
+               f"A:{self.assignment_id} | " \
+               f"pts:{self.points}, " \
+               f"scr:{self.score}, " \
+               f"%: {self.percentage} | " \
+               f"{'E' if self.is_excused else ''}" \
+               f"{'M' if self.is_excused else ''}"
 
     class Meta:
         managed = False
