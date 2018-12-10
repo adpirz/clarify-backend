@@ -253,8 +253,15 @@ def build_deltas_for_student_and_category(student_id, category_id):
 
     if latest_delta:
         running_total = \
-            calculate_category_scores_until_date_or_score(
-                student_id, category_id, latest_delta.score_created)[0]
+                calculate_category_scores_until_date_or_score(
+                    student_id, category_id, latest_delta.score_created)
+        if not running_total:
+            running_total = {
+                'points_earned': 0.0,
+                'possible_points': 0.0
+            }
+        else:
+            running_total = running_total[0]
     else:
         running_total = {
             'points_earned': 0.0,
