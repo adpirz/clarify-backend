@@ -30,7 +30,7 @@ from clarify.models import (
     StaffSectionRecord,
     DailyAttendanceNode,
     Gradebook, Category, Assignment, Score, SectionGradeLevels)
-from utils import try_bulk_or_skip_errors
+from clarify_backend.utils.utils import try_bulk_or_skip_errors
 
 
 class Sync:

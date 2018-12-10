@@ -14,7 +14,6 @@ from sis_pull.models import (
     OverallScoreCache, GradebookSectionCourseAffinity, Course,
     CategoryScoreCache, ScoreCache, Category, Gradebook)
 from reports.models import Report
-from utils import get_academic_year, GRADE_TO_GPA_POINTS
 
 GROUPS_AND_MODELS = {
     'site': Site,
