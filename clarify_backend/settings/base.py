@@ -44,9 +44,7 @@ THIRD_PARTY_APPS = [
 ]
 
 CLARIFY_APPS = [
-    'sis_pull.apps.SisPullConfig',
     'sis_mirror.apps.SisMirrorConfig',
-    'reports.apps.ReportsConfig',
     'deltas.apps.DeltasConfig',
     'clarify.apps.ClarifyConfig'
 ]

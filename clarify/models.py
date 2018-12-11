@@ -20,7 +20,7 @@ class CleverIDMixin (models.Model):
 
 
 class SISMixin(models.Model):
-    sis_id = models.BigIntegerField(null=True)
+    sis_id = models.BigIntegerField(null=True, unique=True)
 
     class Meta:
         abstract = True

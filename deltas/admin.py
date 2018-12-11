@@ -1,7 +1,8 @@
 from django.contrib import admin
 
 from .models import Action, Delta
-from sis_pull.models import Student
+from clarify.models import Student
+
 
 @admin.register(Action)
 class ActionAdmin(admin.ModelAdmin):
