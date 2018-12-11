@@ -9,14 +9,14 @@ from django.shortcuts import get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Case, When, Value, BooleanField, Q, F
 from django.contrib.auth.models import User
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, authenticate
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 
 from clarify.models import Student, Section, EnrollmentRecord, StaffSectionRecord
 from deltas.models import Action, Delta
-from utils import get_academic_year
+from clarify_backend.utils import get_academic_year
 
 from decorators import requires_user_profile, require_methods
 
@@ -128,12 +128,11 @@ def SessionView(request):
                 status=404
             )
     elif request.method == 'POST':
-        if user.is_authenticated():
-            return JsonResponse(_user_response_shape(user), status=200)
-        else:
-            parseable_post = request.body.decode('utf8').replace("'", '"')
-            parsed_post = loads(parseable_post)
-            request_google_token = parsed_post.get('google_token', '')
+        parseable_post = request.body.decode('utf8').replace("'", '"')
+        parsed_post = loads(parseable_post)
+        request_google_token = parsed_post.get('google_token', '')
+        user = None
+        if request_google_token:
             try:
                 idinfo = id_token.verify_oauth2_token(
                     request_google_token,
@@ -153,14 +152,22 @@ def SessionView(request):
                     {'error': 'user-lookup'},
                     status=400
                 )
-            if user:
-                if not user.is_active:
-                    return JsonResponse({
-                        'error': 'user-inactive'
-                    }, status=403)
+        else:
+            username = parsed_post.get('username')
+            password = parsed_post.get('password')
+            user = authenticate(request, username=username, password=password)
+        if user:
+            if not user.is_active:
+                return JsonResponse({
+                    'error': 'user-inactive'
+                }, status=403)
 
-                login(request, user)
-                return JsonResponse(_user_response_shape(user), status=201)
+            login(request, user)
+            return JsonResponse(_user_response_shape(user), status=201)
+        else:
+            return JsonResponse({
+                'error': 'invalid-credentials'
+            }, status=401)
     elif request.method == 'DELETE':
         if not user.is_authenticated():
             return JsonResponse(

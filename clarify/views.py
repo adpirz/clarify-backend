@@ -5,22 +5,49 @@ import urllib
 from django.contrib.auth import login
 from django.db import IntegrityError
 
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.conf import settings
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 from pprint import pprint
 from requests import HTTPError
 
 from clarify.models import CleverCode, UserProfile, Student, Section, \
     EnrollmentRecord, SectionGradeLevels
 from clarify.sync import CleverSync
-from decorators import require_methods
-
+from decorators import require_methods, requires_user_profile
+from django import forms
+from clarify_backend.utils import manually_roster_with_file
 
 CLEVER_CLIENT_ID = settings.CLEVER_CLIENT_ID
 CLEVER_CLIENT_SECRET = settings.CLEVER_CLIENT_SECRET
 CLEVER_REDIRECT_URL = settings.CLEVER_REDIRECT_URL
+
+class UploadFileForm(forms.Form):
+    file = forms.FileField()
+    first_name = forms.CharField()
+    last_name = forms.CharField()
+    username = forms.EmailField()
+    temporary_password = forms.CharField()
+    prefix = forms.CharField()
+    school_name = forms.CharField()
+
+@login_required
+@require_methods("GET", "POST")
+def handleManualRosterUpload(request):
+    if not request.user.is_superuser:
+        return HttpResponse(status=400)
+
+    if request.method == "POST":
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            manually_roster_with_file(request.FILES['file'], **form.cleaned_data)
+            return HttpResponse("Success", status=200)
+        else:
+            return HttpResponse("FAILURE", status=400)
+    else:
+        return render(request, 'manual_upload.html', {'form': UploadFileForm})
 
 @csrf_exempt
 @require_methods('POST')

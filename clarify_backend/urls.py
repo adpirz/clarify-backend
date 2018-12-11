@@ -18,10 +18,12 @@ from django.conf import settings
 from django.contrib import admin
 from api import urls as api_urls
 from reports.views import ReportView
+from clarify import urls as clarify_urls
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^api/', include(api_urls)),
+    url(r'^clarify/', include(clarify_urls)),
 ]
 
 
