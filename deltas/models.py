@@ -114,7 +114,7 @@ class Delta(models.Model):
 
         if delta_type == "category" or not delta_type:
             prefetch_list += [
-                "score_cache__assignment",
+                "score__assignment",
                 "context_record",
                 "context_record__category"
             ]
@@ -124,7 +124,6 @@ class Delta(models.Model):
                     .prefetch_related(*prefetch_list)
                     .distinct()
                     .all())
-
 
 
 class MissingAssignmentRecord(models.Model):

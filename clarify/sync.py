@@ -289,7 +289,7 @@ class Sync:
                             errors += 1
 
                         if (isinstance(new_instance, Gradebook) and
-                           not new_instance.owners.filter(pk=source_id).exists()):
+                           not new_instance.owners.filter(sis_id=source_id).exists()):
                             new_instance.owners.add(source_id)
 
                         if (isinstance(new_instance, Section) and
