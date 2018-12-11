@@ -3,7 +3,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import User
-from clarify_backend.utils.utils import camel_to_underscore, get_academic_year
+from clarify_backend.utils import camel_to_underscore, get_academic_year
 
 
 class GetCurrentStudentsMixin(object):

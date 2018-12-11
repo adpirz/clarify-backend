@@ -16,7 +16,7 @@ from django.conf import settings
 
 from clarify.models import Student, Section, EnrollmentRecord, StaffSectionRecord
 from deltas.models import Action, Delta
-from clarify_backend.utils.utils import get_academic_year
+from clarify_backend.utils import get_academic_year
 
 from decorators import requires_user_profile, require_methods
 

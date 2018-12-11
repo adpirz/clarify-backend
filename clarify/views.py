@@ -18,7 +18,7 @@ from clarify.models import CleverCode, UserProfile, Student, Section, \
 from clarify.sync import CleverSync
 from decorators import require_methods, requires_user_profile
 from django import forms
-from clarify_backend.utils.utils import manually_roster_with_file
+from clarify_backend.utils import manually_roster_with_file
 
 CLEVER_CLIENT_ID = settings.CLEVER_CLIENT_ID
 CLEVER_CLIENT_SECRET = settings.CLEVER_CLIENT_SECRET
