@@ -200,7 +200,7 @@ def DeltaView(request, requesting_user_profile, student_id=None):
     def _shape_context_record(record):
         return {
             "category_id": record.category_id,
-            "category_name": record.category.category_name,
+            "category_name": record.category.name,
             "date": record.date,
             "total_points_possible": record.total_points_possible,
             "average_points_earned": record.average_points_earned
@@ -208,7 +208,7 @@ def DeltaView(request, requesting_user_profile, student_id=None):
 
     def _shape_missing_record(record):
         return {
-            "assignment_name": record.assignment.short_name,
+            "assignment_name": record.assignment.name,
             "assignment_id": record.assignment_id,
             "due_date": record.assignment.due_date,
             "missing_on": record.missing_on
@@ -222,7 +222,7 @@ def DeltaView(request, requesting_user_profile, student_id=None):
             "created_on": delta.created_on,
             "updated_on": delta.updated_on,
             "type": delta.type,
-            "gradebook_name": delta.gradebook.gradebook_name,
+            "gradebook_name": delta.gradebook.name,
             "gradebook_id": delta.gradebook_id
         }
 
@@ -235,19 +235,19 @@ def DeltaView(request, requesting_user_profile, student_id=None):
 
         if delta.type == "category":
             score = {
-                "assignment_id": delta.score_cache.assignment_id,
-                "score_cache_id": delta.score_cache.id,
-                "assignment_name": delta.score_cache.assignment.short_name,
-                "score": delta.score_cache.score,
-                "possible_points": delta.score_cache.assignment.possible_points,
-                "due_date": delta.score_cache.assignment.due_date,
-                "last_updated": delta.score_cache.last_updated
+                "assignment_id": delta.score.assignment_id,
+                "score_id": delta.score.id,
+                "assignment_name": delta.score.assignment.name,
+                "score": delta.score.score,
+                "possible_points": delta.score.assignment.possible_points,
+                "due_date": delta.score.assignment.due_date,
+                "last_updated": delta.score.last_updated
             }
             resp["score"] = score
             resp["context_record"] = _shape_context_record(delta.context_record)
             resp["category_average_before"] = delta.category_average_before
             resp["category_average_after"] = delta.category_average_after
-            resp["sort_date"] = delta.score_cache.assignment.due_date
+            resp["sort_date"] = delta.score.assignment.due_date
 
         return resp
 
