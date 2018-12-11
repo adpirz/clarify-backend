@@ -1,9 +1,9 @@
 from django.db import models
 from django.utils import timezone
 
-from sis_mirror.models import Gradebooks
 from clarify.models import Student, Assignment, Category, Score, UserProfile, \
     Gradebook, Score
+from sis_mirror.models import Gradebooks
 
 """
 Allows for easy lookup of scores by date
@@ -64,7 +64,16 @@ class Delta(models.Model):
     settled = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.student.id}: {self.type}"
+        out_string = f"{self.student.id}: {self.type}"
+        if self.type == self.CATEGORY:
+            out_string += f" | S_ID:{self.score_id}, " \
+                          f"CR_ID: {self.context_record.id}, " \
+                          f"CAB:{str(self.category_average_before)[:4]}, " \
+                          f"CAA:{str(self.category_average_after)[:4]}"
+        if self.type == self.CATEGORY or self.type == self.MISSING:
+            out_string += f" | GB_ID:{self.gradebook_id}"
+
+        return out_string
 
     @classmethod
     def return_response_query(cls, profile_id, student_id=None, delta_type=None):
@@ -115,6 +124,7 @@ class Delta(models.Model):
                     .prefetch_related(*prefetch_list)
                     .distinct()
                     .all())
+
 
 
 class MissingAssignmentRecord(models.Model):

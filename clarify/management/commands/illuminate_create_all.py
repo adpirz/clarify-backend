@@ -1,8 +1,8 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from tqdm import tqdm
 
 from clarify.sync import IlluminateSync
+from ._get_models_to_run import get_models_to_run
 
 
 class Command(BaseCommand):
@@ -20,7 +20,11 @@ class Command(BaseCommand):
                             action='store_true',
                             dest='sparse',
                             default=False)
-    
+
+        parser.add_argument('--models',
+                            dest="models",
+                            nargs="+")
+
     def handle(self, *args, **options):
         selected_ids = options["staff_ids"]
         sparse = options["sparse"]
@@ -30,7 +34,7 @@ class Command(BaseCommand):
         start = timezone.now()
         result_dict = sync.create_all_for_current_staff(
             staff_id_list=selected_ids if selected_ids else None,
-            sparse=sparse
+            sparse=sparse, models=get_models_to_run(options)
         )
         end = timezone.now()
 
