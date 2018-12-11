@@ -2,6 +2,7 @@ db.sqlite3
 *.pyc
 clarify_virtualenv/
 venv/
+clarify_backend/settings/local.py
 
 
 ### macOS template
