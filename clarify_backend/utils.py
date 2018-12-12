@@ -156,7 +156,7 @@ def word_hash(length=4):
     return species + words
 
 
-def build_reset_email(request, profile: UserProfile):
+def build_reset_email(request, profile: UserProfile, debug=False):
     if not profile.reset_token:
         raise AttributeError("No reset token found")
     name = profile.get_full_name()
@@ -165,7 +165,7 @@ def build_reset_email(request, profile: UserProfile):
     protocol = 'https' if request.is_secure() else 'http'
 
     from_email = Email("noreply@clarify.school")
-    to_email = Email(profile.user.email)
+    to_email = Email("adnan@clarify.school")
     subject = f"Reset password for {name}"
     body = "To reset your password, please click the link below.\n\n" \
            f"{protocol}://{domain}/password-reset/?token={reset_token}"
