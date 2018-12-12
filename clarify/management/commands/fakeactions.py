@@ -21,9 +21,9 @@ NOTES = [('note', m) for m in [
 
 MESSAGES = [('message', m) for m in [
     "Texted mom about the bump in quiz score",
-    "Texted home about some of the struggles during small group work today"
-    "Texted brother the HW due for tomorrow, he'll help her with it"
-    "Texted aunt regarding take home project, she'll be there to help"
+    "Texted home about some of the struggles during small group work today",
+    "Texted brother the HW due for tomorrow, he'll help her with it",
+    "Texted aunt regarding take home project, she'll be there to help",
 ]]
 
 CALLS = [('call', m) for m in [
@@ -59,7 +59,7 @@ class Command(BaseCommand):
         actions = []
         for profile in tqdm(profiles, desc="Users"):
             students = profile.get_enrolled_students()
-            for student in tqdm(students, desc="Students", leave=False):
+            for student in tqdm(students[::7], desc="Students", leave=False):
                 for _ in range(randint(0, 3)):
                     atype, note = sample(SAMPLES, 1)[0]
                     timestamp = self.random_date()
