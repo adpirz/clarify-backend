@@ -449,13 +449,14 @@ def ActionView(request, requesting_user_profile, action_id=None):
             {'data': _shape(action)},
             status=200)
 
+
 @require_methods('POST')
 def PasswordResetView(request):
-    parsed_post = loads(request.body.decode('utf-8'))
-    email = parsed_post.get('email', None)
-    reset_token = parsed_post.get('reset_token', None)
+    email = request.POST.get('email', None)
+    reset_token = request.POST.get('reset_token', None)
     if email:
-        profile = (UserProfile.objects
+        profile = (
+            UserProfile.objects
             .filter(user__email=email)
             .first())
 
@@ -469,14 +470,16 @@ def PasswordResetView(request):
             return JsonResponse({'error': 'could not create token'},
                                 status=400)
 
-        mail = build_reset_email(request, profile)
+        mail = build_reset_email(request, profile, debug=settings.DEBUG)
         response = sg.client.mail.send.post(request_body=mail.get())
 
-        if response.status == 200:
+        status_code = response.status_code
+        if status_code == 200 or status_code == 202:
             return JsonResponse({'status': 'reset email sent'},
-                                status=200)
+                                status=status_code)
         else:
-            return JsonResponse({}, status=response.status)
+            return JsonResponse({'body': response.body.decode('utf-8')},
+                                status=status_code)
 
     elif reset_token:
         try:
@@ -496,7 +499,7 @@ def PasswordResetView(request):
                 'error': 'reset token has expired'
             }, status=400)
 
-        new_password = parsed_post.get('new_password')
+        new_password = request.POST.get('new_password')
         if not new_password:
             return JsonResponse({
                 'error': 'No new password'
