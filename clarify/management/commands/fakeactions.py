@@ -63,6 +63,7 @@ class Command(BaseCommand):
                 for _ in range(randint(0, 3)):
                     atype, note = sample(SAMPLES, 1)[0]
                     timestamp = self.random_date()
+                    public = True if randint(0, 20) > 16 else False
                     actions.append(Action(
                         type=atype,
                         note=note + SILENT_MARKER,
@@ -70,7 +71,8 @@ class Command(BaseCommand):
                         student=student,
                         created_on=timestamp,
                         updated_on=timestamp,
-                        public=True
+                        completed_on=timestamp,
+                        public=public
                     ))
         print("Bulk creating...")
         Action.objects.bulk_create(actions)
