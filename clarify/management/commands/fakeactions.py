@@ -59,7 +59,7 @@ class Command(BaseCommand):
         actions = []
         for profile in tqdm(profiles, desc="Users"):
             students = profile.get_enrolled_students()
-            for student in tqdm(students[::7], desc="Students", leave=False):
+            for student in tqdm(students[::10], desc="Students", leave=False):
                 for _ in range(randint(0, 3)):
                     atype, note = sample(SAMPLES, 1)[0]
                     timestamp = self.random_date()
