@@ -16,7 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from sendgrid import sendgrid
 
-from clarify_backend.utils import build_reset_email
+from clarify_backend.utils import build_reset_email, word_hash
 from clarify.models import Student, Section, EnrollmentRecord, \
     StaffSectionRecord, UserProfile
 from deltas.models import Action, Delta
@@ -457,7 +457,8 @@ def PasswordResetView(request):
         sg = sendgrid.SendGridAPIClient(
             apikey=settings.SENDGRID_API_KEY)
 
-        token, token_created = profile.set_reset_token()
+        reset_token = word_hash()
+        token, token_created = profile.set_reset_token(reset_token)
 
         if not token_created:
             return JsonResponse({'error': 'could not create token'},
