@@ -174,4 +174,3 @@ def build_reset_email(request, profile: UserProfile):
                       body)
 
     return Mail(from_email, subject, to_email, content)
-
