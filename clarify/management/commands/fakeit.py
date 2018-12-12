@@ -55,7 +55,7 @@ class Command(BaseCommand):
 
         profiles = UserProfile.objects.filter(sis_id__isnull=False).all()
         for profile in tqdm(profiles,
-                            desc="Unaking users",
+                            desc="Unfaking users",
                             leave=False):
             real_user = Users.objects.get(user_id=profile.sis_id)
             user = profile.user
