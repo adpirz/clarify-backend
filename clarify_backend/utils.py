@@ -5,9 +5,13 @@ from datetime import datetime
 
 from django.db import models, IntegrityError
 from django.contrib.auth.models import User
+from sendgrid import Email
+from sendgrid.helpers.mail import Content, Mail
 
-from clarify.models import (UserProfile, Section, Student, EnrollmentRecord,
-StaffSectionRecord, Site, Term)
+from clarify.models import (
+    UserProfile, Section, Student, EnrollmentRecord,
+    StaffSectionRecord, Site, Term
+)
 
 with open('clarify_backend/_words.json') as infile:
     WORDS = json.load(infile)
@@ -150,3 +154,23 @@ def word_hash(length=4):
                     for _ in range(length - 1)])
 
     return species + words
+
+
+def build_reset_email(request, profile: UserProfile):
+    if not profile.reset_token:
+        raise AttributeError("No reset token found")
+    name = profile.get_full_name()
+    reset_token = profile.reset_token
+    domain = request.META['HTTP_HOST']
+    protocol = 'https' if request.is_secure() else 'http'
+
+    from_email = Email("noreply@clarify.school")
+    to_email = Email(profile.user.email)
+    subject = f"Reset password for {name}"
+    body = "To reset your password, please click the link below.\n\n" \
+           f"{protocol}://{domain}/password-reset/?token={reset_token}"
+
+    content = Content("text/plain",
+                      body)
+
+    return Mail(from_email, subject, to_email, content)

@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
 
@@ -23,9 +24,7 @@ class Command(BaseCommand):
             gradebook_ids = IlluminateSync\
                 .get_source_related_gradebooks_for_staff_id(staff_id)
 
-            for gradebook in tqdm(gradebook_ids,
-                                  desc="Gradebooks",
-                                  leave=False):
+            for gradebook in gradebook_ids:
                 clarify_gradebook = Gradebook.objects.get(
                     sis_id=gradebook["sis_id"])
                 if profile not in clarify_gradebook.owners.all():
@@ -35,3 +34,14 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Done, new m2ms for Gradebook-UserProfile: {new_owners}"))
 
+        new_email_saves = 0
+
+        for user in tqdm(User.objects.all(),
+                          desc="User email updating"):
+            if not user.email:
+                user.email = user.username
+                user.save()
+                new_email_saves += 1
+
+        self.stdout.write(self.style.SUCCESS(
+            f"Done, new emails saved: {new_email_saves}"))
