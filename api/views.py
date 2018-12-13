@@ -447,13 +447,18 @@ def ActionView(request, requesting_user_profile, action_id=None):
 
 @require_methods('POST')
 def PasswordResetView(request):
-    email = request.POST.get('email', None)
-    reset_token = request.POST.get('reset_token', None)
+    parsed_post = loads(request.body)
+    email = parsed_post.get('email', None)
+    reset_token = parsed_post.get('reset_token', None)
     if email:
         profile = (
             UserProfile.objects
             .filter(user__email=email)
             .first())
+        if not profile:
+            return JsonResponse({
+                "error": "Can't find user with email."
+            }, status=400)
 
         sg = sendgrid.SendGridAPIClient(
             apikey=settings.SENDGRID_API_KEY)
@@ -494,7 +499,7 @@ def PasswordResetView(request):
                 'error': 'reset token has expired'
             }, status=400)
 
-        new_password = request.POST.get('new_password')
+        new_password = parsed_post.get('new_password', None)
         if not new_password:
             return JsonResponse({
                 'error': 'No new password'
