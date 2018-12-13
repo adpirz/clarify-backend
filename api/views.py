@@ -265,13 +265,13 @@ def ActionView(request, requesting_user_profile, action_id=None):
             'id': action.id,
             'completed_on': action.completed_on,
             'created_by': {
-                'user_profile_id': action.created_by.id,
-                'first_name': action.created_by.user.first_name,
-                'last_name': action.created_by.user.last_name,
+                'user_profile_id': action.created_by_id,
+                'first_name': action.user_first_name,
+                'last_name': action.user_last_name,
             },
             'due_on': action.due_on,
             'type': action.type,
-            'student_id': action.student.id,
+            'student_id': action.student_id,
             'delta_ids': [d.id for d in action.deltas.all()],
             'created_on': action.created_on,
             'updated_on': action.updated_on,
@@ -279,11 +279,18 @@ def ActionView(request, requesting_user_profile, action_id=None):
             'public': action.public,
         }
     if request.method == 'GET':
-        staff_students = requesting_user_profile.get_enrolled_students()
+        staff_students = (requesting_user_profile
+                          .get_enrolled_students()
+                          .values())
 
-        student_actions = (Action.objects
-                            .filter(student__in=[s.id for s in staff_students])
-                            .filter(Q(created_by=requesting_user_profile) | Q(public=True)))
+        student_actions = (
+            Action.objects
+                .filter(student__in=[s["id"] for s in staff_students])
+                .prefetch_related('deltas__id')
+                .annotate(user_first_name=F('created_by__user__first_name'),
+                          user_last_name=F('created_by__user__last_name'))
+                .filter(Q(created_by=requesting_user_profile) | Q(public=True))
+        )
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
 
