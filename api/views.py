@@ -87,10 +87,10 @@ def SectionView(request, requesting_user_profile):
         'data': [_shape(s) for s in sections]
     })
 
+
 @csrf_exempt
 @require_methods("GET", "POST", "DELETE")
 def SessionView(request):
-
     def _user_response_shape(user):
         response = {
             'data': {
@@ -389,12 +389,11 @@ def ActionView(request, requesting_user_profile, action_id=None):
         if student_id:
             try:
                 target_student = Student.objects.get(id=student_id)
-                action.student=target_student
+                action.student = target_student
             except Student.DoesNotExist:
                 return JsonResponse(
                     {'error': 'Target student could not be found'},
                     status=404)
-
 
         new_note = parsed_post.get('note')
         if new_note:
@@ -423,7 +422,6 @@ def ActionView(request, requesting_user_profile, action_id=None):
 
         if parsed_post.get('type'):
             action.type = parsed_post.get('type')
-
 
         action.save()
 

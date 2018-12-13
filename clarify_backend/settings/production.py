@@ -1,7 +1,7 @@
 from .base import * # noqa
 
 
-DEBUG=False
+DEBUG = env.bool('DEBUG', default=False)
 
 CORS_ORIGIN_WHITELIST = (
     'app.clarify.school',
