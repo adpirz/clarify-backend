@@ -1,8 +1,6 @@
 from .base import * # noqa
 
 
-DEBUG = env.bool('DEBUG', default=False)
-
 CORS_ORIGIN_WHITELIST = (
     'app.clarify.school',
     'demo.clarify.school',
@@ -15,3 +13,6 @@ ALLOWED_HOSTS = ['api.clarify.school', 'demo.api.clarify.school']
 
 SESSION_COOKIE_DOMAIN = '.clarify.school'
 CSRF_COOKIE_DOMAIN = '.clarify.school'
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

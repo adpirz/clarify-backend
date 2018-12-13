@@ -35,6 +35,7 @@ DJANGO_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
 ]
 
@@ -52,6 +53,8 @@ CLARIFY_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + CLARIFY_APPS
 
 MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -60,7 +63,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
 ]
 
 CORS_ORIGIN_ALLOW_ALL = False
@@ -112,6 +114,8 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = env.bool('USE_TZ', default=True)
+IMPERSONATION = env.bool('IMPERSONATION', default=False)
+DEBUG = env.bool('DEBUG', default=False)
 
 
 # Static files (CSS, JavaScript, Images)
