@@ -91,7 +91,7 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
             user_profile_id=self.id,
         ).distinct('section_id')
 
-    def get_enrolled_students(self):
+    def get_enrolled_students(self, *values_list):
 
         student_section_teacher_id = "__".join([
             "enrollmentrecord", "section", "staffsectionrecord", "user_profile_id"
