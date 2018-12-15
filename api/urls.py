@@ -6,13 +6,12 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 from django.conf.urls import url
 from .views import (
     StudentView, SectionView, SessionView,
-    UserView, ActionView, DeltaView, PasswordResetView)
+    UserView, ActionView, DeltaView)
 
 from clarify.views import CleverTokenView
 
 urlpatterns = [
     url(r'^user/me/$', UserView),
-    url(r'^user/password-reset/$', PasswordResetView),
     url(r'^student/$', StudentView),
     url(r'^section/$', SectionView),
     url(r'^session/$', SessionView),
