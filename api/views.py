@@ -289,7 +289,6 @@ def ActionView(request, requesting_user_profile, action_id=None):
         student_actions = (
             Action.objects
                 .filter(student__in=[s["id"] for s in staff_students])
-                .prefetch_related('deltas__id')
                 .annotate(user_first_name=F('created_by__user__first_name'),
                           user_last_name=F('created_by__user__last_name'))
                 .filter(Q(created_by=requesting_user_profile) | Q(public=True))
