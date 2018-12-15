@@ -70,7 +70,7 @@ ROOT_URLCONF = 'clarify_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [m],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -129,6 +129,3 @@ GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', None)
 CLEVER_CLIENT_ID = env('CLEVER_CLIENT_ID', None)
 CLEVER_CLIENT_SECRET = env('CLEVER_CLIENT_SECRET', None)
 CLEVER_REDIRECT_URL = env('CLEVER_REDIRECT_URL', None)
-
-# Sendgrid
-SENDGRID_API_KEY = env('SENDGRID_API_KEY', None)

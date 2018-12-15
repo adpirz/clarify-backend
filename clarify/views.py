@@ -24,7 +24,6 @@ CLEVER_CLIENT_ID = settings.CLEVER_CLIENT_ID
 CLEVER_CLIENT_SECRET = settings.CLEVER_CLIENT_SECRET
 CLEVER_REDIRECT_URL = settings.CLEVER_REDIRECT_URL
 
-
 class UploadFileForm(forms.Form):
     file = forms.FileField()
     first_name = forms.CharField()
@@ -33,7 +32,6 @@ class UploadFileForm(forms.Form):
     temporary_password = forms.CharField()
     prefix = forms.CharField()
     school_name = forms.CharField()
-
 
 @login_required
 @require_methods("GET", "POST")
