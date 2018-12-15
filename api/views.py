@@ -269,8 +269,8 @@ def ActionView(request, requesting_user_profile, action_id=None):
             'completed_on': action.completed_on,
             'created_by': {
                 'user_profile_id': action.created_by_id,
-                'first_name': action.created_by.user.first_name,
-                'last_name': action.created_by.user.last_name,
+                'first_name': action.user_first_name,
+                'last_name': action.user_last_name,
             },
             'due_on': action.due_on,
             'type': action.type,
@@ -289,6 +289,7 @@ def ActionView(request, requesting_user_profile, action_id=None):
         student_actions = (
             Action.objects
                 .filter(student__in=[s["id"] for s in staff_students])
+                .prefetch_related('deltas__id')
                 .annotate(user_first_name=F('created_by__user__first_name'),
                           user_last_name=F('created_by__user__last_name'))
                 .filter(Q(created_by=requesting_user_profile) | Q(public=True))
