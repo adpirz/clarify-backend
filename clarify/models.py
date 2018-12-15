@@ -66,8 +66,10 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
                               choices=PREFIX_CHOICES,
                               blank=True)
     clever_token = models.CharField(max_length=300, null=True)
+    reset_token = models.CharField(max_length=128, null=True, unique=True)
+    reset_token_expiry = models.DateTimeField(null=True)
 
-    def get_full_mame(self):
+    def get_full_name(self):
         if len(self.user.first_name) and len(self.user.last_name):
             return f"{self.user.first_name} {self.user.last_name}"
         if len(self.user.first_name):
@@ -92,7 +94,6 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
         ).distinct('section_id')
 
     def get_enrolled_students(self, *values_list):
-
         student_section_teacher_id = "__".join([
             "enrollmentrecord", "section", "staffsectionrecord", "user_profile_id"
         ])
@@ -113,6 +114,11 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
                 .distinct('id', 'section_id')
         )
 
+    def set_reset_token(self, reset_token):
+        self.reset_token = reset_token
+        self.reset_token_expiry = timezone.now() + timezone.timedelta(days=2)
+        self.save()
+        return reset_token, True
 
 
 class CleverCode(models.Model):

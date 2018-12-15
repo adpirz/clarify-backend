@@ -1,3 +1,4 @@
+from django.core.mail import send_mail
 from django.utils import timezone
 from json import loads
 from datetime import datetime
@@ -13,8 +14,11 @@ from django.contrib.auth import login, logout, authenticate
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
+from sendgrid import sendgrid
 
-from clarify.models import Student, Section, EnrollmentRecord, StaffSectionRecord
+from clarify_backend.utils import build_reset_email, word_hash
+from clarify.models import Student, Section, EnrollmentRecord, \
+    StaffSectionRecord, UserProfile
 from deltas.models import Action, Delta
 from clarify_backend.utils import get_academic_year
 
@@ -59,7 +63,6 @@ def StudentView(request, requesting_user_profile):
     student_section_pairs = requesting_user_profile.get_enrolled_students()
 
     unique_students = student_section_pairs.distinct('id')
-
 
     return JsonResponse({
         'data': [_shape(s, student_section_pairs) for s in unique_students]
@@ -440,3 +443,73 @@ def ActionView(request, requesting_user_profile, action_id=None):
         return JsonResponse(
             {'data': _shape(action)},
             status=200)
+
+
+@require_methods('POST')
+def PasswordResetView(request):
+    parsed_post = loads(request.body)
+    email = parsed_post.get('email', None)
+    reset_token = parsed_post.get('reset_token', None)
+    if email:
+        profile = (
+            UserProfile.objects
+            .filter(user__email=email)
+            .first())
+        if not profile:
+            return JsonResponse({
+                "error": "Can't find user with email."
+            }, status=400)
+
+        sg = sendgrid.SendGridAPIClient(
+            apikey=settings.SENDGRID_API_KEY)
+
+        reset_token = word_hash()
+        token, token_created = profile.set_reset_token(reset_token)
+
+        if not token_created:
+            return JsonResponse({'error': 'could not create token'},
+                                status=400)
+
+        mail = build_reset_email(request, profile, debug=settings.DEBUG)
+        response = sg.client.mail.send.post(request_body=mail.get())
+
+        status_code = response.status_code
+        if status_code == 200 or status_code == 202:
+            return JsonResponse({'status': 'reset email sent'},
+                                status=status_code)
+        else:
+            return JsonResponse({'body': response.body.decode('utf-8')},
+                                status=status_code)
+
+    elif reset_token:
+        try:
+            profile = UserProfile.objects.get(
+                reset_token=reset_token
+            )
+            user = profile.user
+        except UserProfile.DoesNotExist:
+            return JsonResponse({
+                'error': 'could not find user matching token'
+            }, status=400)
+        now = timezone.now()
+        expiry = profile.reset_token_expiry
+
+        if expiry and now > expiry:
+            return JsonResponse({
+                'error': 'reset token has expired'
+            }, status=400)
+
+        new_password = parsed_post.get('new_password', None)
+        if not new_password:
+            return JsonResponse({
+                'error': 'No new password'
+            }, status=400)
+        user.set_password(new_password)
+
+        return JsonResponse({'status': 'password changed'},
+                            status=200)
+
+    return JsonResponse({'error': 'No email address or token'},
+                        status=400)
+
+
