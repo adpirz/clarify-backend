@@ -510,6 +510,7 @@ def PasswordResetView(request):
                 'error': 'No new password'
             }, status=400)
         user.set_password(new_password)
+        user.save()
 
         return JsonResponse({'status': 'password changed'},
                             status=200)
