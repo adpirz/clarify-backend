@@ -1,3 +1,4 @@
+from django.core.mail import send_mail
 from django.utils import timezone
 from json import loads
 from datetime import datetime
@@ -13,8 +14,11 @@ from django.contrib.auth import login, logout, authenticate
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
+from sendgrid import sendgrid
 
-from clarify.models import Student, Section, EnrollmentRecord, StaffSectionRecord
+from clarify_backend.utils import build_reset_email
+from clarify.models import Student, Section, EnrollmentRecord, \
+    StaffSectionRecord, UserProfile
 from deltas.models import Action, Delta
 from clarify_backend.utils import get_academic_year
 
@@ -60,7 +64,6 @@ def StudentView(request, requesting_user_profile):
 
     unique_students = student_section_pairs.distinct('id')
 
-
     return JsonResponse({
         'data': [_shape(s, student_section_pairs) for s in unique_students]
     })
@@ -87,10 +90,10 @@ def SectionView(request, requesting_user_profile):
         'data': [_shape(s) for s in sections]
     })
 
+
 @csrf_exempt
 @require_methods("GET", "POST", "DELETE")
 def SessionView(request):
-
     def _user_response_shape(user):
         response = {
             'data': {
@@ -260,14 +263,21 @@ def DeltaView(request, requesting_user_profile, student_id=None):
 @require_methods("GET", "PUT", "POST", "DELETE")
 @requires_user_profile
 def ActionView(request, requesting_user_profile, action_id=None):
-    def _shape(action):
+    def _shape(action: Action):
+        if hasattr(action, 'user_first_name'):
+            user_first_name = action.user_first_name
+            user_last_name = action.user_last_name
+        else:
+            user_first_name = action.created_by.user.first_name
+            user_last_name = action.created_by.user.last_name
+
         return {
             'id': action.id,
             'completed_on': action.completed_on,
             'created_by': {
                 'user_profile_id': action.created_by_id,
-                'first_name': action.user_first_name,
-                'last_name': action.user_last_name,
+                'first_name': user_first_name,
+                'last_name': user_last_name,
             },
             'due_on': action.due_on,
             'type': action.type,
@@ -286,7 +296,7 @@ def ActionView(request, requesting_user_profile, action_id=None):
         student_actions = (
             Action.objects
                 .filter(student__in=[s["id"] for s in staff_students])
-                .prefetch_related('deltas__id')
+                .prefetch_related('deltas')
                 .annotate(user_first_name=F('created_by__user__first_name'),
                           user_last_name=F('created_by__user__last_name'))
                 .filter(Q(created_by=requesting_user_profile) | Q(public=True))
@@ -389,12 +399,11 @@ def ActionView(request, requesting_user_profile, action_id=None):
         if student_id:
             try:
                 target_student = Student.objects.get(id=student_id)
-                action.student=target_student
+                action.student = target_student
             except Student.DoesNotExist:
                 return JsonResponse(
                     {'error': 'Target student could not be found'},
                     status=404)
-
 
         new_note = parsed_post.get('note')
         if new_note:
@@ -424,7 +433,6 @@ def ActionView(request, requesting_user_profile, action_id=None):
         if parsed_post.get('type'):
             action.type = parsed_post.get('type')
 
-
         action.save()
 
         deltas = parsed_post.get('deltas')
@@ -440,3 +448,64 @@ def ActionView(request, requesting_user_profile, action_id=None):
         return JsonResponse(
             {'data': _shape(action)},
             status=200)
+
+@require_methods('POST')
+def PasswordResetView(request):
+    parsed_post = loads(request.body.decode('utf-8'))
+    email = parsed_post.get('email', None)
+    reset_token = parsed_post.get('reset_token', None)
+    if email:
+        profile = (UserProfile.objects
+            .filter(user__email=email)
+            .first())
+
+        sg = sendgrid.SendGridAPIClient(
+            apikey=settings.SENDGRID_API_KEY)
+
+        token, token_created = profile.set_reset_token()
+
+        if not token_created:
+            return JsonResponse({'error': 'could not create token'},
+                                status=400)
+
+        mail = build_reset_email(request, profile)
+        response = sg.client.mail.send.post(request_body=mail.get())
+
+        if response.status == 200:
+            return JsonResponse({'status': 'reset email sent'},
+                                status=200)
+        else:
+            return JsonResponse({}, status=response.status)
+
+    elif reset_token:
+        try:
+            profile = UserProfile.objects.get(
+                reset_token=reset_token
+            )
+            user = profile.user
+        except UserProfile.DoesNotExist:
+            return JsonResponse({
+                'error': 'could not find user matching token'
+            }, status=400)
+        now = timezone.now()
+        expiry = profile.reset_token_expiry
+
+        if expiry and now > expiry:
+            return JsonResponse({
+                'error': 'reset token has expired'
+            }, status=400)
+
+        new_password = parsed_post.get('new_password')
+        if not new_password:
+            return JsonResponse({
+                'error': 'No new password'
+            }, status=400)
+        user.set_password(new_password)
+
+        return JsonResponse({'status': 'password changed'},
+                            status=200)
+
+    return JsonResponse({'error': 'No email address or token'},
+                        status=400)
+
+

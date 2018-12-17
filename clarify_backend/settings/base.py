@@ -19,7 +19,7 @@ environ.Env.read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-ANONYMIZE_STUDENTS=True
+ANONYMIZE_STUDENTS = True
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -35,6 +35,7 @@ DJANGO_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
 ]
 
@@ -52,6 +53,8 @@ CLARIFY_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + CLARIFY_APPS
 
 MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -60,17 +63,17 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
 ]
 
 CORS_ORIGIN_ALLOW_ALL = False
 
 ROOT_URLCONF = 'clarify_backend.urls'
 
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, "templates")],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -112,6 +115,8 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = env.bool('USE_TZ', default=True)
+IMPERSONATION = env.bool('IMPERSONATION', default=False)
+DEBUG = env.bool('DEBUG', default=False)
 
 
 # Static files (CSS, JavaScript, Images)
@@ -129,3 +134,6 @@ GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', None)
 CLEVER_CLIENT_ID = env('CLEVER_CLIENT_ID', None)
 CLEVER_CLIENT_SECRET = env('CLEVER_CLIENT_SECRET', None)
 CLEVER_REDIRECT_URL = env('CLEVER_REDIRECT_URL', None)
+
+# Sendgrid
+SENDGRID_API_KEY = env('SENDGRID_API_KEY', None)
