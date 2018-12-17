@@ -1,11 +1,11 @@
 import re
+import json
+from random import sample
 from datetime import datetime
-from django.utils import timezone
 
 from django.db import models, IntegrityError
-from django.utils import timezone
-from django.conf import settings
 from django.contrib.auth.models import User
+from django.conf import settings
 from sendgrid import Email
 from sendgrid.helpers.mail import Content, Mail
 
@@ -13,6 +13,9 @@ from clarify.models import (
     UserProfile, Section, Student, EnrollmentRecord,
     StaffSectionRecord, Site, Term
 )
+
+with open('clarify_backend/_words.json') as infile:
+    WORDS = json.load(infile)
 
 
 def try_bulk_or_skip_errors(model, instance_list):
@@ -85,6 +88,7 @@ GRADE_TO_GPA_POINTS = {
     "Not College Ready": 1.0
 }
 
+
 def manually_roster_with_file(source_file, **kwargs):
     new_user = User.objects.create(
                 username=kwargs['username'],
@@ -144,6 +148,7 @@ def manually_roster_with_file(source_file, **kwargs):
                                 section=section,
                                 active=True)
 
+
 def word_hash(length=4):
     species = sample(WORDS["species"], 1)[0].replace(' ', '')
     words = "".join([sample(WORDS["words"], 1)[0].lower().capitalize()
@@ -153,6 +158,8 @@ def word_hash(length=4):
 
 
 def build_reset_email(request, profile: UserProfile):
+    to_email = UserProfile.user.email if not settings.RESET_DEBUG_EMAIL\
+        else settings.RESET_DEBUG_EMAIL
     if not profile.reset_token:
         raise AttributeError("No reset token found")
     name = profile.get_full_name()
@@ -161,7 +168,7 @@ def build_reset_email(request, profile: UserProfile):
     protocol = 'https' if request.is_secure() else 'http'
 
     from_email = Email("noreply@clarify.school")
-    to_email = Email(profile.user.email)
+    to_email = Email(to_email)
     subject = f"Reset password for {name}"
     body = "To reset your password, please click the link below.\n\n" \
            f"{protocol}://{domain}/password-reset/?token={reset_token}"

@@ -16,7 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from sendgrid import sendgrid
 
-from clarify_backend.utils import build_reset_email
+from clarify_backend.utils import build_reset_email, word_hash
 from clarify.models import Student, Section, EnrollmentRecord, \
     StaffSectionRecord, UserProfile
 from deltas.models import Action, Delta
@@ -449,33 +449,42 @@ def ActionView(request, requesting_user_profile, action_id=None):
             {'data': _shape(action)},
             status=200)
 
+
 @require_methods('POST')
 def PasswordResetView(request):
-    parsed_post = loads(request.body.decode('utf-8'))
+    parsed_post = loads(request.body)
     email = parsed_post.get('email', None)
     reset_token = parsed_post.get('reset_token', None)
     if email:
-        profile = (UserProfile.objects
+        profile = (
+            UserProfile.objects
             .filter(user__email=email)
             .first())
+        if not profile:
+            return JsonResponse({
+                "error": "Can't find user with email."
+            }, status=400)
 
         sg = sendgrid.SendGridAPIClient(
             apikey=settings.SENDGRID_API_KEY)
 
-        token, token_created = profile.set_reset_token()
+        reset_token = word_hash()
+        token, token_created = profile.set_reset_token(reset_token)
 
         if not token_created:
             return JsonResponse({'error': 'could not create token'},
                                 status=400)
 
-        mail = build_reset_email(request, profile)
+        mail = build_reset_email(request, profile, debug=settings.DEBUG)
         response = sg.client.mail.send.post(request_body=mail.get())
 
-        if response.status == 200:
+        status_code = response.status_code
+        if status_code == 200 or status_code == 202:
             return JsonResponse({'status': 'reset email sent'},
-                                status=200)
+                                status=status_code)
         else:
-            return JsonResponse({}, status=response.status)
+            return JsonResponse({'body': response.body.decode('utf-8')},
+                                status=status_code)
 
     elif reset_token:
         try:
@@ -495,12 +504,13 @@ def PasswordResetView(request):
                 'error': 'reset token has expired'
             }, status=400)
 
-        new_password = parsed_post.get('new_password')
+        new_password = parsed_post.get('new_password', None)
         if not new_password:
             return JsonResponse({
                 'error': 'No new password'
             }, status=400)
         user.set_password(new_password)
+        user.save()
 
         return JsonResponse({'status': 'password changed'},
                             status=200)

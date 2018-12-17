@@ -12,11 +12,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
-        # for assignment in tqdm(Assignment.objects.all(), desc="Assignments"):
-        #     cache_assignment = Assignments.objects.get(
-        #         assignment_id=assignment.sis_id)
-        #     assignment.is_active = cache_assignment.is_active
-        #     assignment.save()
+        assignments = (Assignment
+                       .objects
+                       .filter(is_active__isnull=True)
+                       .all())
+
+        for assignment in tqdm(assignments, desc="Assignments"):
+            cache_assignment = Assignments.objects.get(
+                assignment_id=assignment.sis_id)
+            assignment.is_active = cache_assignment.is_active
+            assignment.save()
+
         new_owners = 0
 
         for profile in tqdm(UserProfile.objects.all(), "Users"):

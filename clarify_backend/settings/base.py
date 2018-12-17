@@ -137,3 +137,6 @@ CLEVER_REDIRECT_URL = env('CLEVER_REDIRECT_URL', None)
 
 # Sendgrid
 SENDGRID_API_KEY = env('SENDGRID_API_KEY', None)
+
+# Password reset debug email
+RESET_DEBUG_EMAIL = env('RESET_DEBUG_EMAIL', None)

@@ -5,8 +5,6 @@ from django.db import models
 from django.db.models import Q, F
 from django.utils import timezone
 
-from clarify_backend.utils import word_hash
-
 """
 
 Abstract Base Models
@@ -116,8 +114,7 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
                 .distinct('id', 'section_id')
         )
 
-    def set_reset_token(self):
-        reset_token = word_hash()
+    def set_reset_token(self, reset_token):
         self.reset_token = reset_token
         self.reset_token_expiry = timezone.now() + timezone.timedelta(days=2)
         self.save()
