@@ -14,13 +14,13 @@ class Command(BaseCommand):
 
         assignments = (Assignment
                        .objects
-                       .filter(is_active__isnull=True)
+                       .filter(due_date__isnull=True)
                        .all())
 
         for assignment in tqdm(assignments, desc="Assignments"):
             cache_assignment = Assignments.objects.get(
                 assignment_id=assignment.sis_id)
-            assignment.is_active = cache_assignment.is_active
+            assignment.due_date = cache_assignment.due_date
             assignment.save()
 
         new_owners = 0
