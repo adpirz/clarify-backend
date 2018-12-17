@@ -5,6 +5,7 @@ from datetime import datetime
 
 from django.db import models, IntegrityError
 from django.contrib.auth.models import User
+from django.conf import settings
 from sendgrid import Email
 from sendgrid.helpers.mail import Content, Mail
 
@@ -156,7 +157,9 @@ def word_hash(length=4):
     return species + words
 
 
-def build_reset_email(request, profile: UserProfile, debug=False):
+def build_reset_email(request, profile: UserProfile):
+    to_email = UserProfile.user.email if not settings.RESET_DEBUG_EMAIL\
+        else settings.RESET_DEBUG_EMAIL
     if not profile.reset_token:
         raise AttributeError("No reset token found")
     name = profile.get_full_name()
@@ -165,7 +168,7 @@ def build_reset_email(request, profile: UserProfile, debug=False):
     protocol = 'https' if request.is_secure() else 'http'
 
     from_email = Email("noreply@clarify.school")
-    to_email = Email("adnan@clarify.school")
+    to_email = Email(to_email)
     subject = f"Reset password for {name}"
     body = "To reset your password, please click the link below.\n\n" \
            f"{protocol}://{domain}/password-reset/?token={reset_token}"
