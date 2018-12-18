@@ -12,8 +12,10 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('clarify', '0024_auto_20181211_0852'),
     ]
+    # dependencies = [
+    #     ('clarify', '0024_auto_20181211_0852'),
+    # ]
 
     operations = [
         migrations.CreateModel(
