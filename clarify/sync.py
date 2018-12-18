@@ -357,7 +357,7 @@ class IlluminateSync(Sync):
                       'possible_score', 'is_active'],
                      ['sis_gradebook_id', 'sis_category_id']),
         Score: (['sis_id', 'score', 'points', 'is_missing',
-                 'is_excused', 'last_updated'],
+                 'percentage', 'is_excused', 'last_updated'],
                 ['sis_student_id', 'sis_assignment_id'])
     }
 

@@ -2,15 +2,35 @@ from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
 
-from clarify.models import Assignment, UserProfile, Gradebook
+from clarify.models import Assignment, UserProfile, Gradebook, Score
 from clarify.sync import IlluminateSync
-from sis_mirror.models import Assignments
+from deltas.models import Delta
+from sis_mirror.models import Assignments, ScoreCache
 
 
 class Command(BaseCommand):
     help = "Update selected models from the database."
 
     def handle(self, *args, **options):
+
+        deltas = (Delta.objects
+                  .filter(type="category",
+                          category_average_before__exact=0)
+                  .all()
+                  )
+
+        for d in tqdm(deltas, desc="First score deltas"):
+            d.delete()
+
+        scores = (Score
+                  .objects
+                  .filter(percentage__isnull=True)
+                  .all())
+
+        for score in tqdm(scores, desc="Score percentages"):
+            cache_score = ScoreCache.objects.get(cache_id=score.sis_id)
+            score.percentage = cache_score.percentage
+            score.save()
 
         assignments = (Assignment
                        .objects
@@ -25,7 +45,7 @@ class Command(BaseCommand):
 
         new_owners = 0
 
-        for profile in tqdm(UserProfile.objects.all(), "Users"):
+        for profile in tqdm(UserProfile.objects.all(), "User gradebooks"):
             staff_id = profile.sis_id
             gradebook_ids = IlluminateSync\
                 .get_source_related_gradebooks_for_staff_id(staff_id)
@@ -37,17 +57,11 @@ class Command(BaseCommand):
                     clarify_gradebook.owners.add(profile)
                     new_owners += 1
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Done, new m2ms for Gradebook-UserProfile: {new_owners}"))
-
         new_email_saves = 0
 
-        for user in tqdm(User.objects.all(),
+        for user in tqdm(User.objects.filter(email__isnull=True).all(),
                           desc="User email updating"):
             if not user.email:
                 user.email = user.username
                 user.save()
                 new_email_saves += 1
-
-        self.stdout.write(self.style.SUCCESS(
-            f"Done, new emails saved: {new_email_saves}"))
