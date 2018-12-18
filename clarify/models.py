@@ -13,14 +13,14 @@ Abstract Base Models
 
 
 class CleverIDMixin (models.Model):
-    clever_id = models.CharField(max_length=50, unique=True, null=True)
+    clever_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
 
     class Meta:
         abstract = True
 
 
 class SISMixin(models.Model):
-    sis_id = models.BigIntegerField(null=True, unique=True)
+    sis_id = models.BigIntegerField(null=True, unique=True, blank=True)
 
     class Meta:
         abstract = True

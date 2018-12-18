@@ -9,7 +9,7 @@ from .models import UserProfile, Student, Term, Site
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    search_fields = ['user__username', 'user__first_name', 'user__last_name']
+    search_fields = ['user__username', 'user__first_name', 'user__last_name', 'user__email']
     list_display = ('user', 'prefix')
 
 @admin.register(Student)

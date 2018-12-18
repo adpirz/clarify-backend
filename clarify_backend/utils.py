@@ -163,14 +163,14 @@ def word_hash(length=4):
     return species + words
 
 
-def build_reset_email(request, profile: UserProfile):
-    to_email = UserProfile.user.email if not settings.RESET_DEBUG_EMAIL\
+def build_reset_email(request, profile):
+    to_email = profile.user.email if not settings.RESET_DEBUG_EMAIL\
         else settings.RESET_DEBUG_EMAIL
     if not profile.reset_token:
         raise AttributeError("No reset token found")
     name = profile.get_full_name()
     reset_token = profile.reset_token
-    domain = request.META['HTTP_HOST']
+    domain = settings.APP_DOMAIN
     protocol = 'https' if request.is_secure() else 'http'
 
     from_email = Email("noreply@clarify.school")

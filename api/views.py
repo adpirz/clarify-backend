@@ -475,7 +475,7 @@ def PasswordResetView(request):
             return JsonResponse({'error': 'could not create token'},
                                 status=400)
 
-        mail = build_reset_email(request, profile, debug=settings.DEBUG)
+        mail = build_reset_email(request, profile)
         response = sg.client.mail.send.post(request_body=mail.get())
 
         status_code = response.status_code

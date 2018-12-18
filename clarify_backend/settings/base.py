@@ -39,6 +39,9 @@ DJANGO_APPS = [
     'django.contrib.staticfiles',
 ]
 
+APP_DOMAIN = 'app.clarify.com'
+API_DOMAIN = 'api.clarify.com'
+
 THIRD_PARTY_APPS = [
     'corsheaders',
     'django_extensions',
