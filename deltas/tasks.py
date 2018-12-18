@@ -25,50 +25,10 @@ def get_missing_for_gradebook(gradebook_id):
             .values('student_id', 'gradebook_id', 'assignment_id'))
 
 
-def calculate_class_average_for_category(
-        category_id, score: Score = None, datetime: datetime = None):
-    """Calculate class average, optionally up until a certain date or score"""
-
-    end_date = None
-
-    if datetime:
-        end_date = datetime.date()
-    elif score:
-        end_date = score.last_updated.date()
-
-    arg_filters = []
-    kwarg_filters = {
-        "assignment__category_id": category_id,
-    }
-
-    if end_date:
-        kwarg_filters["last_updated__date__lte"] = end_date
-        arg_filters += [Q(assignment__due_date__lte=end_date) |
-                        Q(assignment__due_date__isnull=True)]
-
-    return {**(
-        Score.objects
-            .filter(*arg_filters, **kwarg_filters)
-            .exclude(is_excused=True,
-                     points__isnull=True)
-            .values('student_id')
-            .annotate(
-                total_points=Sum('points'),
-                total_possible_points=Sum('assignment__possible_points'),
-                latest=Max(F('last_updated'))
-            )
-            .aggregate(
-                total_points_possible=Max(F('total_possible_points')),
-                average_points_earned=Avg(F('total_points')),
-                date=Max(F('latest'))
-            )
-            ), **{'category_id': category_id}}
-
-
 def calculate_category_scores_until_date_or_score(
         student_id_or_ids=None, category_id_or_ids=None,
-        date: datetime = None, score: ScoreCache = None,
-        **extra_score_cache_filters):
+        date: datetime = None, score: Score = None,
+        **extra_score_filters):
     """Returns the category scores for each"""
     if not student_id_or_ids and not category_id_or_ids:
         raise ValueError("Need either student_ids or category_ids.")
@@ -76,7 +36,7 @@ def calculate_category_scores_until_date_or_score(
     if not date and not score:
         end_date = timezone.now().date()
     else:
-        end_date = date if date else score.last_updated
+        end_date = date if date else score.assignment.due_date
 
     if isinstance(student_id_or_ids, int):
         student_filter = {"student_id": student_id_or_ids}
@@ -103,36 +63,39 @@ def calculate_category_scores_until_date_or_score(
     else:
         values_list = []
 
-    return (
-        Score.objects
-            .filter(**{
+    result = (Score.objects
+                .filter(**{
                 **student_filter,
                 **category_filter,
-                **extra_score_cache_filters
+                **extra_score_filters
             })
             .filter(
                 Q(assignment__due_date__lte=end_date) |
                 Q(assignment__due_date__isnull=True),
                 assignment__is_active=True,
-                last_updated__lte=end_date)
+                assignment__due_date__lte=end_date,
+                is_excused=False)
+            .annotate(category_id=F('assignment__category_id'))
             .prefetch_related('assignment__category')
-            .values(*values_list,
-                    category_id=F('assignment__category_id'),
-                    category_name=F('assignment__category__name'))
+            .values(*(values_list + ['category_id']))
             .annotate(
                 assignment_count=Count('assignment_id', distinct=True),
+                score_count=Count('*'),
+                average=Avg('percentage'),
                 points_earned=Sum('points'),
-                possible_points=Sum(Case(When(points__isnull=True, then=0),
+                possible_points=Sum(Case(When(points__isnull=True, then=None),
                                     default=F('assignment__possible_points')),
                                     output_field=FloatField()),
                 excused_count=Sum(Case(When(is_excused=True, then=1), default=0),
                                   output_field=IntegerField()),
                 missing_count=Sum(Case(When(is_missing=True, then=1), default=0),
-                                  output_field=IntegerField())
+                                  output_field=IntegerField()),
+                latest_due_date=Max('assignment__due_date')
             )
-            .order_by(*(values_list + ['category_id'])
         )
-    )
+    if not result:
+        import pdb; pdb.set_trace()
+    return result
 
 
 def get_scores_until_date_for_student(student_id, gradebook_id, date):
@@ -226,8 +189,8 @@ def build_deltas_for_student_and_category(student_id, category_id):
         .filter(type="category",
                 student_id=student_id,
                 score__assignment__category_id=category_id)
-        .prefetch_related('score')
-        .order_by('-updated_on')
+        .prefetch_related('score', 'score__assignment')
+        .order_by('-score__assignment__due_date')
         .annotate(score_created=F('score__last_updated'))
         .first()
     )
@@ -238,30 +201,35 @@ def build_deltas_for_student_and_category(student_id, category_id):
     }
 
     if latest_delta:
-        scores_filter["last_updated__gt"] = latest_delta.score_created
+        scores_filter["assignment__due_date__gte"] = (
+            latest_delta.score.assignment.due_date
+        )
 
     scores_list = (
         Score.objects
         .filter(**scores_filter)
-        .exclude(is_excused=True)
-        .exclude(points__isnull=True,
-                 assignment__possible_points__isnull=True)
+        .exclude(Q(is_excused=True) |
+                 Q(assignment__possible_points__isnull=True) |
+                 Q(assignment__is_active=False) |
+                 Q(delta__isnull=False))
         .order_by('assignment__due_date')
         .prefetch_related('assignment', 'delta_set')
         .all()
     )
 
     if latest_delta:
-        running_total = \
-                calculate_category_scores_until_date_or_score(
-                    student_id, category_id, latest_delta.score_created)
-        if not running_total:
+        try:
+            up_to_date = \
+                    calculate_category_scores_until_date_or_score(
+                        student_id, category_id, score=latest_delta.score)[0]
             running_total = {
-                'points_earned': 0.0,
-                'possible_points': 0.0
+                'points_earned': up_to_date["points_earned"],
+                'possible_points': up_to_date["possible_points"]
             }
-        else:
-            running_total = running_total[0]
+        except IndexError as e:
+            import pdb; pdb.set_trace()
+            raise e
+
     else:
         running_total = {
             'points_earned': 0.0,
@@ -291,27 +259,37 @@ def build_deltas_for_student_and_category(student_id, category_id):
 
         if running_total["possible_points"] == 0 or \
            delta_threshold_test(score, running_total):
-            try:
-                category_context = (
-                    CategoryGradeContextRecord.objects
-                    .get(
-                        date=score.last_updated.date(),
-                        category_id=category_id
-                    )
-                )
+            category_context = (
+                CategoryGradeContextRecord.objects
+                .filter(
+                    date=score.assignment.due_date,
+                    category_id=category_id
+                ).first()
+            )
 
-            except CategoryGradeContextRecord.DoesNotExist:
-                data = calculate_class_average_for_category(
-                    category_id, score)
-                data["category_id"] = category_id
+            if not category_context:
+
+                data = calculate_category_scores_until_date_or_score(
+                    category_id_or_ids=category_id, score=score)[0]
+                total_points_possible = (
+                        data["possible_points"] / data["score_count"])
+                average_points_earned = (
+                        data["points_earned"] / data["score_count"])
+                date = data["latest_due_date"]
+
                 try:
                     category_context = (
-                        CategoryGradeContextRecord.objects.create(**data)
+                        CategoryGradeContextRecord.objects.get_or_create(
+                            total_points_possible=total_points_possible,
+                            average_points_earned=average_points_earned,
+                            category_id=category_id,
+                            date=date
+                        )[0]
                     )
-                except IntegrityError:
+                except Exception as e:
                     pprint(data)
-                    import pdb; pdb.set_trace()
-                    continue
+                    raise e
+
             try:
                 category_average_before = 0 if possible_points == 0 \
                     else points_earned / possible_points
@@ -322,9 +300,10 @@ def build_deltas_for_student_and_category(student_id, category_id):
 
                 category_average_after = after_earned / after_possible
 
-            except TypeError:
+            except TypeError as e:
                 import pdb
                 pdb.set_trace()
+                raise e
 
             # TODO: speed up 'score' queries by returning only needed vals
             Delta.objects.create(
@@ -350,7 +329,10 @@ def build_deltas_for_student_and_category(student_id, category_id):
 def build_deltas_for_category(category_id):
     student_ids = (
         Score.objects
-        .filter(assignment__category_id=category_id)
+        .filter(
+            assignment__category_id=category_id,
+            assignment__is_active=True
+        )
         .distinct('student_id')
         .values_list('student_id', flat=True)
     )
