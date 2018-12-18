@@ -115,23 +115,29 @@ def manually_roster_with_file(source_file, **kwargs):
         # Every line in the file should be of the form first_name last_name class_name, with
         # class_name optional
         for line in open_file:
-            student_array = line.strip().split()
+            student_array = line.strip().split(b',')
             new_student = {
                 'first_name': student_array[0],
                 'last_name': student_array[1],
             }
             try:
                 next_section_name = student_array[2]
-                new_student.section_name = next_section_name
-                if next_section_name not in section_name:
+                new_student['section_name'] = next_section_name
+                if next_section_name not in section_names:
                     section_names.append(next_section_name)
             except IndexError:
                 new_student['section_name'] = default_section_name
+            try:
+                student_sis_id = student_array[3]
+                new_student['sis_id'] = student_sis_id
+            except IndexError:
+                pass
             student_list.append(new_student)
         for student in student_list:
             new_student = Student.objects.create(
                             first_name=student.get('first_name'),
-                            last_name=student.get('last_name'))
+                            last_name=student.get('last_name'),
+                            sis_id=student.get('sis_id'))
             students_section = [section for section in created_sections if section.name == student.get('section_name')]
             if not len(students_section):
                 new_section = Section.objects.create(
