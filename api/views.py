@@ -449,7 +449,7 @@ def ActionView(request, requesting_user_profile, action_id=None):
             {'data': _shape(action)},
             status=200)
 
-
+@csrf_exempt
 @require_methods('POST')
 def PasswordResetView(request):
     parsed_post = loads(request.body)

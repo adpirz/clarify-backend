@@ -93,7 +93,8 @@ def manually_roster_with_file(source_file, **kwargs):
     new_user = User.objects.create(
                 username=kwargs['username'],
                 first_name=kwargs['first_name'],
-                last_name=kwargs['last_name'])
+                last_name=kwargs['last_name'],
+                email=kwargs['username'])
     new_user.set_password(kwargs['temporary_password'])
     new_user.save()
 
