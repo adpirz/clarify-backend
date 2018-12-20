@@ -98,10 +98,12 @@ def SessionView(request):
         response = {
             'data': {
                 'id': user.id,
+                'user_profile_id': user.userprofile.id,
                 'username': user.username,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'email': user.email
+                'email': user.email,
+                'sis_enabled': bool(user.userprofile.sis_id),
             }
         }
         if user.userprofile:
