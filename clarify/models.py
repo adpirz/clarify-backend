@@ -65,9 +65,9 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
     prefix = models.CharField(max_length=3,
                               choices=PREFIX_CHOICES,
                               blank=True)
-    clever_token = models.CharField(max_length=300, null=True)
-    reset_token = models.CharField(max_length=128, null=True, unique=True)
-    reset_token_expiry = models.DateTimeField(null=True)
+    clever_token = models.CharField(max_length=300, null=True, blank=True)
+    reset_token = models.CharField(max_length=128, null=True, unique=True, blank=True)
+    reset_token_expiry = models.DateTimeField(null=True, blank=True)
 
     def get_full_name(self):
         if len(self.user.first_name) and len(self.user.last_name):
