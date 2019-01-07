@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import login
 from django.contrib import messages
 
-from .models import UserProfile, Student, Term, Site
+from .models import UserProfile, Student, Term, Site, Section
 # Register your models here.
 
 
@@ -16,6 +16,10 @@ class UserProfileAdmin(admin.ModelAdmin):
 class StudentAdmin(admin.ModelAdmin):
     search_fields = ['first_name', 'last_name']
     list_display = ('first_name', 'last_name')
+
+@admin.register(Section)
+class SectionAdmin(admin.ModelAdmin):
+    pass
 
 @admin.register(Term)
 class TermAdmin(admin.ModelAdmin):

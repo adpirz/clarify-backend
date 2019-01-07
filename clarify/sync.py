@@ -1,9 +1,16 @@
 import re
 import requests
+from httplib2 import Http
+from tqdm import tqdm
+
 from django.contrib.auth.models import User
 from django.db.models import Model
 from django.db.utils import IntegrityError
-from tqdm import tqdm
+
+from googleapiclient.discovery import build
+from oauth2client import client
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from clarify.models import (
     Student,
@@ -68,9 +75,11 @@ class Sync:
         """
         Create Staff and User if doesn't exist for given source_id
         :param source_id: String; name of source field on Staff
-        :param model_kwargs: Dict of user + staff properties
         :return:
         """
+        if not source_id:
+            raise AttributeError("source_id is required")
+
         id_field = self.source_id_field
         if not (UserProfile.objects
                 .filter(**{id_field: source_id})
@@ -85,11 +94,10 @@ class Sync:
                 username=username, email=email,
                 first_name=first_name, last_name=last_name
             )
-            # We don't want passwords blank or folks can sign in willy nilly, plus the admin form
-            # comlains when we save Users without passworsd.
+            # The admin form complains when we save Users without password
             user.set_password(User.objects.make_random_password())
 
-            name = model_kwargs.get("name", "")
+            name = model_kwargs.get("name", first_name + " " + last_name)
             prefix = model_kwargs.get("prefix", "")
 
             # match signature of Model.objects.get_or_create:
@@ -610,8 +618,110 @@ class CleverSync(Sync):
             self.log(f"ENROLLMENTS NEW: {enr_new}, ENROLLMENTS ERR: {enr_err}")
 
 
+class GoogleClassroomSync(Sync):
+    model_args_map = {
+        Site: (['google_id', 'name'],),
+        Term: (['google_id', 'name', 'academic_year', 'start_date', 'end_date'],
+               ['google_site_id']),
+        Section: (['google_id', 'name', 'course_name'],
+                  ['google_term_id']),
+        Student: (['google_id', 'first_name', 'last_name'],),
+        EnrollmentRecord: (['start_date', 'end_date'],
+                           ['google_student_id', 'google_section_id'])
+    }
+
+    source_id_field = 'google_id'
+
+    def __init__(self, token=None):
+        Sync.__init__(self)
+
+        credentials = client.AccessTokenCredentials(token, 'clarify-google')
+        authorized_http = credentials.authorize(Http())
+        classroom_client = build('classroom', 'v1', http=authorized_http)
+
+        self.staff_id = None
+        self.user_profile = None
+        self.client = classroom_client
+
+        self.sections = {}
+
+    def get_source_related_staff_for_staff_id(self, source_id=None):
+        if not self.user_profile:
+            google_profile = self.client.userProfiles().get(**{"userId": 'me'}).execute()
+            user_name = google_profile.get('name')
+            self.user_profile = {
+                'first_name': user_name.get('givenName'),
+                'last_name': user_name.get('familyName'),
+                'email': google_profile.get('emailAddress'),
+                'username': google_profile.get('emailAddress'),
+                'google_id': google_profile.get('id'),
+            }
+            self.staff_id = google_profile.get('id')
+            return self.user_profile
+        return self.user_profile
 
 
+    def create_sections_for_staff(self, user_profile):
+        sections_data = self.client.courses().list().execute().get('courses')
 
+        new_sections = []
+        for section in sections_data:
+            google_id = section.get("id")
+            name = section.get("name", "")
+            try:
+                new_section = (Section.objects.create(
+                    name=name,
+                    course_name=name,
+                    google_id=google_id
+                ))
+                StaffSectionRecord.objects.get_or_create(
+                    user_profile=user_profile,
+                    section=new_section,
+                    active=True
+                )
+                new_sections.append(new_section)
+            except:
+                # The object probably already exists from a previous sync.
+                pass
 
+        self.sections = new_sections
 
+    def create_students_for_staff(self, user_profile):
+        students_data = {}
+
+        for section in self.sections:
+            section_students_data = self.client.courses().students().list(**{'courseId': section.google_id}).execute().get('students')
+
+            new_section_students = []
+            for student in section_students_data:
+                google_id = student.get("userId")
+                name = student.get('profile').get('name')
+                first_name = name.get('givenName')
+                last_name = name.get('familyName')
+                try:
+                    new_student = Student.objects.create(
+                        first_name=first_name,
+                        last_name=last_name,
+                        google_id=google_id
+                    )
+                    new_section_students.append(new_student)
+                except:
+                    # The object probably already exists from a previous sync.
+                    pass
+
+            for student in new_section_students:
+                EnrollmentRecord.objects.create(
+                    student=student,
+                    section=section
+                )
+
+    def create_all_for_staff_from_source(self):
+
+        new, errors = 0, 0
+        source_user_profile = self.get_source_related_staff_for_staff_id()
+        user_profile, created = self.get_or_create_staff(source_user_profile.get('google_id'))
+
+        self.create_sections_for_staff(user_profile)
+        self.create_students_for_staff(user_profile)
+
+        return user_profile

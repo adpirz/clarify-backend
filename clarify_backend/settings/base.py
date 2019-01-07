@@ -132,6 +132,7 @@ SILENCED_SYSTEM_CHECKS = ['fields.W342']
 
 # Google auth
 GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', default=None)
+GOOGLE_CLIENT_SECRET = env('GOOGLE_CLIENT_SECRET', default=None)
 
 # Clever
 CLEVER_CLIENT_ID = env('CLEVER_CLIENT_ID', default=None)
