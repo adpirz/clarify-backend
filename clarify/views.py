@@ -134,8 +134,12 @@ def GoogleTokenView(request):
 
     google_sync = GoogleClassroomSync(google_access_token)
     new_user_profile = google_sync.create_all_for_staff_from_source()
+    # For some reason that boggles my mind looking up this user a-new allows the login/session state
+    # to persist when the client subsequently calls for user info. Just using the new_user_profile
+    # that's returned above does not 🤷🏻‍.
+    new_user = UserProfile.objects.filter(google_id=new_user_profile.google_id).first().user
 
-    login(request, new_user_profile.user)
+    login(request, new_user)
 
     try:
         GoogleAuth.objects.create(
