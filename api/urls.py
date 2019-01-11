@@ -8,7 +8,7 @@ from .views import (
     StudentView, SectionView, SessionView,
     UserView, ActionView, DeltaView, PasswordResetView)
 
-from clarify.views import CleverTokenView
+from clarify.views import CleverTokenView, GoogleTokenView
 
 urlpatterns = [
     url(r'^user/me/$', UserView),
@@ -20,5 +20,6 @@ urlpatterns = [
     url(r'^delta/student/([0-9]+)/$', DeltaView),
     url(r'^action/$', ActionView),
     url(r'^action/([0-9]+)/$', ActionView),
-    url(r'^clever/$', CleverTokenView)
+    url(r'^clever-sync/$', CleverTokenView),
+    url(r'^google-classroom-sync/$', GoogleTokenView),
 ]

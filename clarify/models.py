@@ -19,6 +19,13 @@ class CleverIDMixin (models.Model):
         abstract = True
 
 
+class GoogleIDMixin (models.Model):
+    google_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
+
+    class Meta:
+        abstract = True
+
+
 class SISMixin(models.Model):
     sis_id = models.BigIntegerField(null=True, unique=True, blank=True)
 
@@ -53,7 +60,7 @@ Concrete Models
 """
 
 # This is akin to a Staff or Teacher object in Clever and SISs.
-class UserProfile(NameInterface, SISMixin, CleverIDMixin):
+class UserProfile(NameInterface, SISMixin, CleverIDMixin, GoogleIDMixin):
     PREFIX_CHOICES = (
         ('MR', 'Mr.'),
         ('MS', 'Ms.'),
@@ -65,9 +72,8 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
     prefix = models.CharField(max_length=3,
                               choices=PREFIX_CHOICES,
                               blank=True)
-    clever_token = models.CharField(max_length=300, null=True, blank=True)
-    reset_token = models.CharField(max_length=128, null=True, unique=True, blank=True)
-    reset_token_expiry = models.DateTimeField(null=True, blank=True)
+    google_code = models.ForeignKey('GoogleAuth', null=True, blank=True)
+    clever_code = models.ForeignKey('CleverAuth', null=True, blank=True)
 
     def get_full_name(self):
         if len(self.user.first_name) and len(self.user.last_name):
@@ -121,14 +127,24 @@ class UserProfile(NameInterface, SISMixin, CleverIDMixin):
         return reset_token, True
 
 
-class CleverCode(models.Model):
+class CleverAuth(models.Model):
     code = models.CharField(max_length=250, unique=True)
     user_profile = models.ForeignKey(UserProfile, null=True)
+    clever_token = models.CharField(max_length=300, null=True, blank=True)
+    reset_token = models.CharField(max_length=128, null=True, unique=True, blank=True)
+    reset_token_expiry = models.DateTimeField(null=True, blank=True)
 
 
-class Student(NameInterface, CleverIDMixin, SISMixin):
-    first_name = models.CharField(max_length=200, blank=True)
-    last_name = models.CharField(max_length=200, blank=True)
+class GoogleAuth(models.Model):
+    google_token = models.CharField(max_length=250, unique=True)
+    id_token = models.CharField(max_length=250, unique=True, null=True, blank=True)
+    user_profile = models.ForeignKey(UserProfile, null=True, blank=True)
+
+
+class Student(NameInterface, CleverIDMixin, SISMixin, GoogleIDMixin):
+    first_name = models.CharField(max_length=200, blank=True, null=True)
+    last_name = models.CharField(max_length=200, blank=True, null=True)
+    email = models.CharField(max_length=200, blank=True, null=True)
 
     def get_full_name(self):
         if len(self.first_name) and len(self.last_name):
@@ -143,7 +159,7 @@ class Student(NameInterface, CleverIDMixin, SISMixin):
         raise AttributeError("No name provided.")
 
     def get_first_name(self):
-        return self.FIRST_NAME
+        return self.first_name
 
     def get_last_name(self):
         return self.last_name
@@ -181,10 +197,13 @@ class Term(BaseNameModel):
         return f"{self.site}: {self.academic_year}"
 
 
-class Section(BaseNameModel):
+class Section(BaseNameModel, GoogleIDMixin):
 
     course_name = models.CharField(max_length=255, blank=True, null=True)
     term = models.ForeignKey(Term, null=True)
+
+    def __str__(self):
+        return self.course_name
 
 
 class SectionGradeLevels(models.Model):

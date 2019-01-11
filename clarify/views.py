@@ -2,20 +2,20 @@ import requests
 import json
 import base64
 import urllib
+from pprint import pprint
+from requests import HTTPError
+
 from django.contrib.auth import login
 from django.db import IntegrityError
-
 from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
-from pprint import pprint
-from requests import HTTPError
 
-from clarify.models import CleverCode, UserProfile, Student, Section, \
-    EnrollmentRecord, SectionGradeLevels
-from clarify.sync import CleverSync
+from clarify.models import CleverAuth, GoogleAuth, UserProfile, Student, \
+    Section, EnrollmentRecord, SectionGradeLevels
+from clarify.sync import CleverSync, GoogleClassroomSync
 from decorators import require_methods, requires_user_profile
 from django import forms
 from clarify_backend.utils import manually_roster_with_file
@@ -23,6 +23,12 @@ from clarify_backend.utils import manually_roster_with_file
 CLEVER_CLIENT_ID = settings.CLEVER_CLIENT_ID
 CLEVER_CLIENT_SECRET = settings.CLEVER_CLIENT_SECRET
 CLEVER_REDIRECT_URL = settings.CLEVER_REDIRECT_URL
+
+
+GOOGLE_SCOPES = [
+    'https://www.googleapis.com/auth/classroom.courses.readonly',
+    'https://www.googleapis.com/auth/classroom.rosters.readonly'
+]
 
 
 class UploadFileForm(forms.Form):
@@ -51,12 +57,13 @@ def handleManualRosterUpload(request):
     else:
         return render(request, 'manual_upload.html', {'form': UploadFileForm})
 
+
 @csrf_exempt
 @require_methods('POST')
 def CleverTokenView(request):
     data = json.loads(request.body)
     code = data["code"]
-    clever_code = CleverCode.objects.filter(code=code)
+    clever_code = CleverAuth.objects.filter(code=code)
 
     if clever_code.exists():
         user = clever_code.first().user.user
@@ -97,25 +104,52 @@ def CleverTokenView(request):
 
     # ---- END DELETE -------
 
-
     user_profile = UserProfile.objects.filter(clever_id=clever_id).first()
-
-    user_profile.clever_token = bearer_token
-    user_profile.save()
-
     login(request, user_profile.user)
 
     try:
-        CleverCode.objects.create(
+        CleverAuth.objects.create(
             code=code,
-            user_profile=user_profile
+            user_profile=user_profile,
+            clever_token=bearer_token
         )
     except IntegrityError:
-        clever_code = CleverCode.objects.get(
+        clever_code = CleverAuth.objects.get(
             code=code
         )
         clever_code.user = u
         clever_code.save()
+
+    return JsonResponse({
+        "data": "success"
+    }, status=201)
+
+
+@csrf_exempt
+@require_methods('POST')
+def GoogleTokenView(request):
+    data = json.loads(request.body)
+    google_access_token = data["google_access_token"]
+    google_id_token = data["google_id_token"]
+
+    google_sync = GoogleClassroomSync(google_access_token)
+    new_user_profile = google_sync.create_all_for_staff_from_source()
+    # For some reason that boggles my mind looking up this user a-new allows the login/session state
+    # to persist when the client subsequently calls for user info. Just using the new_user_profile
+    # that's returned above does not 🤷🏻‍.
+    new_user = UserProfile.objects.filter(google_id=new_user_profile.google_id).first().user
+
+    login(request, new_user)
+
+    try:
+        GoogleAuth.objects.create(
+            user_profile=new_user_profile,
+            google_token=google_access_token,
+            id_token=google_id_token,
+        )
+    except:
+        # Probs already created
+        pass
 
     return JsonResponse({
         "data": "success"
