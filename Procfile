@@ -1,1 +1,1 @@
-web: gunicorn clarify_backend.wsgi
+web: bin/qgtunnel gunicorn clarify_backend.wsgi
