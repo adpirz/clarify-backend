@@ -98,7 +98,7 @@ WSGI_APPLICATION = 'clarify_backend.wsgi.application'
 DATABASES = {
     'default': env.db('DATABASE_URL', default="postgres:///clarify"),
     'cache': {
-        'NAME': 'clarifycache',
+        'NAME': env('CACHE_NAME', default='clarifycache'),
         'ENGINE': 'django.db.backends.postgresql',
         'USER': env('CACHE_USER', default='postgres'),
         'PASSWORD': env('CACHE_PASSWORD', default=None),
