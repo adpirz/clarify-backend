@@ -110,6 +110,10 @@ DATABASES = {
 
 DATABASE_ROUTERS = ['sis_mirror.routers.MirrorRouter']
 
+# Include schema in sis_mirror models db_table reference
+# db_table references will be <schema>.<table> (except for 'public' schema)
+SIS_MIRROR_WITH_SCHEMA = env.bool('SIS_MIRROR_WITH_SCHEMA', default=False)
+
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
 
