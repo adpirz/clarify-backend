@@ -100,6 +100,10 @@ DATABASES = {
     'cache': {
         'NAME': 'clarifycache',
         'ENGINE': 'django.db.backends.postgresql',
+        'USER': env('CACHE_USER', default='postgres'),
+        'PASSWORD': env('CACHE_PASSWORD', default=None),
+        'HOST': env('CACHE_HOST', default=None),
+        'PORT': env('CACHE_PORT', default=5432)
     }
 
 }
