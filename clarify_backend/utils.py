@@ -22,7 +22,7 @@ def try_bulk_or_skip_errors(model, instance_list):
     new, errors = 0, 0
 
     try:
-        model.objects.bulk_create(instance_list)
+        model.objects.bulk_create(instance_list, batch_size=5000)
         new = len(instance_list)
     except IntegrityError:
         for instance in instance_list:

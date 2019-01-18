@@ -98,13 +98,21 @@ WSGI_APPLICATION = 'clarify_backend.wsgi.application'
 DATABASES = {
     'default': env.db('DATABASE_URL', default="postgres:///clarify"),
     'cache': {
-        'NAME': 'clarifycache',
+        'NAME': env('CACHE_NAME', default='clarifycache'),
         'ENGINE': 'django.db.backends.postgresql',
+        'USER': env('CACHE_USER', default='postgres'),
+        'PASSWORD': env('CACHE_PASSWORD', default=None),
+        'HOST': env('CACHE_HOST', default=None),
+        'PORT': env('CACHE_PORT', default=5432)
     }
 
 }
 
 DATABASE_ROUTERS = ['sis_mirror.routers.MirrorRouter']
+
+# Include schema in sis_mirror models db_table reference
+# db_table references will be <schema>.<table> (except for 'public' schema)
+SIS_MIRROR_WITH_SCHEMA = env.bool('SIS_MIRROR_WITH_SCHEMA', default=False)
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/

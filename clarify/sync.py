@@ -9,8 +9,6 @@ from django.db.utils import IntegrityError
 
 from googleapiclient.discovery import build
 from oauth2client import client
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
 
 from clarify.models import (
     Student,

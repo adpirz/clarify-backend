@@ -29,6 +29,20 @@ from __future__ import unicode_literals
 from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
+from django.conf import settings
+
+USE_SCHEMAS = settings.SIS_MIRROR_WITH_SCHEMA
+
+GRADEBOOK_SCHEMA = 'gradebook'
+ATTENDANCE_SCHEMA = 'attendance'
+MATVIEWS_SCHEMA = 'matviews'
+STANDARDS_SCHEMA = 'standards'
+
+
+def with_schema(schema, table):
+    if USE_SCHEMAS:
+        return f'"{schema}"."{table}"'
+    return table
 
 
 class Students(models.Model):
@@ -344,7 +358,7 @@ class AttendanceFlags(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'attendance_flags'
+        db_table = with_schema(ATTENDANCE_SCHEMA, 'attendance_flags')
 
 
 class Sections(models.Model):
@@ -398,7 +412,7 @@ class CategoryTypes(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'category_types'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'category_types')
 
 
 class Categories(models.Model):
@@ -414,7 +428,7 @@ class Categories(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'categories'
+        db_table = with_schema('gradebook', 'categories')
 
     @classmethod
     def get_current_categories_for_staff_id(cls, staff_id):
@@ -537,7 +551,7 @@ class Gradebooks(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'gradebooks'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'gradebooks')
 
 
 class DailyRecords(models.Model):
@@ -553,7 +567,7 @@ class DailyRecords(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'daily_records'
+        db_table = with_schema(ATTENDANCE_SCHEMA, 'daily_records')
 
 
 class GradeLevels(models.Model):
@@ -647,7 +661,7 @@ class GradebookSectionCourseAff(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'gradebook_section_course_aff'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'gradebook_section_course_aff')
 
 
 class OverallScoreCache(models.Model):
@@ -679,7 +693,7 @@ class OverallScoreCache(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'overall_score_cache'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'overall_score_cache')
 
 
 class Rooms(models.Model):
@@ -821,7 +835,7 @@ class Assignments(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'assignments'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'assignments')
 
     @classmethod
     def get_current_assignments_for_staff_id(cls, staff_id):
@@ -847,7 +861,7 @@ class AssignmentGscaAff(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'assignment_gsca_aff'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'assignment_gsca_aff')
 
 
 class Scores(models.Model):
@@ -871,7 +885,7 @@ class Scores(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'scores'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'scores')
 
 
 class ScoreCache(models.Model):
@@ -897,7 +911,7 @@ class ScoreCache(models.Model):
     def pull_query(cls):
         return (cls.objects
                 .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
-                .filter(assignment__assign_date__gte=timezone.datetime(2018,6,1))
+                .filter(assignment__assign_date__gte=timezone.datetime(2018,7,1))
                 .exclude(score__isnull=True)
                 .order_by('student_id', 'assignment_id', '-calculated_at')
                 .distinct('student_id', 'assignment_id')
@@ -933,7 +947,7 @@ class ScoreCache(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'score_cache'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'score_cache')
 
 
 class SectionTeacherAff(models.Model):
@@ -1030,7 +1044,7 @@ class SsCube(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'ss_cube'
+        db_table = with_schema(MATVIEWS_SCHEMA, 'ss_cube')
 
     @classmethod
     def get_current_students_for_staff_id(cls, staff_id):
@@ -1056,7 +1070,7 @@ class SsCurrent(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'ss_current'
+        db_table = with_schema(MATVIEWS_SCHEMA, 'ss_current')
 
 
 class Roles(models.Model):
@@ -1223,7 +1237,7 @@ class CategoryScoreCache(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'category_score_cache'
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'category_score_cache')
 
     @classmethod
     def pull_query(cls):
@@ -1256,7 +1270,7 @@ class Standards(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'standards'
+        db_table = with_schema(STANDARDS_SCHEMA, 'standards')
 
 
 class StandardsCache(models.Model):
@@ -1279,7 +1293,7 @@ class StandardsCache(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'standards_cache'
+        db_table = with_schema(STANDARDS_SCHEMA, 'standards_cache')
 
 
 class States(models.Model):
@@ -1292,7 +1306,7 @@ class States(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'states'
+        db_table = with_schema(STANDARDS_SCHEMA, 'states')
 
 
 class Subjects(models.Model):
@@ -1311,7 +1325,7 @@ class Subjects(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'subjects'
+        db_table = with_schema(STANDARDS_SCHEMA, 'subjects')
 
 
 class GradingPeriods(models.Model):
