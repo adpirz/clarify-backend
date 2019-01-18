@@ -203,7 +203,7 @@ class Section(BaseNameModel, GoogleIDMixin):
     term = models.ForeignKey(Term, null=True)
 
     def __str__(self):
-        return self.course_name
+        return self.course_name or self.name
 
 
 class SectionGradeLevels(models.Model):
