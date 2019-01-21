@@ -388,11 +388,12 @@ class Sections(models.Model):
 
     @staticmethod
     def get_current_sections_for_staff_id(staff_id):
-        return SectionTeacherAff.get_current_sections_for_staff_id(staff_id)
+        return SectionTeacherAffDates\
+            .get_current_sections_for_staff_id(staff_id)
 
     @staticmethod
     def get_current_staff_section_records_for_staff_id(staff_id):
-        return SectionTeacherAff\
+        return SectionTeacherAffDates\
             .get_current_staff_section_records_for_staff_id(staff_id)
 
 
@@ -592,18 +593,7 @@ class SectionStudentAff(models.Model):
                 )
 
 
-class SectionTeacherAff(models.Model):
-    sta_id = models.IntegerField(primary_key=True)
-    section = models.ForeignKey(Sections)
-    user = models.ForeignKey(Users)
-    primary_teacher = models.NullBooleanField()
-    start_date = models.DateField()
-    end_date = models.DateField(blank=True, null=True)
-    classroom_role_id = models.IntegerField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'section_teacher_aff'
+class TeacherSectionsMixin:
 
     @classmethod
     def get_current_sections_for_staff_id(cls, staff_id):
@@ -612,10 +602,10 @@ class SectionTeacherAff(models.Model):
         ])
 
         grading_period_start = grading_period_string + \
-            "__grading_period_start_date__lte"
+                               "__grading_period_start_date__lte"
 
         grading_period_end = grading_period_string + \
-            "__grading_period_end_date__gte"
+                             "__grading_period_end_date__gte"
 
         course_string = "__".join([
             "section",
@@ -639,37 +629,62 @@ class SectionTeacherAff(models.Model):
             "timeblock_name"
         ])
 
+        now = timezone.now()
+
         return (cls.objects
-                .filter(
-                    user_id=staff_id,
-                    start_date__lte=timezone.now())
-                .filter(
-                    Q(end_date__gte=timezone.now()) | Q(end_date__isnull=True))
-                .filter(**{
-                    grading_period_start: timezone.now(),
-                    grading_period_end: timezone.now()
-                })
-                .annotate(
-                    name=F('section__section_name'),
-                    course_name=F(course_short_name),
-                    period=F(timeblock_name),
-                    grade_level=F(grade_level_name),
-                    sis_id=F('section_id'),
-                    sis_user_id=F('user_id'),
-                    sis_term_id=F(grading_period_string + '__term_id')
-                )
-                .distinct('section_id', grade_level_name)
-                .values(
-                    'sis_id', 'name', 'course_name',
-                    'period', 'sis_user_id', 'grade_level', 'sis_term_id'
-                ))
+            .filter(
+                user_id=staff_id,
+                start_date__lte=now,
+                end_date__gte=now
+            )
+            .annotate(
+                name=F('section__section_name'),
+                course_name=F(course_short_name),
+                period=F(timeblock_name),
+                grade_level=F(grade_level_name),
+                sis_id=F('section_id'),
+                sis_user_id=F('user_id'),
+                sis_term_id=F(grading_period_string + '__term_id')
+            )
+            .distinct('section_id')
+            .values(
+            'sis_id', 'name', 'course_name',
+            'period', 'sis_user_id', 'grade_level', 'sis_term_id'
+        ))
 
     @classmethod
     def get_current_staff_section_records_for_staff_id(cls, staff_id):
         return (cls.get_current_sections_for_staff_id(staff_id)
-            .annotate(sis_section_id=F('section_id'))
-            .values('sis_user_id', 'sis_section_id', 'primary_teacher',
-                    'start_date', 'end_date'))
+                .annotate(sis_section_id=F('section_id'))
+                .values('sis_user_id', 'sis_section_id', 'primary_teacher',
+                        'start_date', 'end_date'))
+
+
+class SectionTeacherAff(TeacherSectionsMixin, models.Model):
+    sta_id = models.IntegerField(primary_key=True)
+    section = models.ForeignKey(Sections)
+    user = models.ForeignKey(Users)
+    primary_teacher = models.NullBooleanField()
+    start_date = models.DateField()
+    end_date = models.DateField(blank=True, null=True)
+    classroom_role_id = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'section_teacher_aff'
+
+
+class SectionTeacherAffDates(TeacherSectionsMixin, models.Model):
+    sta = models.ForeignKey(SectionTeacherAff, null=True)
+    section = models.ForeignKey(Sections, null=True)
+    user = models.ForeignKey(Users, null=True)
+    primary_teacher = models.NullBooleanField()
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'section_teacher_aff_dates'
 
 
 class ScheduleSectionTeacherAffDates(models.Model):
@@ -686,6 +701,65 @@ class ScheduleSectionTeacherAffDates(models.Model):
     class Meta:
         managed = False
         db_table = 'schedule_section_teacher_aff_dates'
+
+    @classmethod
+    def get_current_sections_for_staff_id(cls, staff_id):
+
+        grading_period_string = "__".join([
+            "section", "sectiongradingperiodaff", "grading_period"
+        ])
+
+        course_string = "__".join([
+            "section",
+            "gradebooksectioncourseaff",
+            "course",
+        ])
+
+        course_short_name = course_string + "__short_name"
+
+        grade_level_name = "__".join([
+            course_string,
+            "coursegradelevels",
+            "grade_level",
+            "short_name"
+        ])
+
+        timeblock_name = "__".join([
+            "section",
+            "sectiontimeblockaff",
+            "timeblock",
+            "timeblock_name"
+        ])
+
+        now = timezone.now()
+
+        return (cls.objects
+            .filter(
+                user_id=staff_id,
+                start_date__lte=now,
+                end_date__gte=now
+            )
+            .annotate(
+                name=F('section__section_name'),
+                course_name=F(course_short_name),
+                period=F(timeblock_name),
+                grade_level=F(grade_level_name),
+                sis_id=F('section_id'),
+                sis_user_id=F('user_id'),
+                sis_term_id=F(grading_period_string + '__term_id')
+        )
+            .distinct('section_id', grade_level_name)
+            .values(
+            'sis_id', 'name', 'course_name',
+            'period', 'sis_user_id', 'grade_level', 'sis_term_id'
+        ))
+
+    @classmethod
+    def get_current_staff_section_records_for_staff_id(cls, staff_id):
+        return (cls.get_current_sections_for_staff_id(staff_id)
+                .annotate(sis_section_id=F('section_id'))
+                .values('sis_user_id', 'sis_section_id', 'primary_teacher',
+                        'start_date', 'end_date'))
 
 
 class Roles(models.Model):
