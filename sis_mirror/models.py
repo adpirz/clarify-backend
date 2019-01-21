@@ -45,6 +45,9 @@ def with_schema(schema, table):
     return table
 
 
+# Schema: public
+
+
 class Students(models.Model):
     student_id = models.AutoField(primary_key=True)
     first_name = models.CharField(max_length=200, blank=True, null=True)
@@ -331,34 +334,22 @@ class Sites(models.Model):
         db_table = 'sites'
 
 
-class AttendanceFlags(models.Model):
-    attendance_flag_id = models.AutoField(primary_key=True)
-    character_code = models.CharField(max_length=30)
-    flag_text = models.CharField(max_length=255, blank=True, null=True)
-    precedence = models.IntegerField()
-    is_present = models.BooleanField()
-    is_excused = models.BooleanField()
-    display_code = models.CharField(max_length=100)
-    is_reconciled = models.BooleanField()
-    is_tardy = models.BooleanField()
-    trigger_truancy = models.BooleanField()
-    trigger_tardy = models.BooleanField()
-    trigger_irregular = models.BooleanField()
-    is_30min_tardy = models.BooleanField()
-    system_key = models.CharField(max_length=255, blank=True, null=True)
-    is_permissive = models.BooleanField()
-    is_truancy = models.BooleanField()
-    is_suspension = models.BooleanField()
-    is_verified = models.BooleanField()
-    attendance_flag_type_id = models.IntegerField()
-    attendance_program_set_id = models.IntegerField(blank=True, null=True)
-    is_apportioned = models.BooleanField()
-    apportionment = models.DecimalField(max_digits=4, decimal_places=3)
-    apportionment_secondary_flag_type_id = models.IntegerField()
+class GradeLevels(models.Model):
+    grade_level_id = models.IntegerField(primary_key=True)
+    sort_order = models.IntegerField()
+    short_name = models.CharField(max_length=255, blank=True, null=True)
+    long_name = models.CharField(max_length=255, blank=True, null=True)
+    standard_age = models.SmallIntegerField(blank=True, null=True)
+    state_id = models.CharField(max_length=455, blank=True, null=True)
+    system_sort_order = models.IntegerField(blank=True, null=True)
+    system_key = models.CharField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return self.long_name
 
     class Meta:
         managed = False
-        db_table = with_schema(ATTENDANCE_SCHEMA, 'attendance_flags')
+        db_table = 'grade_levels'
 
 
 class Sections(models.Model):
@@ -397,53 +388,13 @@ class Sections(models.Model):
 
     @staticmethod
     def get_current_sections_for_staff_id(staff_id):
-        return SectionTeacherAff.get_current_sections_for_staff_id(staff_id)
+        return SectionTeacherAffDates\
+            .get_current_sections_for_staff_id(staff_id)
 
     @staticmethod
     def get_current_staff_section_records_for_staff_id(staff_id):
-        return SectionTeacherAff\
+        return SectionTeacherAffDates\
             .get_current_staff_section_records_for_staff_id(staff_id)
-
-
-class CategoryTypes(models.Model):
-    category_type_id = models.IntegerField(primary_key=True)
-    category_type_name = models.CharField(max_length=255)
-    is_academic = models.BooleanField()
-
-    class Meta:
-        managed = False
-        db_table = with_schema(GRADEBOOK_SCHEMA, 'category_types')
-
-
-class Categories(models.Model):
-    category_id = models.IntegerField(primary_key=True)
-    category_name = models.CharField(max_length=255)
-    icon = models.CharField(max_length=255)
-    gradebook_id = models.IntegerField(blank=True, null=True)
-    weight = models.FloatField(blank=True, null=True)
-    category_type_id = models.IntegerField(blank=True, null=True)
-    session_id = models.IntegerField(blank=True, null=True)
-    max_pct = models.FloatField(blank=True, null=True)
-    drop_lowest_x_scores = models.IntegerField()
-
-    class Meta:
-        managed = False
-        db_table = with_schema('gradebook', 'categories')
-
-    @classmethod
-    def get_current_categories_for_staff_id(cls, staff_id):
-        gradebook_ids = (Gradebooks
-            .get_current_gradebooks_for_staff_id(staff_id)
-            .values('gradebook_id'))
-
-        return (cls.objects
-                .filter(gradebook_id__in=gradebook_ids)
-                .distinct('category_id')
-                .annotate(sis_id=F('category_id'),
-                          name=F('category_name'),
-                          sis_gradebook_id=F('gradebook_id'))
-                .values('sis_id', 'name', 'sis_gradebook_id')
-                )
 
 
 class Courses(models.Model):
@@ -522,178 +473,6 @@ class CourseGradeLevels(models.Model):
     class Meta:
         managed = False
         db_table = 'course_grade_levels'
-
-
-class Gradebooks(models.Model):
-    gradebook_id = models.IntegerField(primary_key=True)
-    created_on = models.DateTimeField()
-    created_by = models.ForeignKey(Users, db_column='created_by')
-    show_inactive_students = models.BooleanField()
-    auto_save_mins = models.IntegerField(blank=True, null=True)
-    gradebook_name = models.CharField(max_length=255, blank=True, null=True)
-    num_visible_assignments = models.IntegerField()
-    lock_published_gp = models.BooleanField()
-    parent_portal = models.BooleanField()
-    active = models.BooleanField()
-    version = models.IntegerField()
-    academic_year = models.IntegerField()
-    session_type_id = models.IntegerField()
-    is_deleted = models.BooleanField()
-
-    def __str__(self):
-        return self.gradebook_name or str(self.gradebook_id)
-
-    @staticmethod
-    def get_current_gradebooks_for_staff_id(staff_id):
-        """Convenience method"""
-        return GradebookSectionCourseAff\
-            .get_current_gradebooks_for_staff_id(staff_id)
-
-    class Meta:
-        managed = False
-        db_table = with_schema(GRADEBOOK_SCHEMA, 'gradebooks')
-
-
-class DailyRecords(models.Model):
-    attendance_flag = models.ForeignKey(AttendanceFlags,
-                                        db_column='attendance_flag_id')
-    student = models.ForeignKey(Students, primary_key=True)
-    site = models.ForeignKey(Sites, primary_key=True)
-    date = models.DateField(primary_key=True)
-
-    @classmethod
-    def pull_query(cls):
-        return cls.objects.filter(date__gte='2017-08-01')
-
-    class Meta:
-        managed = False
-        db_table = with_schema(ATTENDANCE_SCHEMA, 'daily_records')
-
-
-class GradeLevels(models.Model):
-    grade_level_id = models.IntegerField(primary_key=True)
-    sort_order = models.IntegerField()
-    short_name = models.CharField(max_length=255, blank=True, null=True)
-    long_name = models.CharField(max_length=255, blank=True, null=True)
-    standard_age = models.SmallIntegerField(blank=True, null=True)
-    state_id = models.CharField(max_length=455, blank=True, null=True)
-    system_sort_order = models.IntegerField(blank=True, null=True)
-    system_key = models.CharField(max_length=100, blank=True, null=True)
-
-    def __str__(self):
-        return self.long_name
-
-    class Meta:
-        managed = False
-        db_table = 'grade_levels'
-
-
-class GradebookSectionCourseAff(models.Model):
-    gsca_id = models.IntegerField(primary_key=True)
-    gradebook = models.ForeignKey(Gradebooks)
-    section = models.ForeignKey(Sections)
-    course = models.ForeignKey(Courses)
-    created = models.DateTimeField(blank=True, null=True)
-    modified = models.DateTimeField(blank=True, null=True)
-    user = models.ForeignKey(Users)
-
-    def __str__(self):
-        return f"{self.gradebook} - {self.section} - {self.course}"
-
-    @classmethod
-    def get_current_gradebooks_qs(cls):
-        gradebook_date_filter_string = "__".join([
-            "section",
-            "sectiongradingperiodaff",
-            "grading_period"
-        ])
-
-        gp_start_date = "__".join([
-            gradebook_date_filter_string, "grading_period_start_date", "lte"])
-        gp_end_date = "__".join([
-            gradebook_date_filter_string, "grading_period_end_date", "gte"])
-
-        now = timezone.now()
-
-        gsca_filter = {
-            gp_start_date: now,
-            gp_end_date: now,
-        }
-
-        return cls.objects.filter(**gsca_filter)
-
-    @classmethod
-    def get_current_gradebooks_for_staff_id(cls, staff_id):
-        teacher_filter_string = "__".join([
-            "section",
-            "sectionteacheraff",
-        ])
-
-        sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
-        sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
-        sta_end_date_null = "__".join(
-            [teacher_filter_string, "end_date", "isnull"])
-        sta_user = "__".join([teacher_filter_string, "user_id"])
-
-        now = timezone.now()
-
-        gsca_filter = {
-            sta_start_date: now,
-            sta_user: staff_id
-        }
-
-        return (
-            cls.get_current_gradebooks_qs()
-                .filter(**gsca_filter)
-                .filter(
-                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
-            )
-                .distinct('gradebook_id')
-                .annotate(
-                    name=F('gradebook__gradebook_name'),
-                    sis_id=F('gradebook_id'),
-                    sis_section_id=F('section_id'),
-                    sis_user_id=F('user_id')
-                )
-                .values('sis_id', 'name',
-                        'sis_user_id', 'sis_section_id')
-        )
-
-    class Meta:
-        managed = False
-        db_table = with_schema(GRADEBOOK_SCHEMA, 'gradebook_section_course_aff')
-
-
-class OverallScoreCache(models.Model):
-    cache_id = models.AutoField(primary_key=True)
-    student = models.ForeignKey(Students)
-    gradebook = models.ForeignKey(Gradebooks)
-    possible_points = models.FloatField(blank=True, null=True)
-    points_earned = models.FloatField(blank=True, null=True)
-    percentage = models.FloatField(blank=True, null=True)
-    mark = models.CharField(max_length=255, blank=True, null=True)
-    color = models.CharField(max_length=7, blank=True, null=True)
-    missing_count = models.IntegerField(blank=True, null=True)
-    assignment_count = models.IntegerField(blank=True, null=True)
-    zero_count = models.IntegerField(blank=True, null=True)
-    excused_count = models.IntegerField(blank=True, null=True)
-    timeframe_start_date = models.DateField()
-    timeframe_end_date = models.DateField()
-    calculated_at = models.DateTimeField()
-
-    @classmethod
-    def pull_query(cls):
-        return (cls.objects.filter(calculated_at__gte='2017-08-01')
-                .exclude(possible_points__isnull=True)
-                .order_by('gradebook_id', 'student_id', '-calculated_at')
-                .distinct('gradebook_id', 'student_id'))
-
-    def __str__(self):
-        return f"{self.student} grades for {self.gradebook}'"
-
-    class Meta:
-        managed = False
-        db_table = with_schema(GRADEBOOK_SCHEMA, 'overall_score_cache')
 
 
 class Rooms(models.Model):
@@ -814,154 +593,7 @@ class SectionStudentAff(models.Model):
                 )
 
 
-class Assignments(models.Model):
-    assignment_id = models.IntegerField(primary_key=True)
-    short_name = models.CharField(max_length=100)
-    long_name = models.CharField(max_length=255, blank=True, null=True)
-    assign_date = models.DateField()
-    due_date = models.DateField()
-    possible_points = models.FloatField(blank=True, null=True)
-    category = models.ForeignKey(Categories, blank=True, null=True)
-    is_active = models.BooleanField()
-    description = models.TextField(blank=True, null=True)
-    field_grading_period_id = models.IntegerField(db_column='_grading_period_id', blank=True, null=True)  # Field renamed because it started with '_'.
-    auto_score_type = models.IntegerField(blank=True, null=True)
-    auto_score_id = models.IntegerField(blank=True, null=True)
-    possible_score = models.FloatField(blank=True, null=True)
-    gradebook = models.ForeignKey(Gradebooks, blank=True, null=True)
-    last_modified_by = models.IntegerField(blank=True, null=True)
-    is_extra_credit = models.BooleanField()
-    tags = models.TextField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = with_schema(GRADEBOOK_SCHEMA, 'assignments')
-
-    @classmethod
-    def get_current_assignments_for_staff_id(cls, staff_id):
-        gradebook_ids = (Gradebooks
-                         .get_current_gradebooks_for_staff_id(staff_id)
-                         .values('gradebook_id'))
-
-        return (cls.objects
-                .filter(gradebook_id__in=gradebook_ids)
-                .annotate(sis_id=F('assignment_id'),
-                          name=F('short_name'),
-                          sis_gradebook_id=F('gradebook_id'),
-                          sis_category_id=F('category_id'))
-                .values('sis_id', 'name', 'due_date',
-                        'sis_gradebook_id', 'sis_category_id',
-                        'possible_points', 'is_active'))
-
-
-class AssignmentGscaAff(models.Model):
-    aga_id = models.IntegerField(primary_key=True)
-    assignment = models.ForeignKey(Assignments)
-    gsca = models.ForeignKey(GradebookSectionCourseAff)
-
-    class Meta:
-        managed = False
-        db_table = with_schema(GRADEBOOK_SCHEMA, 'assignment_gsca_aff')
-
-
-class Scores(models.Model):
-    score_id = models.IntegerField(primary_key=True)
-    field_ssa_id = models.IntegerField(db_column='_ssa_id', blank=True, null=True)  # Field renamed because it started with '_'.
-    assignment = models.ForeignKey(Assignments)
-    value = models.FloatField(blank=True, null=True)
-    gradebook = models.ForeignKey(Gradebooks)
-    is_excused = models.BooleanField()
-    notes = models.TextField(blank=True, null=True)
-    entry = models.CharField(max_length=255, blank=True, null=True)
-    is_valid = models.BooleanField()
-    created = models.DateTimeField(blank=True, null=True)
-    modified = models.DateTimeField(blank=True, null=True)
-    student = models.ForeignKey(Students)
-
-    def __str__(self):
-        return f"Student: {self.student_id}, " +\
-               f"Gradebook: {self.gradebook_id}, " +\
-               f"Assignment: {self.assignment_id}"
-
-    class Meta:
-        managed = False
-        db_table = with_schema(GRADEBOOK_SCHEMA, 'scores')
-
-
-class ScoreCache(models.Model):
-    cache_id = models.AutoField(primary_key=True)
-    student = models.ForeignKey(Students, blank=True, null=True)
-    gradebook = models.ForeignKey(Gradebooks, blank=True, null=True)
-    assignment = models.ForeignKey(Assignments, blank=True, null=True)
-    category = models.ForeignKey(Categories, blank=True, null=True)
-    is_excused = models.NullBooleanField()
-    is_missing = models.NullBooleanField()
-    points = models.FloatField(blank=True, null=True)
-    score = models.FloatField(blank=True, null=True)
-    percentage = models.FloatField(blank=True, null=True)
-    use_for_calc = models.NullBooleanField()
-    use_for_aggregate = models.NullBooleanField()
-    use_category_weights = models.NullBooleanField()
-    last_updated = models.DateTimeField(blank=True, null=True)
-    calculated_at = models.DateTimeField()
-    gs_id = models.IntegerField(blank=True, null=True)
-    eva_id = models.IntegerField(blank=True, null=True)
-
-    @classmethod
-    def pull_query(cls):
-        return (cls.objects
-                .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
-                .filter(assignment__assign_date__gte=timezone.datetime(2018,7,1))
-                .exclude(score__isnull=True)
-                .order_by('student_id', 'assignment_id', '-calculated_at')
-                .distinct('student_id', 'assignment_id')
-                .all())
-
-    @classmethod
-    def get_current_scores_for_staff_id(cls, staff_id):
-        gradebook_ids = (Gradebooks
-                         .get_current_gradebooks_for_staff_id(staff_id)
-                         .values('gradebook_id'))
-
-        return (cls.objects
-                .filter(gradebook_id__in=gradebook_ids)
-                .exclude(is_excused=False,
-                         points__isnull=True)
-                .annotate(sis_id=F('cache_id'),
-                          sis_student_id=F('student_id'),
-                          sis_assignment_id=F('assignment_id'),
-                          )
-                .values('sis_id', 'sis_student_id', 'sis_assignment_id',
-                        'score', 'points', 'is_missing', 'is_excused',
-                        'last_updated'))
-
-    def __str__(self):
-        return f"S:{self.student_id}, " \
-               f"C:{self.category_id}, " \
-               f"A:{self.assignment_id} | " \
-               f"pts:{self.points}, " \
-               f"scr:{self.score}, " \
-               f"%: {self.percentage} | " \
-               f"{'E' if self.is_excused else ''}" \
-               f"{'M' if self.is_excused else ''}"
-
-    class Meta:
-        managed = False
-        db_table = with_schema(GRADEBOOK_SCHEMA, 'score_cache')
-
-
-class SectionTeacherAff(models.Model):
-    sta_id = models.IntegerField(primary_key=True)
-    section = models.ForeignKey(Sections)
-    user = models.ForeignKey(Users)
-    primary_teacher = models.NullBooleanField()
-    start_date = models.DateField()
-    end_date = models.DateField(blank=True, null=True)
-    classroom_role_id = models.IntegerField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'section_teacher_aff'
+class TeacherSectionsMixin:
 
     @classmethod
     def get_current_sections_for_staff_id(cls, staff_id):
@@ -970,10 +602,10 @@ class SectionTeacherAff(models.Model):
         ])
 
         grading_period_start = grading_period_string + \
-            "__grading_period_start_date__lte"
+                               "__grading_period_start_date__lte"
 
         grading_period_end = grading_period_string + \
-            "__grading_period_end_date__gte"
+                             "__grading_period_end_date__gte"
 
         course_string = "__".join([
             "section",
@@ -997,80 +629,137 @@ class SectionTeacherAff(models.Model):
             "timeblock_name"
         ])
 
+        now = timezone.now()
+
         return (cls.objects
-                .filter(
-                    user_id=staff_id,
-                    start_date__lte=timezone.now())
-                .filter(
-                    Q(end_date__gte=timezone.now()) | Q(end_date__isnull=True))
-                .filter(**{
-                    grading_period_start: timezone.now(),
-                    grading_period_end: timezone.now()
-                })
-                .annotate(
-                    name=F('section__section_name'),
-                    course_name=F(course_short_name),
-                    period=F(timeblock_name),
-                    grade_level=F(grade_level_name),
-                    sis_id=F('section_id'),
-                    sis_user_id=F('user_id'),
-                    sis_term_id=F(grading_period_string + '__term_id')
-                )
-                .distinct('section_id', grade_level_name)
-                .values(
-                    'sis_id', 'name', 'course_name',
-                    'period', 'sis_user_id', 'grade_level', 'sis_term_id'
-                ))
+            .filter(
+                user_id=staff_id,
+                start_date__lte=now,
+                end_date__gte=now
+            )
+            .annotate(
+                name=F('section__section_name'),
+                course_name=F(course_short_name),
+                period=F(timeblock_name),
+                grade_level=F(grade_level_name),
+                sis_id=F('section_id'),
+                sis_user_id=F('user_id'),
+                sis_term_id=F(grading_period_string + '__term_id')
+            )
+            .distinct('section_id')
+            .values(
+            'sis_id', 'name', 'course_name',
+            'period', 'sis_user_id', 'grade_level', 'sis_term_id'
+        ))
 
     @classmethod
     def get_current_staff_section_records_for_staff_id(cls, staff_id):
         return (cls.get_current_sections_for_staff_id(staff_id)
-            .annotate(sis_section_id=F('section_id'))
-            .values('sis_user_id', 'sis_section_id', 'primary_teacher',
-                    'start_date', 'end_date'))
+                .annotate(sis_section_id=F('section_id'))
+                .values('sis_user_id', 'sis_section_id', 'primary_teacher',
+                        'start_date', 'end_date'))
 
 
-class SsCube(models.Model):
-    site = models.ForeignKey(Sites, primary_key=True)
-    academic_year = models.IntegerField(blank=True, primary_key=True)
-    grade_level = models.ForeignKey(GradeLevels, primary_key=True)
-    user = models.ForeignKey(Users, primary_key=True)
-    section = models.ForeignKey(Sections, primary_key=True)
-    course = models.ForeignKey(Courses, primary_key=True)
-    student = models.ForeignKey(Students, primary_key=True)
-    entry_date = models.DateField(blank=True, primary_key=True)
-    leave_date = models.DateField(blank=True, primary_key=True)
-    is_primary_teacher = models.NullBooleanField()
+class SectionTeacherAff(TeacherSectionsMixin, models.Model):
+    sta_id = models.IntegerField(primary_key=True)
+    section = models.ForeignKey(Sections)
+    user = models.ForeignKey(Users)
+    primary_teacher = models.NullBooleanField()
+    start_date = models.DateField()
+    end_date = models.DateField(blank=True, null=True)
+    classroom_role_id = models.IntegerField(blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = with_schema(MATVIEWS_SCHEMA, 'ss_cube')
+        db_table = 'section_teacher_aff'
+
+
+class SectionTeacherAffDates(TeacherSectionsMixin, models.Model):
+    sta = models.ForeignKey(SectionTeacherAff, null=True)
+    section = models.ForeignKey(Sections, null=True)
+    user = models.ForeignKey(Users, null=True)
+    primary_teacher = models.NullBooleanField()
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'section_teacher_aff_dates'
+
+
+class ScheduleSectionTeacherAffDates(models.Model):
+    # View
+    sta = models.ForeignKey(SectionTeacherAff, primary_key=True)
+    section = models.ForeignKey(Sections, primary_key=True)
+    schedule = models.ForeignKey(Schedules, primary_key=True)
+    user = models.ForeignKey(Users, primary_key=True)
+    primary_teacher = models.NullBooleanField()
+    highly_qualified_teacher = models.CharField(max_length=1, blank=True, null=True)
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'schedule_section_teacher_aff_dates'
 
     @classmethod
-    def get_current_students_for_staff_id(cls, staff_id):
-        section_ids = (Sections.get_current_sections_for_staff_id(staff_id)
-                               .values('section_id'))
+    def get_current_sections_for_staff_id(cls, staff_id):
+
+        grading_period_string = "__".join([
+            "section", "sectiongradingperiodaff", "grading_period"
+        ])
+
+        course_string = "__".join([
+            "section",
+            "gradebooksectioncourseaff",
+            "course",
+        ])
+
+        course_short_name = course_string + "__short_name"
+
+        grade_level_name = "__".join([
+            course_string,
+            "coursegradelevels",
+            "grade_level",
+            "short_name"
+        ])
+
+        timeblock_name = "__".join([
+            "section",
+            "sectiontimeblockaff",
+            "timeblock",
+            "timeblock_name"
+        ])
+
+        now = timezone.now()
 
         return (cls.objects
-                    .filter(section_id__in=section_ids,
-                           user_id=staff_id)
-                    .annotate(
-                        sis_id=F('student_id'),
-                        first_name=F('student__first_name'),
-                        last_name=F('student__last_name'))
-                    .distinct('student_id')
-                    .values('sis_id', 'first_name', 'last_name')
+            .filter(
+                user_id=staff_id,
+                start_date__lte=now,
+                end_date__gte=now
+            )
+            .annotate(
+                name=F('section__section_name'),
+                course_name=F(course_short_name),
+                period=F(timeblock_name),
+                grade_level=F(grade_level_name),
+                sis_id=F('section_id'),
+                sis_user_id=F('user_id'),
+                sis_term_id=F(grading_period_string + '__term_id')
         )
+            .distinct('section_id', grade_level_name)
+            .values(
+            'sis_id', 'name', 'course_name',
+            'period', 'sis_user_id', 'grade_level', 'sis_term_id'
+        ))
 
-
-class SsCurrent(models.Model):
-    student = models.ForeignKey(Students, primary_key=True)
-    site = models.ForeignKey(Sites, primary_key=True)
-    grade_level = models.ForeignKey(GradeLevels, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = with_schema(MATVIEWS_SCHEMA, 'ss_current')
+    @classmethod
+    def get_current_staff_section_records_for_staff_id(cls, staff_id):
+        return (cls.get_current_sections_for_staff_id(staff_id)
+                .annotate(sis_section_id=F('section_id'))
+                .values('sis_user_id', 'sis_section_id', 'primary_teacher',
+                        'start_date', 'end_date'))
 
 
 class Roles(models.Model):
@@ -1215,6 +904,466 @@ class SectionTimeblockAff(models.Model):
         db_table = 'section_timeblock_aff'
 
 
+class GradingPeriods(models.Model):
+    grading_period_id = models.IntegerField(primary_key=True)
+    grading_period_name = models.CharField(max_length=200)
+    term = models.ForeignKey(Terms)
+    grading_window_start_date = models.DateField(blank=True, null=True)
+    grading_window_end_date = models.DateField(blank=True, null=True)
+    grading_period_start_date = models.DateField(blank=True, null=True)
+    grading_period_end_date = models.DateField(blank=True, null=True)
+    grading_window_start_date_overwrite = models.DateField(blank=True, null=True)
+    grading_window_end_date_overwrite = models.DateField(blank=True, null=True)
+    is_end_of_term = models.BooleanField()
+    is_k6_report_card = models.NullBooleanField()
+    disable_gpa = models.BooleanField()
+    grading_period_num = models.IntegerField(blank=True, null=True)
+    term_type = models.IntegerField(blank=True, null=True)
+    track_id = models.IntegerField(blank=True, null=True)
+    report_card_snapshot_date = models.DateField(blank=True, null=True)
+
+    @classmethod
+    def get_all_current_grading_periods(cls, date=None, site_id=None):
+        if not date:
+            date = timezone.now().date()
+
+        grading_periods = (cls.objects
+                           .filter(grading_period_start_date__lte=date,
+                                   grading_period_end_date__gte=date))
+        if not site_id:
+            return grading_periods.all()
+
+        return grading_periods.filter(term__session__site_id=site_id).all()
+
+    class Meta:
+        managed = False
+        db_table = 'grading_periods'
+
+
+class SectionGradingPeriodAff(models.Model):
+    sgpa_id = models.IntegerField(primary_key=True)
+    section = models.ForeignKey(Sections)
+    course = models.ForeignKey(Courses)
+    grading_period = models.ForeignKey(GradingPeriods)
+    is_published = models.BooleanField()
+
+    class Meta:
+        managed = False
+        db_table = 'section_grading_period_aff'
+
+
+# Schema: attendance
+
+
+class AttendanceFlags(models.Model):
+    attendance_flag_id = models.AutoField(primary_key=True)
+    character_code = models.CharField(max_length=30)
+    flag_text = models.CharField(max_length=255, blank=True, null=True)
+    precedence = models.IntegerField()
+    is_present = models.BooleanField()
+    is_excused = models.BooleanField()
+    display_code = models.CharField(max_length=100)
+    is_reconciled = models.BooleanField()
+    is_tardy = models.BooleanField()
+    trigger_truancy = models.BooleanField()
+    trigger_tardy = models.BooleanField()
+    trigger_irregular = models.BooleanField()
+    is_30min_tardy = models.BooleanField()
+    system_key = models.CharField(max_length=255, blank=True, null=True)
+    is_permissive = models.BooleanField()
+    is_truancy = models.BooleanField()
+    is_suspension = models.BooleanField()
+    is_verified = models.BooleanField()
+    attendance_flag_type_id = models.IntegerField()
+    attendance_program_set_id = models.IntegerField(blank=True, null=True)
+    is_apportioned = models.BooleanField()
+    apportionment = models.DecimalField(max_digits=4, decimal_places=3)
+    apportionment_secondary_flag_type_id = models.IntegerField()
+
+    class Meta:
+        managed = False
+        db_table = with_schema(ATTENDANCE_SCHEMA, 'attendance_flags')
+
+
+class DailyRecords(models.Model):
+    attendance_flag = models.ForeignKey(AttendanceFlags,
+                                        db_column='attendance_flag_id')
+    student = models.ForeignKey(Students, primary_key=True)
+    site = models.ForeignKey(Sites, primary_key=True)
+    date = models.DateField(primary_key=True)
+
+    @classmethod
+    def pull_query(cls):
+        return cls.objects.filter(date__gte='2017-08-01')
+
+    class Meta:
+        managed = False
+        db_table = with_schema(ATTENDANCE_SCHEMA, 'daily_records')
+
+
+# Schema: matviews
+
+class SsCube(models.Model):
+    site = models.ForeignKey(Sites, primary_key=True)
+    academic_year = models.IntegerField(blank=True, primary_key=True)
+    grade_level = models.ForeignKey(GradeLevels, primary_key=True)
+    user = models.ForeignKey(Users, primary_key=True)
+    section = models.ForeignKey(Sections, primary_key=True)
+    course = models.ForeignKey(Courses, primary_key=True)
+    student = models.ForeignKey(Students, primary_key=True)
+    entry_date = models.DateField(blank=True, primary_key=True)
+    leave_date = models.DateField(blank=True, primary_key=True)
+    is_primary_teacher = models.NullBooleanField()
+
+    class Meta:
+        managed = False
+        db_table = with_schema(MATVIEWS_SCHEMA, 'ss_cube')
+
+    @classmethod
+    def get_current_students_for_staff_id(cls, staff_id):
+        section_ids = (Sections.get_current_sections_for_staff_id(staff_id)
+                               .values('section_id'))
+
+        return (cls.objects
+                    .filter(section_id__in=section_ids,
+                           user_id=staff_id)
+                    .annotate(
+                        sis_id=F('student_id'),
+                        first_name=F('student__first_name'),
+                        last_name=F('student__last_name'))
+                    .distinct('student_id')
+                    .values('sis_id', 'first_name', 'last_name')
+        )
+
+
+class SsCurrent(models.Model):
+    student = models.ForeignKey(Students, primary_key=True)
+    site = models.ForeignKey(Sites, primary_key=True)
+    grade_level = models.ForeignKey(GradeLevels, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = with_schema(MATVIEWS_SCHEMA, 'ss_current')
+
+
+# Schema: gradebook
+
+
+class CategoryTypes(models.Model):
+    category_type_id = models.IntegerField(primary_key=True)
+    category_type_name = models.CharField(max_length=255)
+    is_academic = models.BooleanField()
+
+    class Meta:
+        managed = False
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'category_types')
+
+
+class Categories(models.Model):
+    category_id = models.IntegerField(primary_key=True)
+    category_name = models.CharField(max_length=255)
+    icon = models.CharField(max_length=255)
+    gradebook_id = models.IntegerField(blank=True, null=True)
+    weight = models.FloatField(blank=True, null=True)
+    category_type_id = models.IntegerField(blank=True, null=True)
+    session_id = models.IntegerField(blank=True, null=True)
+    max_pct = models.FloatField(blank=True, null=True)
+    drop_lowest_x_scores = models.IntegerField()
+
+    class Meta:
+        managed = False
+        db_table = with_schema('gradebook', 'categories')
+
+    @classmethod
+    def get_current_categories_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+            .get_current_gradebooks_for_staff_id(staff_id)
+            .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .distinct('category_id')
+                .annotate(sis_id=F('category_id'),
+                          name=F('category_name'),
+                          sis_gradebook_id=F('gradebook_id'))
+                .values('sis_id', 'name', 'sis_gradebook_id')
+                )
+
+
+class Gradebooks(models.Model):
+    gradebook_id = models.IntegerField(primary_key=True)
+    created_on = models.DateTimeField()
+    created_by = models.ForeignKey(Users, db_column='created_by')
+    show_inactive_students = models.BooleanField()
+    auto_save_mins = models.IntegerField(blank=True, null=True)
+    gradebook_name = models.CharField(max_length=255, blank=True, null=True)
+    num_visible_assignments = models.IntegerField()
+    lock_published_gp = models.BooleanField()
+    parent_portal = models.BooleanField()
+    active = models.BooleanField()
+    version = models.IntegerField()
+    academic_year = models.IntegerField()
+    session_type_id = models.IntegerField()
+    is_deleted = models.BooleanField()
+
+    def __str__(self):
+        return self.gradebook_name or str(self.gradebook_id)
+
+    @staticmethod
+    def get_current_gradebooks_for_staff_id(staff_id):
+        """Convenience method"""
+        return GradebookSectionCourseAff\
+            .get_current_gradebooks_for_staff_id(staff_id)
+
+    class Meta:
+        managed = False
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'gradebooks')
+
+
+class GradebookSectionCourseAff(models.Model):
+    gsca_id = models.IntegerField(primary_key=True)
+    gradebook = models.ForeignKey(Gradebooks)
+    section = models.ForeignKey(Sections)
+    course = models.ForeignKey(Courses)
+    created = models.DateTimeField(blank=True, null=True)
+    modified = models.DateTimeField(blank=True, null=True)
+    user = models.ForeignKey(Users)
+
+    def __str__(self):
+        return f"{self.gradebook} - {self.section} - {self.course}"
+
+    @classmethod
+    def get_current_gradebooks_qs(cls):
+        gradebook_date_filter_string = "__".join([
+            "section",
+            "sectiongradingperiodaff",
+            "grading_period"
+        ])
+
+        gp_start_date = "__".join([
+            gradebook_date_filter_string, "grading_period_start_date", "lte"])
+        gp_end_date = "__".join([
+            gradebook_date_filter_string, "grading_period_end_date", "gte"])
+
+        now = timezone.now()
+
+        gsca_filter = {
+            gp_start_date: now,
+            gp_end_date: now,
+        }
+
+        return cls.objects.filter(**gsca_filter)
+
+    @classmethod
+    def get_current_gradebooks_for_staff_id(cls, staff_id):
+        teacher_filter_string = "__".join([
+            "section",
+            "sectionteacheraff",
+        ])
+
+        sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
+        sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
+        sta_end_date_null = "__".join(
+            [teacher_filter_string, "end_date", "isnull"])
+        sta_user = "__".join([teacher_filter_string, "user_id"])
+
+        now = timezone.now()
+
+        gsca_filter = {
+            sta_start_date: now,
+            sta_user: staff_id
+        }
+
+        return (
+            cls.get_current_gradebooks_qs()
+                .filter(**gsca_filter)
+                .filter(
+                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
+            )
+                .distinct('gradebook_id')
+                .annotate(
+                    name=F('gradebook__gradebook_name'),
+                    sis_id=F('gradebook_id'),
+                    sis_section_id=F('section_id'),
+                    sis_user_id=F('user_id')
+                )
+                .values('sis_id', 'name',
+                        'sis_user_id', 'sis_section_id')
+        )
+
+    class Meta:
+        managed = False
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'gradebook_section_course_aff')
+
+
+class OverallScoreCache(models.Model):
+    cache_id = models.AutoField(primary_key=True)
+    student = models.ForeignKey(Students)
+    gradebook = models.ForeignKey(Gradebooks)
+    possible_points = models.FloatField(blank=True, null=True)
+    points_earned = models.FloatField(blank=True, null=True)
+    percentage = models.FloatField(blank=True, null=True)
+    mark = models.CharField(max_length=255, blank=True, null=True)
+    color = models.CharField(max_length=7, blank=True, null=True)
+    missing_count = models.IntegerField(blank=True, null=True)
+    assignment_count = models.IntegerField(blank=True, null=True)
+    zero_count = models.IntegerField(blank=True, null=True)
+    excused_count = models.IntegerField(blank=True, null=True)
+    timeframe_start_date = models.DateField()
+    timeframe_end_date = models.DateField()
+    calculated_at = models.DateTimeField()
+
+    @classmethod
+    def pull_query(cls):
+        return (cls.objects.filter(calculated_at__gte='2017-08-01')
+                .exclude(possible_points__isnull=True)
+                .order_by('gradebook_id', 'student_id', '-calculated_at')
+                .distinct('gradebook_id', 'student_id'))
+
+    def __str__(self):
+        return f"{self.student} grades for {self.gradebook}'"
+
+    class Meta:
+        managed = False
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'overall_score_cache')
+
+
+class Assignments(models.Model):
+    assignment_id = models.IntegerField(primary_key=True)
+    short_name = models.CharField(max_length=100)
+    long_name = models.CharField(max_length=255, blank=True, null=True)
+    assign_date = models.DateField()
+    due_date = models.DateField()
+    possible_points = models.FloatField(blank=True, null=True)
+    category = models.ForeignKey(Categories, blank=True, null=True)
+    is_active = models.BooleanField()
+    description = models.TextField(blank=True, null=True)
+    field_grading_period_id = models.IntegerField(db_column='_grading_period_id', blank=True, null=True)  # Field renamed because it started with '_'.
+    auto_score_type = models.IntegerField(blank=True, null=True)
+    auto_score_id = models.IntegerField(blank=True, null=True)
+    possible_score = models.FloatField(blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebooks, blank=True, null=True)
+    last_modified_by = models.IntegerField(blank=True, null=True)
+    is_extra_credit = models.BooleanField()
+    tags = models.TextField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'assignments')
+
+    @classmethod
+    def get_current_assignments_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+                         .get_current_gradebooks_for_staff_id(staff_id)
+                         .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .annotate(sis_id=F('assignment_id'),
+                          name=F('short_name'),
+                          sis_gradebook_id=F('gradebook_id'),
+                          sis_category_id=F('category_id'))
+                .values('sis_id', 'name', 'due_date',
+                        'sis_gradebook_id', 'sis_category_id',
+                        'possible_points', 'is_active'))
+
+
+class AssignmentGscaAff(models.Model):
+    aga_id = models.IntegerField(primary_key=True)
+    assignment = models.ForeignKey(Assignments)
+    gsca = models.ForeignKey(GradebookSectionCourseAff)
+
+    class Meta:
+        managed = False
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'assignment_gsca_aff')
+
+
+class Scores(models.Model):
+    score_id = models.IntegerField(primary_key=True)
+    field_ssa_id = models.IntegerField(db_column='_ssa_id', blank=True, null=True)  # Field renamed because it started with '_'.
+    assignment = models.ForeignKey(Assignments)
+    value = models.FloatField(blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebooks)
+    is_excused = models.BooleanField()
+    notes = models.TextField(blank=True, null=True)
+    entry = models.CharField(max_length=255, blank=True, null=True)
+    is_valid = models.BooleanField()
+    created = models.DateTimeField(blank=True, null=True)
+    modified = models.DateTimeField(blank=True, null=True)
+    student = models.ForeignKey(Students)
+
+    def __str__(self):
+        return f"Student: {self.student_id}, " +\
+               f"Gradebook: {self.gradebook_id}, " +\
+               f"Assignment: {self.assignment_id}"
+
+    class Meta:
+        managed = False
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'scores')
+
+
+class ScoreCache(models.Model):
+    cache_id = models.AutoField(primary_key=True)
+    student = models.ForeignKey(Students, blank=True, null=True)
+    gradebook = models.ForeignKey(Gradebooks, blank=True, null=True)
+    assignment = models.ForeignKey(Assignments, blank=True, null=True)
+    category = models.ForeignKey(Categories, blank=True, null=True)
+    is_excused = models.NullBooleanField()
+    is_missing = models.NullBooleanField()
+    points = models.FloatField(blank=True, null=True)
+    score = models.FloatField(blank=True, null=True)
+    percentage = models.FloatField(blank=True, null=True)
+    use_for_calc = models.NullBooleanField()
+    use_for_aggregate = models.NullBooleanField()
+    use_category_weights = models.NullBooleanField()
+    last_updated = models.DateTimeField(blank=True, null=True)
+    calculated_at = models.DateTimeField()
+    gs_id = models.IntegerField(blank=True, null=True)
+    eva_id = models.IntegerField(blank=True, null=True)
+
+    @classmethod
+    def pull_query(cls):
+        return (cls.objects
+                .filter(calculated_at__gte=timezone.datetime(2018, 3, 1))
+                .filter(assignment__assign_date__gte=timezone.datetime(2018,7,1))
+                .exclude(score__isnull=True)
+                .order_by('student_id', 'assignment_id', '-calculated_at')
+                .distinct('student_id', 'assignment_id')
+                .all())
+
+    @classmethod
+    def get_current_scores_for_staff_id(cls, staff_id):
+        gradebook_ids = (Gradebooks
+                         .get_current_gradebooks_for_staff_id(staff_id)
+                         .values('gradebook_id'))
+
+        return (cls.objects
+                .filter(gradebook_id__in=gradebook_ids)
+                .exclude(is_excused=False,
+                         points__isnull=True)
+                .annotate(sis_id=F('cache_id'),
+                          sis_student_id=F('student_id'),
+                          sis_assignment_id=F('assignment_id'),
+                          )
+                .values('sis_id', 'sis_student_id', 'sis_assignment_id',
+                        'score', 'points', 'is_missing', 'is_excused',
+                        'last_updated'))
+
+    def __str__(self):
+        return f"S:{self.student_id}, " \
+               f"C:{self.category_id}, " \
+               f"A:{self.assignment_id} | " \
+               f"pts:{self.points}, " \
+               f"scr:{self.score}, " \
+               f"%: {self.percentage} | " \
+               f"{'E' if self.is_excused else ''}" \
+               f"{'M' if self.is_excused else ''}"
+
+    class Meta:
+        managed = False
+        db_table = with_schema(GRADEBOOK_SCHEMA, 'score_cache')
+
+
 class CategoryScoreCache(models.Model):
     cache_id = models.AutoField(primary_key=True)
     student = models.ForeignKey(Students)
@@ -1248,6 +1397,8 @@ class CategoryScoreCache(models.Model):
                 .distinct('category_id', 'student_id')
                 )
 
+
+# Schema: standards
 
 class Standards(models.Model):
     standard_id = models.IntegerField(primary_key=True)
@@ -1326,51 +1477,3 @@ class Subjects(models.Model):
     class Meta:
         managed = False
         db_table = with_schema(STANDARDS_SCHEMA, 'subjects')
-
-
-class GradingPeriods(models.Model):
-    grading_period_id = models.IntegerField(primary_key=True)
-    grading_period_name = models.CharField(max_length=200)
-    term = models.ForeignKey(Terms)
-    grading_window_start_date = models.DateField(blank=True, null=True)
-    grading_window_end_date = models.DateField(blank=True, null=True)
-    grading_period_start_date = models.DateField(blank=True, null=True)
-    grading_period_end_date = models.DateField(blank=True, null=True)
-    grading_window_start_date_overwrite = models.DateField(blank=True, null=True)
-    grading_window_end_date_overwrite = models.DateField(blank=True, null=True)
-    is_end_of_term = models.BooleanField()
-    is_k6_report_card = models.NullBooleanField()
-    disable_gpa = models.BooleanField()
-    grading_period_num = models.IntegerField(blank=True, null=True)
-    term_type = models.IntegerField(blank=True, null=True)
-    track_id = models.IntegerField(blank=True, null=True)
-    report_card_snapshot_date = models.DateField(blank=True, null=True)
-
-    @classmethod
-    def get_all_current_grading_periods(cls, date=None, site_id=None):
-        if not date:
-            date = timezone.now().date()
-
-        grading_periods = (cls.objects
-                           .filter(grading_period_start_date__lte=date,
-                                   grading_period_end_date__gte=date))
-        if not site_id:
-            return grading_periods.all()
-
-        return grading_periods.filter(term__session__site_id=site_id).all()
-
-    class Meta:
-        managed = False
-        db_table = 'grading_periods'
-
-
-class SectionGradingPeriodAff(models.Model):
-    sgpa_id = models.IntegerField(primary_key=True)
-    section = models.ForeignKey(Sections)
-    course = models.ForeignKey(Courses)
-    grading_period = models.ForeignKey(GradingPeriods)
-    is_published = models.BooleanField()
-
-    class Meta:
-        managed = False
-        db_table = 'section_grading_period_aff'
