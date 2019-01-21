@@ -51,7 +51,7 @@ class Command(BaseCommand):
                                 tables=tables, exclude_tables=exclude_tables)
 
         self.stdout.write(self.style.SUCCESS(
-            f"Completed update {'with schema' if schemafile_name else ''}."
+            f"Completed update{' with schema' if schemafile_name else ''}."
         ))
 
     def _update_schema(self, schemafile_name, localdb):
