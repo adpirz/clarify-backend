@@ -296,7 +296,7 @@ class Sync:
 
                         if (isinstance(new_instance, Gradebook) and
                            not new_instance.owners.filter(sis_id=source_id).exists()):
-                            new_instance.owners.add(source_id)
+                            new_instance.owners.add(staff)
 
                         if (isinstance(new_instance, Section) and
                                 not new_instance.sectiongradelevels_set.exists()
