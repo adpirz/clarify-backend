@@ -1156,30 +1156,17 @@ class GradebookSectionCourseAff(models.Model):
 
     @classmethod
     def get_current_gradebooks_for_staff_id(cls, staff_id):
-        teacher_filter_string = "__".join([
-            "section",
-            "sectionteacheraff",
-        ])
 
-        sta_start_date = "__".join([teacher_filter_string, "start_date", "lte"])
-        sta_end_date_gte = "__".join([teacher_filter_string, "end_date", "gte"])
-        sta_end_date_null = "__".join(
-            [teacher_filter_string, "end_date", "isnull"])
-        sta_user = "__".join([teacher_filter_string, "user_id"])
-
-        now = timezone.now()
-
-        gsca_filter = {
-            sta_start_date: now,
-            sta_user: staff_id
-        }
+        current_sections_for_staff_id = (
+            Sections
+                .get_current_sections_for_staff_id(staff_id)
+                .values_list('section_id', flat=True)
+        )
 
         return (
-            cls.get_current_gradebooks_qs()
-                .filter(**gsca_filter)
-                .filter(
-                Q(**{sta_end_date_gte: now}) | Q(**{sta_end_date_null: True})
-            )
+            cls.objects.filter(
+                    section_id__in=current_sections_for_staff_id
+                )
                 .distinct('gradebook_id')
                 .annotate(
                     name=F('gradebook__gradebook_name'),
