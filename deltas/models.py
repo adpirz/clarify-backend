@@ -85,7 +85,7 @@ class Delta(models.Model):
         }
 
         if delta_type and delta_type in ['missing', 'category']:
-            filters = {'type': delta_type}
+            filters['type'] = delta_type
 
         if student_id:
             filters = {'student_id': student_id}
@@ -118,7 +118,6 @@ class Delta(models.Model):
                 "context_record",
                 "context_record__category"
             ]
-
         return (queryset
                     .filter(**filters)
                     .prefetch_related(*prefetch_list)
