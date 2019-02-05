@@ -146,7 +146,7 @@ class Action(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
     updated_on = models.DateTimeField(auto_now=True)
     note = models.TextField(blank=True)
-    public = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.student.id}: {self.type}"

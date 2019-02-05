@@ -289,7 +289,7 @@ def ActionView(request, requesting_user_profile, action_id=None):
             'created_on': action.created_on,
             'updated_on': action.updated_on,
             'note': action.note,
-            'public': action.public,
+            'is_public': action.is_public,
         }
     if request.method == 'GET':
         staff_students = (requesting_user_profile
@@ -302,7 +302,7 @@ def ActionView(request, requesting_user_profile, action_id=None):
                 .prefetch_related('deltas')
                 .annotate(user_first_name=F('created_by__user__first_name'),
                           user_last_name=F('created_by__user__last_name'))
-                .filter(Q(created_by=requesting_user_profile) | Q(public=True))
+                .filter(Q(created_by=requesting_user_profile) | Q(is_public=True))
         )
 
         return JsonResponse({'data': [_shape(action) for action in student_actions]})
@@ -344,7 +344,7 @@ def ActionView(request, requesting_user_profile, action_id=None):
                         student=target_student,
                         note=parsed_post.get('note'),
                         created_by=requesting_user_profile,
-                        public=bool(parsed_post.get('public'))))
+                        is_public=bool(parsed_post.get('is_public'))))
 
         due_on = parsed_post.get('due_on')
         completed_on = parsed_post.get('completed_on')
