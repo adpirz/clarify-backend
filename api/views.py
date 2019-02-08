@@ -49,7 +49,6 @@ def UserView(request):
 @csrf_exempt
 @require_methods("POST")
 def LeadView(request):
-    import pdb; pdb.set_trace()
     parseable_post = request.body.decode('utf8').replace("'", '"')
     parsed_post = loads(parseable_post)
     incoming_email = parsed_post.get('incoming_email')
