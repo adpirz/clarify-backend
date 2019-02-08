@@ -337,3 +337,10 @@ class Score(SISMixin):
                f"Pts:{self.points}" \
                f"{'| M' if self.is_missing else ''}" \
                f"{'| E' if self.is_excused else ''}"
+
+
+class LeadEmail(models.Model):
+    email = models.CharField(max_length=50, null=True, blank=True)
+
+    def __str__(self):
+        return self.email

@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import login
 from django.contrib import messages
 
-from .models import UserProfile, Student, Term, Site, Section
+from .models import UserProfile, Student, Term, Site, Section, LeadEmail
 # Register your models here.
 
 
@@ -27,6 +27,10 @@ class TermAdmin(admin.ModelAdmin):
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(LeadEmail)
+class LeadEmailAdmin(admin.ModelAdmin):
     pass
 
 class UserAdmin(admin.ModelAdmin):

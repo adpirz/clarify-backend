@@ -6,7 +6,7 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 from django.conf.urls import url
 from .views import (
     StudentView, SectionView, SessionView,
-    UserView, ActionView, DeltaView, PasswordResetView)
+    UserView, ActionView, DeltaView, PasswordResetView, LeadView)
 
 from clarify.views import CleverTokenView, GoogleTokenView
 
@@ -22,4 +22,5 @@ urlpatterns = [
     url(r'^action/([0-9]+)/$', ActionView),
     url(r'^clever-sync/$', CleverTokenView),
     url(r'^google-classroom-sync/$', GoogleTokenView),
+    url(r'^demo-signup/$', LeadView),
 ]

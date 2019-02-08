@@ -19,7 +19,7 @@ from sendgrid import sendgrid
 
 from clarify_backend.utils import build_reset_email, word_hash
 from clarify.models import Student, Section, EnrollmentRecord, \
-    StaffSectionRecord, UserProfile
+    StaffSectionRecord, UserProfile, LeadEmail
 from deltas.models import Action, Delta
 from clarify_backend.utils import get_academic_year
 
@@ -45,6 +45,19 @@ def UserView(request):
         response["data"]["prefix"] = user.userprofile.get_prefix_display()
     return JsonResponse(response)
 
+
+@csrf_exempt
+@require_methods("POST")
+def LeadView(request):
+    import pdb; pdb.set_trace()
+    parseable_post = request.body.decode('utf8').replace("'", '"')
+    parsed_post = loads(parseable_post)
+    incoming_email = parsed_post.get('incoming_email')
+    if incoming_email:
+        LeadEmail.objects.create(email=incoming_email)
+        return JsonResponse({'message': 'success'}, status=201)
+    else:
+        return JsonResponse({'message': 'something went wrong 🤷‍'}, status=400)
 
 @login_required
 @require_methods("GET")
