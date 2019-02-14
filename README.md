@@ -1,3 +1,6 @@
+## ⚠️ This is a mirror of Clarify's backend ⚠️
+### Canonical repo belongs to `team-clarify`
+
 # Clarify (Backend)
 
 Clarify is data for made easy for schools. The backend runs Django, see below for other packages included:
